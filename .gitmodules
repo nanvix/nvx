@@ -1,0 +1,6 @@
+[submodule "contrib/microkernel"]
+	path = contrib/microkernel
+	url = https://github.com/nanvix/microkernel.git
+[submodule "utils"]
+	path = utils
+	url = https://github.com/nanvix/utils.git

@@ -1,0 +1,36 @@
+# Tools
+tools/dev/toolchain/
+
+# Doxygen
+doc/html
+doxygen.output
+
+# Build Files
+bin/
+lib/
+*.a
+*.img
+*.o
+
+# Output Files
+nanvix-cluster*
+
+# Ctags
+tags
+
+# HAL Headers
+include/arch/
+include/dev
+include/grub/
+include/machine/
+include/nanvix/cc.h
+include/nanvix/const.h
+include/nanvix/klib.h
+include/nanvix/hal/
+include/nanvix/kernel/
+include/posix
+
+# IDEs
+*.swp
+*.swo
+*.vscode/

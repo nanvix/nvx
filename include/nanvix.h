@@ -30,8 +30,8 @@
 #ifndef NANVIX_H_
 #define NANVIX_H_
 
-	#include <nanvix/syscall.h>
-	#include <nanvix/config.h>
+	#include <nanvix/kernel/syscall.h>
+	#include <nanvix/kernel/config.h>
 	#include <sys/types.h>
 	#include <stdbool.h>
 	#include <stdint.h>

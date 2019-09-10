@@ -425,10 +425,13 @@ static struct test mailbox_tests_api[] = {
  */
 static struct test mailbox_tests_fault[] = {
 	{ test_fault_mailbox_invalid_create,    "[test][mailbox][fault] mailbox invalid create    [passed]\n" },
+	{ test_fault_mailbox_bad_create,        "[test][mailbox][fault] mailbox bad create        [passed]\n" },
 	{ test_fault_mailbox_invalid_unlink,    "[test][mailbox][fault] mailbox invalid unlink    [passed]\n" },
 	{ test_fault_mailbox_double_unlink,     "[test][mailbox][fault] mailbox double unlink     [passed]\n" },
 	{ test_fault_mailbox_invalid_open,      "[test][mailbox][fault] mailbox invalid open      [passed]\n" },
+	{ test_fault_mailbox_bad_open,          "[test][mailbox][fault] mailbox bad open          [passed]\n" },
 	{ test_fault_mailbox_invalid_close,     "[test][mailbox][fault] mailbox invalid close     [passed]\n" },
+	{ test_fault_mailbox_double_close,      "[test][mailbox][fault] mailbox double close      [passed]\n" },
 	{ test_fault_mailbox_bad_close,         "[test][mailbox][fault] mailbox bad close         [passed]\n" },
 	{ test_fault_mailbox_invalid_read,      "[test][mailbox][fault] mailbox invalid read      [passed]\n" },
 	{ test_fault_mailbox_invalid_read_size, "[test][mailbox][fault] mailbox invalid read size [passed]\n" },

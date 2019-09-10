@@ -36,22 +36,127 @@
 	#include <stdint.h>
 
 	/**
-	 * @name Portal Kernel Calls
+	 * @brief Creates a portal.
 	 *
-	 * @todo TODO: provide description for these functions.
+	 * @param local Logic ID of the Local Node.
+	 *
+	 * @returns Upon successful completion, the ID of a newly created
+	 * portal is returned. Upon failure, a negative error code is returned
+	 * instead.
 	 */
-	/**@{*/
-	extern int kportal_create(int);
-	extern int kportal_allow(int, int);
-	extern int kportal_open(int, int);
-	extern int kportal_unlink(int);
-	extern int kportal_close(int);
-	extern int kportal_awrite(int, const void *, size_t);
-	extern int kportal_write(int, const void *, size_t);
-	extern int kportal_aread(int, void *, size_t);
-	extern int kportal_read(int, void *, size_t);
-	extern int kportal_wait(int);
-	/**@}*/
+	extern int kportal_create(int local);
+
+	/**
+	 * @brief Enables read operations from a remote.
+	 *
+	 * @param portalid ID of the Target Portal.
+	 * @param remote   Logic ID of Target Node.
+	 *
+	 * @returns Upons successful completion zero is returned. Upon failure,
+	 * a negative error code is returned instead.
+	 */
+	extern int kportal_allow(int portalid, int remote);
+
+	/**
+	 * @brief Opens a portal.
+	 *
+	 * @param local  Logic ID of the local NoC node.
+	 * @param remote Logic ID of the target NoC node.
+	 *
+	 * @returns Upon successful completion, the ID of the target portal is
+	 * returned. Upon failure, a negative error code is returned instead.
+	 */
+	extern int kportal_open(int local, int remote);
+
+	/**
+	 * @brief Destroys a portal.
+	 *
+	 * @param portalid ID of the Target Portal.
+	 *
+	 * @returns Upon successful completion zero is returned. Upon failure, a
+	 * negative error code is returned instead.
+	 */
+	extern int kportal_unlink(int portalid);
+	
+	/**
+	 * @brief Closes a portal.
+	 *
+	 * @param portalid ID of the Target Portal.
+	 *
+	 * @returns Upon successful completion zero is returned. Upon failure, a
+	 * negative error code is returned instead.
+	 */
+	extern int kportal_close(int portalid);
+
+	/**
+	 * @brief Reads data from a portal.
+	 *
+	 * @param portalid ID of the Target Portal.
+	 * @param buffer   Location from where data should be written.
+	 * @param size     Number of bytes to read.
+	 *
+	 * @returns Upon successful completion, zero is returned. Upon
+	 * failure, a negative error code is returned instead.
+	 */
+	extern int kportal_read(int portalid, void * buffer, size_t size);
+
+	/**
+	 * @brief Reads data asynchronously from a portal.
+	 *
+	 * @param portalid ID of the Target Portal.
+	 * @param buffer   Location from where data should be written.
+	 * @param size     Number of bytes to read.
+	 *
+	 * @returns Upon successful completion, zero is returned. Upon
+	 * failure, a negative error code is returned instead.
+	 */
+	extern int kportal_aread(int portalid, void * buffer, size_t size);
+
+	/**
+	 * @brief Writes data to a portal.
+	 *
+	 * @param portalid ID of the Target Portal.
+	 * @param buffer   Location from where data should be read.
+	 * @param size     Number of bytes to write.
+	 *
+	 * @returns Upon successful, zero is returned. Upon failure, a
+	 * negative error code is returned instead.
+	 */
+	extern int kportal_awrite(int portalid, const void * buffer, size_t size);
+
+	/**
+	 * @brief Writes data asynchronously to a portal.
+	 *
+	 * @param portalid ID of the Target Portal.
+	 * @param buffer   Location from where data should be read.
+	 * @param size     Number of bytes to write.
+	 *
+	 * @returns Upon successful, zero is returned. Upon failure, a
+	 * negative error code is returned instead.
+	 */
+	extern int kportal_awrite(int portalid, const void * buffer, size_t size);
+
+	/**
+	 * @brief Waits for an asynchronous operation on a portal to complete.
+	 *
+	 * @param portalid ID of the Target Portal.
+	 *
+	 * @returns Upon successful completion, zero is returned. Upon
+	 * failure, a negative error code is returned instead.
+	 */
+	extern int kportal_wait(int portalid);
+
+	/**
+	 * @brief Performs control operations in a portal.
+	 *
+	 * @param mbxid   Target portal.
+	 * @param request Request.
+	 * @param ...     Additional arguments.
+	 *
+	 * @param Upon successful completion, zero is returned. Upon failure,
+	 * a negative error code is returned instead.
+	 */
+	extern int kportal_ioctl(int portalid, unsigned request, ...);
 
 #endif /* NANVIX_SYS_PORTAL_H_ */
 

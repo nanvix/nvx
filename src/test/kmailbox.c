@@ -80,6 +80,68 @@ static void test_api_mailbox_open_close(void)
 }
 
 /*============================================================================*
+ * API Test: Get volume                                                       *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Mailbox Get volume
+ */
+static void test_api_mailbox_get_volume(void)
+{
+	int local;
+	int remote;
+	int mbx_in;
+	int mbx_out;
+	size_t volume;
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((mbx_in = kmailbox_create(local)) >= 0);
+	test_assert((mbx_out = kmailbox_open(remote)) >= 0);
+
+		test_assert(kmailbox_ioctl(mbx_in, MAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
+		test_assert(volume == 0);
+
+		test_assert(kmailbox_ioctl(mbx_out, MAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
+		test_assert(volume == 0);
+
+	test_assert(kmailbox_close(mbx_out) == 0);
+	test_assert(kmailbox_unlink(mbx_in) == 0);
+}
+
+/*============================================================================*
+ * API Test: Get latency                                                      *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Mailbox Get latency
+ */
+static void test_api_mailbox_get_latency(void)
+{
+	int local;
+	int remote;
+	int mbx_in;
+	int mbx_out;
+	uint64_t latency;
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((mbx_in = kmailbox_create(local)) >= 0);
+	test_assert((mbx_out = kmailbox_open(remote)) >= 0);
+
+		test_assert(kmailbox_ioctl(mbx_in, MAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency == 0);
+
+		test_assert(kmailbox_ioctl(mbx_out, MAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency == 0);
+
+	test_assert(kmailbox_close(mbx_out) == 0);
+	test_assert(kmailbox_unlink(mbx_in) == 0);
+}
+
+/*============================================================================*
  * API Test: Read Write 2 CC                                                  *
  *============================================================================*/
 
@@ -92,6 +154,8 @@ static void test_api_mailbox_read_write(void)
 	int remote;
 	int mbx_in;
 	int mbx_out;
+	size_t volume;
+	uint64_t latency;
 	char message[MAILBOX_MSG_SIZE];
 
 	local  = knode_get_num();
@@ -99,6 +163,16 @@ static void test_api_mailbox_read_write(void)
 
 	test_assert((mbx_in = kmailbox_create(local)) >= 0);
 	test_assert((mbx_out = kmailbox_open(remote)) >= 0);
+
+	test_assert(kmailbox_ioctl(mbx_in, MAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == 0);
+	test_assert(kmailbox_ioctl(mbx_in, MAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency == 0);
+
+	test_assert(kmailbox_ioctl(mbx_out, MAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == 0);
+	test_assert(kmailbox_ioctl(mbx_out, MAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency == 0);
 
 	if (local == MASTER_NODENUM)
 	{
@@ -136,6 +210,16 @@ static void test_api_mailbox_read_write(void)
 			test_assert(kmailbox_wait(mbx_out) == 0);
 		}
 	}
+
+	test_assert(kmailbox_ioctl(mbx_in, MAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == (NITERATIONS * MAILBOX_MSG_SIZE));
+	test_assert(kmailbox_ioctl(mbx_in, MAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency > 0);
+
+	test_assert(kmailbox_ioctl(mbx_out, MAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == (NITERATIONS * MAILBOX_MSG_SIZE));
+	test_assert(kmailbox_ioctl(mbx_out, MAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency > 0);
 
 	test_assert(kmailbox_close(mbx_out) == 0);
 	test_assert(kmailbox_unlink(mbx_in) == 0);
@@ -407,6 +491,48 @@ static void test_fault_mailbox_bad_wait(void)
 }
 
 /*============================================================================*
+ * Fault Test: Invalid ioctl                                                  *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Invalid ioctl
+ */
+static void test_fault_mailbox_invalid_ioctl(void)
+{
+	int local;
+	int mbxid;
+	size_t volume;
+	uint64_t latency;
+
+	test_assert(kmailbox_ioctl(-1, MAILBOX_IOCTL_GET_VOLUME, &volume) == -EBADF);
+	test_assert(kmailbox_ioctl(-1, MAILBOX_IOCTL_GET_LATENCY, &latency) == -EBADF);
+	test_assert(kmailbox_ioctl(1000000, MAILBOX_IOCTL_GET_VOLUME, &volume) == -EBADF);
+	test_assert(kmailbox_ioctl(1000000, MAILBOX_IOCTL_GET_LATENCY, &latency) == -EBADF);
+
+	local = knode_get_num();
+
+	test_assert((mbxid = kmailbox_create(local)) >=  0);
+
+		test_assert(kmailbox_ioctl(mbxid, -1, &volume) == -ENOTSUP);
+
+	test_assert(kmailbox_unlink(mbxid) == 0);
+}
+
+/*============================================================================*
+ * Fault Test: Bad ioctl                                                      *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Bad ioctl
+ */
+static void test_fault_mailbox_bad_ioctl(void)
+{
+	size_t volume;
+
+	test_assert(kmailbox_ioctl(0, MAILBOX_IOCTL_GET_VOLUME, &volume) == -EBADF);
+}
+
+/*============================================================================*
  * Test Driver                                                                *
  *============================================================================*/
 
@@ -416,6 +542,8 @@ static void test_fault_mailbox_bad_wait(void)
 static struct test mailbox_tests_api[] = {
 	{ test_api_mailbox_create_unlink, "[test][mailbox][api] mailbox create unlink [passed]\n" },
 	{ test_api_mailbox_open_close,    "[test][mailbox][api] mailbox open close    [passed]\n" },
+	{ test_api_mailbox_get_volume,    "[test][mailbox][api] mailbox get volume    [passed]\n" },
+	{ test_api_mailbox_get_latency,   "[test][mailbox][api] mailbox get latency   [passed]\n" },
 	{ test_api_mailbox_read_write,    "[test][mailbox][api] mailbox read write    [passed]\n" },
 	{ NULL,                            NULL                                                   },
 };
@@ -439,6 +567,8 @@ static struct test mailbox_tests_fault[] = {
 	{ test_fault_mailbox_invalid_write,     "[test][mailbox][fault] mailbox invalid write     [passed]\n" },
 	{ test_fault_mailbox_bad_write,         "[test][mailbox][fault] mailbox bad write         [passed]\n" },
 	{ test_fault_mailbox_bad_wait,          "[test][mailbox][fault] mailbox bad wait          [passed]\n" },
+	{ test_fault_mailbox_invalid_ioctl,     "[test][mailbox][fault] mailbox invalid ioctl     [passed]\n" },
+	{ test_fault_mailbox_bad_ioctl,         "[test][mailbox][fault] mailbox bad ioctl         [passed]\n" },
 	{ NULL,                                  NULL                                                         },
 };
 

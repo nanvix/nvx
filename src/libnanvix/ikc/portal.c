@@ -40,7 +40,7 @@ int kportal_create(int local)
 	int ret;
 
 	/* Invalid local number for the requesting core ID. */
-	if (local != knode_get_num())
+	if (local == knode_get_num())
 		return (-EINVAL);
 
 	ret = kcall1(

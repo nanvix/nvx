@@ -89,6 +89,68 @@ static void test_api_portal_open_close(void)
 }
 
 /*============================================================================*
+ * API Test: Get volume                                                       *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Portal Get volume
+ */
+static void test_api_portal_get_volume(void)
+{
+	int local;
+	int remote;
+	int portal_in;
+	int portal_out;
+	size_t volume;
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((portal_in = kportal_create(local)) >= 0);
+	test_assert((portal_out = kportal_open(local, remote)) >= 0);
+
+		test_assert(kportal_ioctl(portal_in, PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+		test_assert(volume == 0);
+
+		test_assert(kportal_ioctl(portal_out, PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+		test_assert(volume == 0);
+
+	test_assert(kportal_close(portal_out) == 0);
+	test_assert(kportal_unlink(portal_in) == 0);
+}
+
+/*============================================================================*
+ * API Test: Get latency                                                      *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Portal Get latency
+ */
+static void test_api_portal_get_latency(void)
+{
+	int local;
+	int remote;
+	int portal_in;
+	int portal_out;
+	uint64_t latency;
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((portal_in = kportal_create(local)) >= 0);
+	test_assert((portal_out = kportal_open(local, remote)) >= 0);
+
+		test_assert(kportal_ioctl(portal_in, PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency == 0);
+
+		test_assert(kportal_ioctl(portal_out, PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency == 0);
+
+	test_assert(kportal_close(portal_out) == 0);
+	test_assert(kportal_unlink(portal_in) == 0);
+}
+
+/*============================================================================*
  * API Test: Read Write 2 CC                                                  *
  *============================================================================*/
 
@@ -101,6 +163,8 @@ static void test_api_portal_read_write(void)
 	int remote;
 	int portal_in;
 	int portal_out;
+	size_t volume;
+	uint64_t latency;
 	char message[MESSAGE_SIZE];
 
 	local  = knode_get_num();
@@ -110,6 +174,16 @@ static void test_api_portal_read_write(void)
 	test_assert((portal_out = kportal_open(local, remote)) >= 0);
 
 	test_assert(kportal_allow(portal_in, remote) == 0);
+
+	test_assert(kportal_ioctl(portal_in, PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == 0);
+	test_assert(kportal_ioctl(portal_in, PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency == 0);
+
+	test_assert(kportal_ioctl(portal_out, PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == 0);
+	test_assert(kportal_ioctl(portal_out, PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency == 0);
 
 	if (local == MASTER_NODENUM)
 	{
@@ -147,6 +221,16 @@ static void test_api_portal_read_write(void)
 				test_assert(message[j] == 2);
 		}
 	}
+
+	test_assert(kportal_ioctl(portal_in, PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == (NITERATIONS * MESSAGE_SIZE));
+	test_assert(kportal_ioctl(portal_in, PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency > 0);
+
+	test_assert(kportal_ioctl(portal_out, PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == (NITERATIONS * MESSAGE_SIZE));
+	test_assert(kportal_ioctl(portal_out, PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency > 0);
 
 	test_assert(kportal_close(portal_out) == 0);
 	test_assert(kportal_unlink(portal_in) == 0);
@@ -376,6 +460,48 @@ static void test_fault_portal_bad_wait(void)
 }
 
 /*============================================================================*
+ * Fault Test: Invalid ioctl                                                  *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Invalid ioctl
+ */
+static void test_fault_portal_invalid_ioctl(void)
+{
+	int local;
+	int portalid;
+	size_t volume;
+	uint64_t latency;
+
+	test_assert(kportal_ioctl(-1, PORTAL_IOCTL_GET_VOLUME, &volume) == -EBADF);
+	test_assert(kportal_ioctl(-1, PORTAL_IOCTL_GET_LATENCY, &latency) == -EBADF);
+	test_assert(kportal_ioctl(1000000, PORTAL_IOCTL_GET_VOLUME, &volume) == -EBADF);
+	test_assert(kportal_ioctl(1000000, PORTAL_IOCTL_GET_LATENCY, &latency) == -EBADF);
+
+	local = knode_get_num();
+
+	test_assert((portalid = kportal_create(local)) >=  0);
+
+		test_assert(kportal_ioctl(portalid, -1, &volume) == -ENOTSUP);
+
+	test_assert(kportal_unlink(portalid) == 0);
+}
+
+/*============================================================================*
+ * Fault Test: Bad ioctl                                                      *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Bad ioctl
+ */
+static void test_fault_portal_bad_ioctl(void)
+{
+	size_t volume;
+
+	test_assert(kportal_ioctl(0, PORTAL_IOCTL_GET_VOLUME, &volume) == -EBADF);
+}
+
+/*============================================================================*
  * Test Driver                                                                *
  *============================================================================*/
 
@@ -385,6 +511,8 @@ static void test_fault_portal_bad_wait(void)
 static struct test portal_tests_api[] = {
 	{ test_api_portal_create_unlink, "[test][portal][api] portal create unlink [passed]\n" },
 	{ test_api_portal_open_close,    "[test][portal][api] portal open close    [passed]\n" },
+	{ test_api_portal_read_write,    "[test][portal][api] portal read write    [passed]\n" },
+	{ test_api_portal_get_volume,    "[test][portal][api] portal get volume    [passed]\n" },
 	{ test_api_portal_read_write,    "[test][portal][api] portal read write    [passed]\n" },
 	{ NULL,                           NULL                                                 },
 };
@@ -405,6 +533,8 @@ static struct test portal_tests_fault[] = {
 	{ test_fault_portal_invalid_write,     "[test][portal][fault] portal invalid write     [passed]\n" },
 	{ test_fault_portal_bad_write,         "[test][portal][fault] portal bad write         [passed]\n" },
 	{ test_fault_portal_bad_wait,          "[test][portal][fault] portal bad wait          [passed]\n" },
+	{ test_fault_portal_invalid_ioctl,     "[test][portal][fault] portal invalid ioctl     [passed]\n" },
+	{ test_fault_portal_bad_ioctl,         "[test][portal][fault] portal bad ioctl         [passed]\n" },
 	{ NULL,                                 NULL                                                       },
 };
 

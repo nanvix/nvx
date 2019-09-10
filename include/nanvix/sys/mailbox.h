@@ -22,45 +22,32 @@
  * SOFTWARE.
  */
 
-#include <nanvix/kernel/kernel.h>
-#include <stdint.h>
-
 /**
- * @todo TODO provide a detailed description for this function.
+ * @addtogroup nanvix Nanvix System
  */
-PUBLIC int nanvix_perf_query(int event)
-{
-	return (perf_query(event));
-}
+/**@{*/
 
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC int nanvix_perf_start(int perf, int event)
-{
-	return (perf_start(perf, event));
-}
+#ifndef NANVIX_SYS_MAILBOX_H_
+#define NANVIX_SYS_MAILBOX_H_
 
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC int nanvix_perf_stop(int perf)
-{
-	return (perf_stop(perf));
-}
+	#include <nanvix/kernel/kernel.h>
+	#include <sys/types.h>
+	#include <stdbool.h>
+	#include <stdint.h>
 
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC int nanvix_perf_restart(int perf)
-{
-	return (perf_restart(perf));
-}
+	/**
+	 * @name Mailbox Kernel Calls
+	 */
+	/**@{*/
+	extern int kmailbox_create(int);
+	extern int kmailbox_open(int);
+	extern int kmailbox_unlink(int);
+	extern int kmailbox_close(int);
+	extern int kmailbox_awrite(int, const void *, size_t);
+	extern int kmailbox_aread(int, void *, size_t);
+	extern int kmailbox_wait(int);
+	/**@}*/
 
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC uint64_t nanvix_perf_read(int perf)
-{
-	return (perf_read(perf));
-}
+#endif /* NANVIX_SYS_MAILBOX_H_ */
+
+/**@}*/

@@ -22,9 +22,8 @@
  * SOFTWARE.
  */
 
-#include <nanvix/hal/hal.h>
-#include <nanvix.h>
-#include <errno.h>
+#include <nanvix/kernel/kernel.h>
+#include <posix/errno.h>
 
 #if __TARGET_HAS_SYNC
 
@@ -98,7 +97,7 @@ int ksync_create(const int *nodes, int nnodes, int type)
 	if ((nnodes < 2) || (nnodes > PROCESSOR_NOC_NODES_NUM))
 		return (-EINVAL);
 
-	nodenum = processor_node_get_num();
+	nodenum = processor_node_get_num(core_get_id());
 
 	/* Invalid type. */
 	if (type == SYNC_ONE_TO_ALL)
@@ -157,7 +156,7 @@ int ksync_open(const int *nodes, int nnodes, int type)
 	if ((nnodes < 2) || (nnodes > PROCESSOR_NOC_NODES_NUM))
 		return (-EINVAL);
 
-	nodenum = processor_node_get_num();
+	nodenum = processor_node_get_num(core_get_id());
 
 	/* Invalid type. */
 	if (type == SYNC_ONE_TO_ALL)

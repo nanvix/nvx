@@ -22,8 +22,9 @@
  * SOFTWARE.
  */
 
-#include <nanvix.h>
-#include <errno.h>
+#include <nanvix/kernel/kernel.h>
+#include <nanvix/sys/semaphore.h>
+#include <posix/errno.h>
 #include <stdbool.h>
 
 #if (CORES_NUM > 1)

@@ -23,7 +23,7 @@
  * SOFTWARE.
  */
 
-#include <nanvix.h>
+#include <nanvix/sys/signal.h>
 #include "test.h"
 
 /**

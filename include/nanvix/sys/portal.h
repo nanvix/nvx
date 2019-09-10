@@ -22,45 +22,33 @@
  * SOFTWARE.
  */
 
-#include <nanvix/kernel/kernel.h>
-#include <stdint.h>
-
 /**
- * @todo TODO provide a detailed description for this function.
+ * @addtogroup nanvix Nanvix System
  */
-PUBLIC int nanvix_perf_query(int event)
-{
-	return (perf_query(event));
-}
+/**@{*/
 
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC int nanvix_perf_start(int perf, int event)
-{
-	return (perf_start(perf, event));
-}
+#ifndef NANVIX_SYS_PORTAL_H_
+#define NANVIX_SYS_PORTAL_H_
 
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC int nanvix_perf_stop(int perf)
-{
-	return (perf_stop(perf));
-}
+	#include <nanvix/kernel/kernel.h>
+	#include <sys/types.h>
+	#include <stdbool.h>
+	#include <stdint.h>
 
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC int nanvix_perf_restart(int perf)
-{
-	return (perf_restart(perf));
-}
+	/**
+	 * @name Portal Kernel Calls
+	 */
+	/**@{*/
+	extern int kportal_create(int);
+	extern int kportal_allow(int, int);
+	extern int kportal_open(int, int);
+	extern int kportal_unlink(int);
+	extern int kportal_close(int);
+	extern int kportal_awrite(int, const void *, size_t);
+	extern int kportal_aread(int, void *, size_t);
+	extern int kportal_wait(int);
+	/**@}*/
 
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC uint64_t nanvix_perf_read(int perf)
-{
-	return (perf_read(perf));
-}
+#endif /* NANVIX_SYS_PORTAL_H_ */
+
+/**@}*/

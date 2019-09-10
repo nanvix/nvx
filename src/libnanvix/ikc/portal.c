@@ -23,6 +23,7 @@
  */
 
 #include <nanvix/kernel/kernel.h>
+#include <nanvix/sys/noc.h>
 #include <posix/errno.h>
 
 #if __TARGET_HAS_PORTAL
@@ -32,11 +33,15 @@
  *============================================================================*/
 
 /*
- * @see sys_portal_create()
+ * @see kernel_mailbox_create()
  */
 int kportal_create(int local)
 {
 	int ret;
+
+	/* Invalid local number for the requesting core ID. */
+	if (local != knode_get_num())
+		return (-EINVAL);
 
 	ret = kcall1(
 		NR_portal_create,
@@ -51,7 +56,7 @@ int kportal_create(int local)
  *============================================================================*/
 
 /*
- * @see sys_portal_allow()
+ * @see kernel_mailbox_open()
  */
 int kportal_allow(int portalid, int remote)
 {
@@ -77,6 +82,10 @@ int kportal_open(int local, int remote)
 {
 	int ret;
 
+	/* Invalid remote number for the requesting core ID. */
+	if (remote == knode_get_num())
+		return (-EINVAL);
+
 	ret = kcall2(
 		NR_portal_open,
 		(word_t) local,
@@ -91,7 +100,7 @@ int kportal_open(int local, int remote)
  *============================================================================*/
 
 /*
- * @see sys_portal_unlink()
+ * @see kernel_mailbox_unlink()
  */
 int kportal_unlink(int portalid)
 {
@@ -110,7 +119,7 @@ int kportal_unlink(int portalid)
  *============================================================================*/
 
 /*
- * @see sys_portal_close()
+ * @see kernel_mailbox_close()
  */
 int kportal_close(int portalid)
 {
@@ -129,11 +138,19 @@ int kportal_close(int portalid)
  *============================================================================*/
 
 /*
- * @see sys_portal_aread()
+ * @see kernel_mailbox_awrite()
  */
 int kportal_aread(int portalid, void * buffer, size_t size)
 {
 	int ret;
+
+	/* Invalid buffer. */
+	if (buffer == NULL)
+		return (-EINVAL);
+	
+	/* Invalid size. */
+	if (size != MAILBOX_MSG_SIZE)
+		return (-EINVAL);
 
 	ret = kcall3(
 		NR_portal_aread,
@@ -150,11 +167,19 @@ int kportal_aread(int portalid, void * buffer, size_t size)
  *============================================================================*/
 
 /*
- * @see sys_portal_awrite()
+ * @see kernel_mailbox_aread()
  */
 int kportal_awrite(int portalid, const void * buffer, size_t size)
 {
 	int ret;
+
+	/* Invalid buffer. */
+	if (buffer == NULL)
+		return (-EINVAL);
+
+	/* Invalid size. */
+	if (size != MAILBOX_MSG_SIZE)
+		return (-EINVAL);
 
 	ret = kcall3(
 		NR_portal_awrite,
@@ -171,7 +196,7 @@ int kportal_awrite(int portalid, const void * buffer, size_t size)
  *============================================================================*/
 
 /*
- * @see sys_portal_wait()
+ * @see kernel_mailbox_wait()
  */
 int kportal_wait(int portalid)
 {

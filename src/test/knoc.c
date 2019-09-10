@@ -91,17 +91,8 @@ PRIVATE void test_node_set_num(void)
 	KASSERT(nodenum == PROCESSOR_NODENUM_MASTER);
 }
 
-/**
- * @brief API Tests.
- */
-PRIVATE struct test test_api_noc[] = {
-	{ test_node_get_num,  "[test][processor][node][api] get logical noc node num [passed]\n" },
-	{ test_node_set_num,  "[test][processor][node][api] set logical noc node num [passed]\n" },
-	{ NULL,                NULL                                                              },
-};
-
 /*============================================================================*
- * FAULT Tests                                                                *
+ * Fault Tests                                                                *
  *============================================================================*/
 
 /*----------------------------------------------------------------------------*
@@ -142,6 +133,15 @@ PRIVATE void test_node_bad_set_num(void)
 
 /**
  * @brief API Tests.
+ */
+PRIVATE struct test test_api_noc[] = {
+	{ test_node_get_num,  "[test][processor][node][api] get logical noc node num [passed]\n" },
+	{ test_node_set_num,  "[test][processor][node][api] set logical noc node num [passed]\n" },
+	{ NULL,                NULL                                                              },
+};
+
+/**
+ * @brief FAULT Tests.
  */
 PRIVATE struct test test_fault_noc[] = {
 	{ test_node_invalid_set_num, "[test][processor][node][fault] invalid set logical noc node num [passed]\n" },

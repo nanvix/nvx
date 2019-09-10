@@ -98,7 +98,7 @@ void ___start(int argc, const char *argv[])
 
 	nodenum = processor_node_get_num(core_get_id());
 
-	if (nodenum == processor_node_get_num(core_get_id()))
+	if (nodenum == PROCESSOR_NODENUM_MASTER)
 	{
 		test_thread_mgmt();
 		test_thread_sleep();
@@ -107,6 +107,8 @@ void ___start(int argc, const char *argv[])
 		test_perf();
 		test_signal();
 #endif
+
+		test_noc();
 	}
 
 	#if __TARGET_HAS_SYNC

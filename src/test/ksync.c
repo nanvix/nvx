@@ -24,6 +24,7 @@
  */
 
 #include <nanvix/sys/sync.h>
+#include <nanvix/sys/noc.h>
 #include <posix/errno.h>
 
 #include "test.h"
@@ -58,7 +59,7 @@ void test_api_sync_create_unlink(void)
 	int syncid;
 	int nodes[NR_NODES];
 
-	nodes[0] = processor_node_get_num(core_get_id());
+	nodes[0] = knode_get_num();
 
 	for (int i = 0, j = 1; i < NR_NODES; i++)
 	{
@@ -84,7 +85,7 @@ void test_api_sync_open_close(void)
 	int syncid;
 	int nodes[NR_NODES];
 
-	nodes[0] = processor_node_get_num(core_get_id());
+	nodes[0] = knode_get_num();
 
 	for (int i = 0, j = 1; i < NR_NODES; i++)
 	{
@@ -112,7 +113,7 @@ void test_api_sync_signal_wait(void)
 	int nodenum;
 	int nodes[NR_NODES];
 
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = knode_get_num();
 	nodes[0] = MASTER_NODENUM;
 
 	for (int i = 0, j = 1; i < NR_NODES; i++)
@@ -162,7 +163,7 @@ void test_fault_sync_invalid_create(void)
 	int nodenum;
 	int nodes[NR_NODES];
 
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = knode_get_num();
 	nodes[0] = (nodenum == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	for (int i = 0, j = 1; i < NR_NODES; i++)
@@ -197,7 +198,7 @@ void test_fault_sync_bad_create1(void)
 	int nodenum;
 	int nodes[NR_NODES];
 
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = knode_get_num();
 
 	/* Invalid list of NoC nodes. */
 	for (int i = NR_NODES - 1; i >= 0; i--)
@@ -241,7 +242,7 @@ void test_fault_sync_bad_create2(void)
 	int nodenum;
 	int nodes[NR_NODES];
 
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = knode_get_num();
 
 	/* Invalid list of NoC nodes. */
 	for (int i = NR_NODES - 1; i >= 0; i--)
@@ -297,7 +298,7 @@ void test_fault_sync_invalid_open(void)
 	int nodenum;
 	int nodes[NR_NODES];
 
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = knode_get_num();
 	nodes[0] = nodenum;
 
 	/* Build nodes list. */
@@ -333,7 +334,7 @@ void test_fault_sync_bad_open1(void)
 	int nodenum;
 	int nodes[NR_NODES];
 
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = knode_get_num();
 	nodes[0] = nodenum;
 
 	/* Invalid list of NoC nodes. */
@@ -369,7 +370,7 @@ void test_fault_sync_bad_open2(void)
 	int nodenum;
 	int nodes[NR_NODES];
 
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = knode_get_num();
 
 	/* Invalid list of NoC nodes. */
 	for (int i = NR_NODES - 1; i >= 0; i--)
@@ -432,7 +433,7 @@ void test_fault_sync_bad_unlink(void)
 	int syncid;
 	int nodes[NR_NODES];
 
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = knode_get_num();
 	nodes[0] = nodenum;
 
 	/* Build nodes list. */
@@ -462,7 +463,7 @@ void test_fault_sync_double_unlink(void)
 	int syncid;
 	int nodes[NR_NODES];
 
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = knode_get_num();
 	nodes[0] = nodenum;
 
 	/* Build nodes list. */
@@ -506,7 +507,7 @@ void test_fault_sync_bad_close(void)
 	int syncid;
 	int nodes[NR_NODES];
 
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = knode_get_num();
 	nodes[0] = nodenum;
 
 	/* Build nodes list. */
@@ -536,7 +537,7 @@ void test_fault_sync_double_close(void)
 	int syncid;
 	int nodes[NR_NODES];
 
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = knode_get_num();
 	nodes[0] = nodenum;
 
 	/* Build nodes list. */
@@ -580,7 +581,7 @@ void test_fault_sync_bad_signal(void)
 	int syncid;
 	int nodes[NR_NODES];
 
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = knode_get_num();
 	nodes[0] = nodenum;
 
 	/* Build nodes list. */
@@ -624,7 +625,7 @@ void test_fault_sync_bad_wait(void)
 	int syncid;
 	int nodes[NR_NODES];
 
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = knode_get_num();
 	nodes[0] = nodenum;
 
 	/* Build nodes list. */
@@ -685,20 +686,20 @@ void test_sync(void)
 {
 	int nodenum;
 
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = knode_get_num();
 
 	/* API Tests */
-	if (nodenum == processor_node_get_num(core_get_id()))
+	if (nodenum == PROCESSOR_NODENUM_MASTER)
 		nanvix_puts("--------------------------------------------------------------------------------\n");
 	for (int i = 0; sync_tests_api[i].test_fn != NULL; i++)
 	{
 		sync_tests_api[i].test_fn();
 
-		if (nodenum == processor_node_get_num(core_get_id()))
+		if (nodenum == PROCESSOR_NODENUM_MASTER)
 			nanvix_puts(sync_tests_api[i].name);
 	}
 
-	if (nodenum == processor_node_get_num(core_get_id()))
+	if (nodenum == PROCESSOR_NODENUM_MASTER)
 	{
 		/* Fault Tests */
 		nanvix_puts("--------------------------------------------------------------------------------\n");

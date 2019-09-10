@@ -24,6 +24,7 @@
  */
 
 #include <nanvix/sys/mailbox.h>
+#include <nanvix/sys/noc.h>
 #include <posix/errno.h>
 
 #include "test.h"
@@ -50,7 +51,7 @@ static void test_api_mailbox_create_unlink(void)
 	int mbxid;
 	int local;
 
-	local = processor_node_get_num(core_get_id());
+	local = knode_get_num();
 
 	test_assert((mbxid = kmailbox_create(local)) >= 0);
 	test_assert(kmailbox_unlink(mbxid) == 0);
@@ -68,8 +69,7 @@ static void test_api_mailbox_open_close(void)
 	int mbxid;
 	int remote;
 
-	remote = (processor_node_get_num(core_get_id()) == MASTER_NODENUM) ?
-			 SLAVE_NODENUM : MASTER_NODENUM;
+	remote = (knode_get_num() == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	test_assert((mbxid = kmailbox_open(remote)) >= 0);
 	test_assert(kmailbox_close(mbxid) == 0);
@@ -90,7 +90,7 @@ static void test_api_mailbox_read_write(void)
 	int mbx_out;
 	char message[MAILBOX_MSG_SIZE];
 
-	local  = processor_node_get_num(core_get_id());
+	local  = knode_get_num();
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	test_assert((mbx_in = kmailbox_create(local)) >= 0);
@@ -148,7 +148,7 @@ static void test_fault_mailbox_invalid_create(void)
 {
 	int nodenum;
 
-	nodenum = (processor_node_get_num(core_get_id()) + 4) % PROCESSOR_NOC_NODES_NUM;
+	nodenum = (knode_get_num() + 4) % PROCESSOR_NOC_NODES_NUM;
 
 	test_assert(kmailbox_create(-1) < 0);
 	test_assert(kmailbox_create(nodenum) < 0);
@@ -167,7 +167,7 @@ static void test_fault_mailbox_double_create(void)
 	int local;
 	int mbxid;
 
-	local = processor_node_get_num(core_get_id());
+	local = knode_get_num();
 
 	test_assert((mbxid = kmailbox_create(local)) >=  0);
 	test_assert(kmailbox_create(local) < 0);
@@ -200,7 +200,7 @@ static void test_fault_mailbox_double_unlink(void)
 	int local;
 	int mbxid;
 
-	local = processor_node_get_num(core_get_id());
+	local = knode_get_num();
 
 	test_assert((mbxid = kmailbox_create(local)) >=  0);
 	test_assert(kmailbox_unlink(mbxid) == 0);
@@ -246,7 +246,7 @@ static void test_fault_mailbox_bad_close(void)
 	int local;
 	int mbxid;
 
-	local = processor_node_get_num(core_get_id());
+	local = knode_get_num();
 
 	test_assert((mbxid = kmailbox_create(local)) >=  0);
 	test_assert(kmailbox_close(mbxid) < 0);
@@ -282,7 +282,7 @@ static void test_fault_mailbox_invalid_read_size(void)
 	int local;
 	char buffer[MAILBOX_MSG_SIZE];
 
-	local = processor_node_get_num(core_get_id());
+	local = knode_get_num();
 
 	test_assert((mbxid = kmailbox_create(local)) >=  0);
 	test_assert(kmailbox_aread(mbxid, buffer, -1) < 0);
@@ -304,7 +304,7 @@ static void test_fault_mailbox_null_read(void)
 	int mbxid;
 	int local;
 
-	local = processor_node_get_num(core_get_id());
+	local = knode_get_num();
 
 	test_assert((mbxid = kmailbox_create(local)) >=  0);
 	test_assert(kmailbox_aread(mbxid, NULL, MAILBOX_MSG_SIZE) < 0);
@@ -340,7 +340,7 @@ static void test_fault_mailbox_bad_write(void)
 	int local;
 	char buffer[MAILBOX_MSG_SIZE];
 
-	local = processor_node_get_num(core_get_id());
+	local = knode_get_num();
 
 	test_assert((mbxid = kmailbox_create(local)) >=  0);
 	test_assert(kmailbox_awrite(mbxid, buffer, MAILBOX_MSG_SIZE) < 0);
@@ -407,19 +407,19 @@ void test_mailbox(void)
 {
 	int nodenum;
 
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = knode_get_num();
 
 	/* API Tests */
-	if (nodenum == processor_node_get_num(core_get_id()))
+	if (nodenum == PROCESSOR_NODENUM_MASTER)
 		nanvix_puts("--------------------------------------------------------------------------------\n");
 	for (unsigned i = 0; mailbox_tests_api[i].test_fn != NULL; i++)
 	{
 		mailbox_tests_api[i].test_fn();
-		if (nodenum == processor_node_get_num(core_get_id()))
+		if (nodenum == PROCESSOR_NODENUM_MASTER)
 			nanvix_puts(mailbox_tests_api[i].name);
 	}
 
-	if (nodenum == processor_node_get_num(core_get_id()))
+	if (nodenum == PROCESSOR_NODENUM_MASTER)
 	{
 		/* Fault Tests */
 		nanvix_puts("--------------------------------------------------------------------------------\n");

@@ -23,7 +23,7 @@
  */
 
 /**
- * @addtogroup nanvix Nanvix System
+ * @addtogroup libnanvix-mailbox Mailbox
  */
 /**@{*/
 
@@ -32,21 +32,110 @@
 
 	#include <nanvix/kernel/kernel.h>
 	#include <sys/types.h>
-	#include <stdbool.h>
-	#include <stdint.h>
 
 	/**
-	 * @name Mailbox Kernel Calls
+	 * @brief Creates an input mailbox.
+	 *
+	 * @param local Target local NoC node.
+	 *
+	 * @return Upon successful completion, the ID of the created input
+	 * mailbox is returned. Upon failure, a negative error code is
+	 * returned instead.
 	 */
-	/**@{*/
-	extern int kmailbox_create(int);
-	extern int kmailbox_open(int);
-	extern int kmailbox_unlink(int);
+	extern int kmailbox_create(int local);
+
+	/**
+	 * @brief Opens an output mailbox
+	 *
+	 * @param local Target remote NoC node.
+	 *
+	 * @return Upon successful completion, the ID of the opened output
+	 * mailbox is returned. Upon failure, a negative error code is
+	 * returned instead.
+	 */
+	extern int kmailbox_open(int remote);
+
+	/**
+	 * @brief Removes an input mailbox.
+	 *
+	 * @param mbxid ID of the target input mailbox.
+	 *
+	 * @return Upon successful completion, zero is returned. Upon
+	 * failure, a negative error code is returned instead.
+	 */
+	extern int kmailbox_unlink(int mbxid);
+
+	/**
+	 * @brief Closes an output mailbox.
+	 *
+	 * @param mbxid ID of the target output mailbox.
+	 *
+	 * @return Upon successful completion, zero is returned. Upon
+	 * failure, a negative error code is returned instead.
+	 */
 	extern int kmailbox_close(int);
-	extern int kmailbox_awrite(int, const void *, size_t);
-	extern int kmailbox_aread(int, void *, size_t);
-	extern int kmailbox_wait(int);
-	/**@}*/
+
+	/**
+	 * @brief Asynchronously write to an output mailbox.
+	 *
+	 * @param mbxid  ID of the target output mailbox.
+	 * @param buffer Target data buffer.
+	 * @param size   Size in bytes of the data buffer.
+	 *
+	 * @return Upon successful completion, the number of bytes written
+	 * to the output mailbox @p mbxid is returned. Upon failure, a
+	 * negative error code is returned instead.
+	 */
+	extern ssize_t kmailbox_awrite(int mbxid, const void *buffer, size_t size);
+
+	/**
+	 * @brief Synchronously write to an output mailbox.
+	 *
+	 * @param mbxid  ID of the target output mailbox.
+	 * @param buffer Target data buffer.
+	 * @param size   Size in bytes of the data buffer.
+	 *
+	 * @return Upon successful completion, the number of bytes written
+	 * to the output mailbox @p mbxid is returned. Upon failure, a
+	 * negative error code is returned instead.
+	 */
+	extern ssize_t kmailbox_write(int mbxid, const void *buffer, size_t size);
+
+	/**
+	 * @brief Asynchronously read from an input mailbox.
+	 *
+	 * @param mbxid  ID of the target input mailbox.
+	 * @param buffer Target data buffer.
+	 * @param size   Size in bytes of the data buffer.
+	 *
+	 * @return Upon successful completion, the number of bytes read
+	 * from the input mailbox @p mbxid is returned. Upon failure, a
+	 * negative error code is returned instead.
+	 */
+	extern ssize_t kmailbox_aread(int mbxid, void *buffer, size_t size);
+
+	/**
+	 * @brief Synchronously read from an input mailbox.
+	 *
+	 * @param mbxid  ID of the target input mailbox.
+	 * @param buffer Target data buffer.
+	 * @param size   Size in bytes of the data buffer.
+	 *
+	 * @return Upon successful completion, the number of bytes read
+	 * from the input mailbox @p mbxid is returned. Upon failure, a
+	 * negative error code is returned instead.
+	 */
+	extern ssize_t kmailbox_read(int mbxid, void *buffer, size_t size);
+
+	/**
+	 * @brief Waits for an synchronous operation to complete.
+	 *
+	 * @param mbxid ID of the target input/output mailbox.
+	 *
+	 * @return Upon successful completion, zero is returned. Upon
+	 * failure, a negative error code is returned instead.
+	 */
+	extern int kmailbox_wait(int mbxid);
 
 #endif /* NANVIX_SYS_MAILBOX_H_ */
 

@@ -31,8 +31,9 @@
  * kmailbox_create()                                                          *
  *============================================================================*/
 
-/*
- * @see sys_mailbox_create()
+/**
+ * @details The kmailbox_create() function creates an input mailbox
+ * and attaches it to the local NoC node @p local.
  */
 int kmailbox_create(int local)
 {
@@ -50,8 +51,9 @@ int kmailbox_create(int local)
  * kmailbox_open()                                                            *
  *============================================================================*/
 
-/*
- * @see sys_mailbox_open()
+/**
+ * @details The kmailbox_open() function opens an output mailbox to
+ * the remote NoC node @p remote.
  */
 int kmailbox_open(int remote)
 {
@@ -69,8 +71,9 @@ int kmailbox_open(int remote)
  * kmailbox_unlink()                                                          *
  *============================================================================*/
 
-/*
- * @see sys_mailbox_unlink()
+/**
+ * @details The kmailbox_unlink() function removes and releases the underlying
+ * resources associated to the input mailbox @p mbxid.
  */
 int kmailbox_unlink(int mbxid)
 {
@@ -88,8 +91,9 @@ int kmailbox_unlink(int mbxid)
  * kmailbox_close()                                                           *
  *============================================================================*/
 
-/*
- * @see sys_mailbox_close()
+/**
+ * @details The kmailbox_close() function closes and releases the
+ * underlying resources associated to the output mailbox @p mbxid.
  */
 int kmailbox_close(int mbxid)
 {
@@ -107,10 +111,11 @@ int kmailbox_close(int mbxid)
  * kmailbox_awrite()                                                          *
  *============================================================================*/
 
-/*
- * @see sys_mailbox_awrite()
+/**
+ * @details The kmailbox_awrite() asynchronously write @p size bytes
+ * of data pointed to by @p buffer to the output mailbox @p mbxid.
  */
-int kmailbox_awrite(int mbxid, const void *buffer, size_t size)
+ssize_t kmailbox_awrite(int mbxid, const void *buffer, size_t size)
 {
 	int ret;
 
@@ -128,10 +133,11 @@ int kmailbox_awrite(int mbxid, const void *buffer, size_t size)
  * kmailbox_aread()                                                           *
  *============================================================================*/
 
-/*
- * @see sys_mailbox_aread()
+/**
+ * @details The kmailbox_aread() asynchronously read @p size bytes of
+ * data pointed to by @p buffer from the input mailbox @p mbxid.
  */
-int kmailbox_aread(int mbxid, void *buffer, size_t size)
+ssize_t kmailbox_aread(int mbxid, void *buffer, size_t size)
 {
 	int ret;
 
@@ -149,8 +155,9 @@ int kmailbox_aread(int mbxid, void *buffer, size_t size)
  * kmailbox_wait()                                                            *
  *============================================================================*/
 
-/*
- * @see sys_mailbox_wait()
+/**
+ * @details The kmailbox_wait() waits for asyncrhonous operations in
+ * the input/output mailbox @p mbxid to complete.
  */
 int kmailbox_wait(int mbxid)
 {
@@ -162,6 +169,62 @@ int kmailbox_wait(int mbxid)
 	);
 
 	return (ret);
+}
+
+/*============================================================================*
+ * kmailbox_write()                                                           *
+ *============================================================================*/
+
+/**
+ * @details The kmailbox_write() synchronously write @p size bytes of
+ * data pointed to by @p buffer to the output mailbox @p mbxid.
+ */
+ssize_t kmailbox_write(int mbxid, const void *buffer, size_t size)
+{
+	int ret;
+	char buffer2[MAILBOX_MSG_SIZE];
+
+	/* Invalid buffer size. */
+	if (size > MAILBOX_MSG_SIZE)
+		return (-EINVAL);
+
+	kmemcpy(buffer2, buffer, size);
+
+	if ((ret = kmailbox_awrite(mbxid, buffer2, MAILBOX_MSG_SIZE)) < 0)
+		return (ret);
+
+	if ((ret = kmailbox_wait(mbxid)) < 0)
+		return (ret);
+
+	return (size);
+}
+
+/*============================================================================*
+ * kmailbox_read()                                                            *
+ *============================================================================*/
+
+/**
+ * @details The kmailbox_read() synchronously read @p size bytes of
+ * data pointed to by @p buffer from the input mailbox @p mbxid.
+ */
+ssize_t kmailbox_read(int mbxid, void *buffer, size_t size)
+{
+	int ret;
+	char buffer2[MAILBOX_MSG_SIZE];
+
+	/* Invalid buffer size. */
+	if (size > MAILBOX_MSG_SIZE)
+		return (-EINVAL);
+
+	if ((ret = kmailbox_aread(mbxid, buffer2, MAILBOX_MSG_SIZE)) < 0)
+		return (ret);
+
+	if ((ret = kmailbox_wait(mbxid)) < 0)
+		return (ret);
+
+	kmemcpy(buffer, buffer2, size);
+
+	return (size);
 }
 
 #endif /* __TARGET_HAS_MAILBOX */

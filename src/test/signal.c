@@ -80,7 +80,7 @@ void test_api_signal_action(void)
  * @brief API tests.
  */
 static struct test signal_tests_api[] = {
-	{ test_api_signal_action, "[test][signal][api] signal register/unregister [passed]" },
+	{ test_api_signal_action, "[test][signal][api] signal register/unregister [passed]\n" },
 	{ NULL,                    NULL                                                       },
 };
 
@@ -121,8 +121,8 @@ void test_fault_signal_action(void)
  * @brief API tests.
  */
 static struct test signal_tests_fault[] = {
-	{ test_fault_signal_action, "[test][signal][fault] signal register/unregister [passed]" },
-	{ NULL,                      NULL                                                       },
+	{ test_fault_signal_action, "[test][signal][fault] signal register/unregister [passed]\n" },
+	{ NULL,                      NULL                                                         },
 };
 
 
@@ -138,7 +138,7 @@ void test_signal(void)
 {
 
 	/* API Tests */
-	nanvix_puts("--------------------------------------------------------------------------------");
+	nanvix_puts("--------------------------------------------------------------------------------\n");
 	for (int i = 0; signal_tests_api[i].test_fn != NULL; i++)
 	{
 		signal_tests_api[i].test_fn();
@@ -146,7 +146,7 @@ void test_signal(void)
 	}
 
 	/* API Tests */
-	nanvix_puts("--------------------------------------------------------------------------------");
+	nanvix_puts("--------------------------------------------------------------------------------\n");
 	for (int i = 0; signal_tests_fault[i].test_fn != NULL; i++)
 	{
 		signal_tests_fault[i].test_fn();

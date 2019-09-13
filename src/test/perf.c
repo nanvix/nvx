@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include <nanvix.h>
+#include <nanvix/sys/perf.h>
 #include <stdint.h>
 #include "test.h"
 

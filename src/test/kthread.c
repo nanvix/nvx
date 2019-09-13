@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include <nanvix.h>
+#include <nanvix/sys/thread.h>
 #include "test.h"
 
 /**

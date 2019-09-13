@@ -22,45 +22,51 @@
  * SOFTWARE.
  */
 
-#include <nanvix/kernel/kernel.h>
-#include <stdint.h>
+#include <nanvix/sys/sync.h>
 
 /**
- * @todo TODO provide a detailed description for this function.
+ * @brief Kernel standard sync.
  */
-PUBLIC int nanvix_perf_query(int event)
+static int __stdsync = -1;
+
+/**
+ * @todo TODO: provide a detailed description for this function.
+ */
+int __stdsync_setup(void)
 {
-	return (perf_query(event));
+	int nodes[PROCESSOR_CLUSTERS_NUM];
+
+	for (int i = 0; i < PROCESSOR_CLUSTERS_NUM; i++)
+		nodes[i] = i;
+
+	/* Master cluster */
+	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
+		return ((__stdsync = sync_create(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)));
+
+	/* Slave cluster. */
+	return ((__stdsync = sync_open(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)));
 }
 
 /**
- * @todo TODO provide a detailed description for this function.
+ * @todo TODO: provide a detailed description for this function.
  */
-PUBLIC int nanvix_perf_start(int perf, int event)
+int __stdsync_cleanup(void)
 {
-	return (perf_start(perf, event));
+	/* Master cluster */
+	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
+		return (sync_unlink(__stdsync));
+
+	return (sync_close(__stdsync));
 }
 
 /**
- * @todo TODO provide a detailed description for this function.
+ * @todo TODO: provide a detailed description for this function.
  */
-PUBLIC int nanvix_perf_stop(int perf)
+int stdsync_fence(void)
 {
-	return (perf_stop(perf));
-}
+	/* Master cluster */
+	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
+		return (sync_wait(__stdsync));
 
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC int nanvix_perf_restart(int perf)
-{
-	return (perf_restart(perf));
-}
-
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC uint64_t nanvix_perf_read(int perf)
-{
-	return (perf_read(perf));
+	return (sync_signal(__stdsync));
 }

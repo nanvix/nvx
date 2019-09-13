@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include <nanvix.h>
+#include <nanvix/sys/dev.h>
 #include "test.h"
 
 #ifdef __mppa256__
@@ -96,9 +96,9 @@ void ___start(int argc, const char *argv[])
 	((void) argc);
 	((void) argv);
 
-	nodenum = processor_node_get_num();
+	nodenum = processor_node_get_num(core_get_id());
 
-	if (nodenum == processor_node_get_num())
+	if (nodenum == processor_node_get_num(core_get_id()))
 	{
 		test_thread_mgmt();
 		test_thread_sleep();

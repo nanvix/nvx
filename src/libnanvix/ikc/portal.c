@@ -22,24 +22,24 @@
  * SOFTWARE.
  */
 
-#include <nanvix.h>
-#include <errno.h>
+#include <nanvix/kernel/kernel.h>
+#include <posix/errno.h>
 
-#if __TARGET_HAS_MAILBOX
+#if __TARGET_HAS_PORTAL
 
 /*============================================================================*
- * kmailbox_create()                                                          *
+ * kportal_create()                                                           *
  *============================================================================*/
 
 /*
- * @see sys_mailbox_create()
+ * @see sys_portal_create()
  */
-int kmailbox_create(int local)
+int kportal_create(int local)
 {
 	int ret;
 
 	ret = kcall1(
-		NR_mailbox_create,
+		NR_portal_create,
 		(word_t) local
 	);
 
@@ -47,18 +47,19 @@ int kmailbox_create(int local)
 }
 
 /*============================================================================*
- * kmailbox_open()                                                            *
+ * kportal_allow()                                                            *
  *============================================================================*/
 
 /*
- * @see sys_mailbox_open()
+ * @see sys_portal_allow()
  */
-int kmailbox_open(int remote)
+int kportal_allow(int portalid, int remote)
 {
 	int ret;
 
-	ret = kcall1(
-		NR_mailbox_open,
+	ret = kcall2(
+		NR_portal_allow,
+		(word_t) portalid,
 		(word_t) remote
 	);
 
@@ -66,57 +67,77 @@ int kmailbox_open(int remote)
 }
 
 /*============================================================================*
- * kmailbox_unlink()                                                          *
+ * kportal_open()                                                             *
  *============================================================================*/
 
 /*
- * @see sys_mailbox_unlink()
+ * @see sys_portal_open()
  */
-int kmailbox_unlink(int mbxid)
+int kportal_open(int local, int remote)
 {
 	int ret;
 
-	ret = kcall1(
-		NR_mailbox_unlink,
-		(word_t) mbxid
+	ret = kcall2(
+		NR_portal_open,
+		(word_t) local,
+		(word_t) remote
 	);
 
 	return (ret);
 }
 
 /*============================================================================*
- * kmailbox_close()                                                           *
+ * kportal_unlink()                                                           *
  *============================================================================*/
 
 /*
- * @see sys_mailbox_close()
+ * @see sys_portal_unlink()
  */
-int kmailbox_close(int mbxid)
+int kportal_unlink(int portalid)
 {
 	int ret;
 
 	ret = kcall1(
-		NR_mailbox_close,
-		(word_t) mbxid
+		NR_portal_unlink,
+		(word_t) portalid
 	);
 
 	return (ret);
 }
 
 /*============================================================================*
- * kmailbox_awrite()                                                          *
+ * kportal_close()                                                            *
  *============================================================================*/
 
 /*
- * @see sys_mailbox_awrite()
+ * @see sys_portal_close()
  */
-int kmailbox_awrite(int mbxid, const void *buffer, size_t size)
+int kportal_close(int portalid)
+{
+	int ret;
+
+	ret = kcall1(
+		NR_portal_close,
+		(word_t) portalid
+	);
+
+	return (ret);
+}
+
+/*============================================================================*
+ * kportal_aread()                                                            *
+ *============================================================================*/
+
+/*
+ * @see sys_portal_aread()
+ */
+int kportal_aread(int portalid, void * buffer, size_t size)
 {
 	int ret;
 
 	ret = kcall3(
-		NR_mailbox_awrite,
-		(word_t) mbxid,
+		NR_portal_aread,
+		(word_t) portalid,
 		(word_t) buffer,
 		(word_t) size
 	);
@@ -125,19 +146,19 @@ int kmailbox_awrite(int mbxid, const void *buffer, size_t size)
 }
 
 /*============================================================================*
- * kmailbox_aread()                                                           *
+ * kportal_awrite()                                                           *
  *============================================================================*/
 
 /*
- * @see sys_mailbox_aread()
+ * @see sys_portal_awrite()
  */
-int kmailbox_aread(int mbxid, void *buffer, size_t size)
+int kportal_awrite(int portalid, const void * buffer, size_t size)
 {
 	int ret;
 
 	ret = kcall3(
-		NR_mailbox_aread,
-		(word_t) mbxid,
+		NR_portal_awrite,
+		(word_t) portalid,
 		(word_t) buffer,
 		(word_t) size
 	);
@@ -146,22 +167,22 @@ int kmailbox_aread(int mbxid, void *buffer, size_t size)
 }
 
 /*============================================================================*
- * kmailbox_wait()                                                            *
+ * kportal_wait()                                                             *
  *============================================================================*/
 
 /*
- * @see sys_mailbox_wait()
+ * @see sys_portal_wait()
  */
-int kmailbox_wait(int mbxid)
+int kportal_wait(int portalid)
 {
 	int ret;
 
 	ret = kcall1(
-		NR_mailbox_wait,
-		(word_t) mbxid
+		NR_portal_wait,
+		(word_t) portalid
 	);
 
 	return (ret);
 }
 
-#endif /* __TARGET_HAS_MAILBOX */
+#endif /* __TARGET_HAS_PORTAL */

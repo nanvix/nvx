@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include <nanvix.h>
+#include <nanvix/kernel/kernel.h>
 
 /**
  * @brief Terminates the calling process.

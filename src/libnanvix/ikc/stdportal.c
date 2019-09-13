@@ -22,45 +22,37 @@
  * SOFTWARE.
  */
 
-#include <nanvix/kernel/kernel.h>
-#include <stdint.h>
+#include <nanvix/sys/portal.h>
 
 /**
- * @todo TODO provide a detailed description for this function.
+ * @brief Kernel standard input portal.
  */
-PUBLIC int nanvix_perf_query(int event)
+static int __stdinportal = -1;
+
+/**
+ * @todo TODO: provide a detailed description for this function.
+ */
+int __stdportal_setup(void)
 {
-	return (perf_query(event));
+	int local;
+
+	local = processor_node_get_num(core_get_id());
+
+	return (__stdinportal = kportal_create(local));
 }
 
 /**
- * @todo TODO provide a detailed description for this function.
+ * @todo TODO: provide a detailed description for this function.
  */
-PUBLIC int nanvix_perf_start(int perf, int event)
+int __stdportal_cleanup(void)
 {
-	return (perf_start(perf, event));
+	return (kportal_unlink(__stdinportal));
 }
 
 /**
- * @todo TODO provide a detailed description for this function.
+ * @todo TODO: provide a detailed description for this function.
  */
-PUBLIC int nanvix_perf_stop(int perf)
+int stdinportal_get(void)
 {
-	return (perf_stop(perf));
-}
-
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC int nanvix_perf_restart(int perf)
-{
-	return (perf_restart(perf));
-}
-
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC uint64_t nanvix_perf_read(int perf)
-{
-	return (perf_read(perf));
+	return (__stdinportal);
 }

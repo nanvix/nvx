@@ -22,45 +22,37 @@
  * SOFTWARE.
  */
 
-#include <nanvix/kernel/kernel.h>
-#include <stdint.h>
+#include <nanvix/sys/mailbox.h>
 
 /**
- * @todo TODO provide a detailed description for this function.
+ * @brief Kernel standard input mailbox.
  */
-PUBLIC int nanvix_perf_query(int event)
+static int __stdinbox = -1;
+
+/**
+ * @todo TODO: provide a detailed description for this function.
+ */
+int __stdmailbox_setup(void)
 {
-	return (perf_query(event));
+	int local;
+
+	local = processor_node_get_num(core_get_id());
+
+	return (__stdinbox = kmailbox_create(local));
 }
 
 /**
- * @todo TODO provide a detailed description for this function.
+ * @todo TODO: provide a detailed description for this function.
  */
-PUBLIC int nanvix_perf_start(int perf, int event)
+int __stdmailbox_cleanup(void)
 {
-	return (perf_start(perf, event));
+	return (kmailbox_unlink(__stdinbox));
 }
 
 /**
- * @todo TODO provide a detailed description for this function.
+ * @todo TODO: provide a detailed description for this function.
  */
-PUBLIC int nanvix_perf_stop(int perf)
+int stdinbox_get(void)
 {
-	return (perf_stop(perf));
-}
-
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC int nanvix_perf_restart(int perf)
-{
-	return (perf_restart(perf));
-}
-
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC uint64_t nanvix_perf_read(int perf)
-{
-	return (perf_read(perf));
+	return (__stdinbox);
 }

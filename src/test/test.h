@@ -25,7 +25,7 @@
 #ifndef _TEST_H_
 #define _TEST_H_
 
-	#include <nanvix.h>
+	#include <nanvix/sys/thread.h>
 
 	/**
 	 * @brief Number of iterations in stress tests.

@@ -127,6 +127,11 @@ distclean: distclean-target
 	 @rm -rf $(BINDIR)
 	 @find $(SRCDIR) -name "*.o" -exec rm -rf {} \;
 
+# Builds documentation.
+documentation:
+	mkdir -p $(DOCDIR)
+	doxygen doxygen/doxygen.config
+
 #===============================================================================
 # Contrib Install and Uninstall Rules
 #===============================================================================

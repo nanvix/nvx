@@ -22,8 +22,9 @@
  * SOFTWARE.
  */
 
-#include <nanvix.h>
-#include <errno.h>
+#include <nanvix/kernel/kernel.h>
+#include <nanvix/sys/mutex.h>
+#include <posix/errno.h>
 #include <stdbool.h>
 
 #if (CORES_NUM > 1)
@@ -34,7 +35,7 @@
 
 /**
  * @brief Initializes a mutex.
- * 
+ *
  * @param m Target mutex.
  *
  * @param Upon sucessful completion, zero is returned. Upon failure, a
@@ -67,7 +68,7 @@ int nanvix_mutex_init(struct nanvix_mutex *m)
 
 /**
  * @brief Locks a mutex.
- * 
+ *
  * @param m Target mutex.
  *
  * @param Upon sucessful completion, zero is returned. Upon failure, a
@@ -152,7 +153,7 @@ int nanvix_mutex_lock(struct nanvix_mutex *m)
 
 /**
  * @brief unlocks a mutex.
- * 
+ *
  * @param m Target mutex.
  *
  * @param Upon sucessful completion, zero is returned. Upon failure, a

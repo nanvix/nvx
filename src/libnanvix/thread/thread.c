@@ -22,8 +22,9 @@
  * SOFTWARE.
  */
 
-#include <nanvix.h>
-#include <errno.h>
+#include <nanvix/kernel/kernel.h>
+#include <nanvix/sys/thread.h>
+#include <posix/errno.h>
 
 /*============================================================================*
  * kthread_self()                                                             *

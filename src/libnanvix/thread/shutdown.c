@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include <nanvix.h>
+#include <nanvix/sys/semaphore.h>
 
 /**
  * The shutdown() kernel call shutdowns the kernel.

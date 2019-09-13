@@ -23,8 +23,8 @@
  * SOFTWARE.
  */
 
-#include <nanvix.h>
-#include <errno.h>
+#include <nanvix/sys/portal.h>
+#include <posix/errno.h>
 
 #include "test.h"
 
@@ -52,7 +52,7 @@ static void test_api_portal_create_unlink(void)
 	int remote;
 	int portalid;
 
-	local  = processor_node_get_num();
+	local  = processor_node_get_num(core_get_id());
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	test_assert((portalid = kportal_create(local)) >= 0);
@@ -76,7 +76,7 @@ static void test_api_portal_open_close(void)
 	int remote;
 	int portalid;
 
-	local  = processor_node_get_num();
+	local  = processor_node_get_num(core_get_id());
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	test_assert((portalid = kportal_open(local, remote)) >= 0);
@@ -98,7 +98,7 @@ static void test_api_portal_read_write(void)
 	int portal_out;
 	char message[MESSAGE_SIZE];
 
-	local  = processor_node_get_num();
+	local  = processor_node_get_num(core_get_id());
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	test_assert((portal_in = kportal_create(local)) >= 0);
@@ -158,7 +158,7 @@ static void test_fault_portal_invalid_create(void)
 {
 	int nodenum;
 
-	nodenum = (processor_node_get_num() + 4) % PROCESSOR_NOC_NODES_NUM;
+	nodenum = (processor_node_get_num(core_get_id()) + 4) % PROCESSOR_NOC_NODES_NUM;
 
 	test_assert(kportal_create(-1) < 0);
 	test_assert(kportal_create(nodenum) < 0);
@@ -191,7 +191,7 @@ static void test_fault_portal_double_unlink(void)
 	int local;
 	int portalid;
 
-	local = processor_node_get_num();
+	local = processor_node_get_num(core_get_id());
 
 	test_assert((portalid = kportal_create(local)) >=  0);
 	test_assert(kportal_unlink(portalid) == 0);
@@ -209,7 +209,7 @@ static void test_fault_portal_invalid_open(void)
 {
 	int local;
 
-	local = processor_node_get_num();
+	local = processor_node_get_num(core_get_id());
 
 	test_assert(kportal_open(local, -1) < 0);
 	test_assert(kportal_open(-1, local + 1) < 0);
@@ -245,7 +245,7 @@ static void test_fault_portal_bad_close(void)
 	int local;
 	int portalid;
 
-	local = processor_node_get_num();
+	local = processor_node_get_num(core_get_id());
 
 	test_assert((portalid = kportal_create(local)) >=  0);
 	test_assert(kportal_close(portalid) < 0);
@@ -282,7 +282,7 @@ static void test_fault_portal_invalid_read_size(void)
 	int local;
 	char buffer[MESSAGE_SIZE];
 
-	local = processor_node_get_num();
+	local = processor_node_get_num(core_get_id());
 
 	test_assert((portalid = kportal_create(local)) >=  0);
 	test_assert(kportal_aread(portalid, buffer, -1) < 0);
@@ -303,7 +303,7 @@ static void test_fault_portal_null_read(void)
 	int portalid;
 	int local;
 
-	local = processor_node_get_num();
+	local = processor_node_get_num(core_get_id());
 
 	test_assert((portalid = kportal_create(local)) >=  0);
 	test_assert(kportal_aread(portalid, NULL, MESSAGE_SIZE) < 0);
@@ -340,7 +340,7 @@ static void test_fault_portal_bad_write(void)
 	int portalid;
 	char buffer[MESSAGE_SIZE];
 
-	local = processor_node_get_num();
+	local = processor_node_get_num(core_get_id());
 
 	test_assert((portalid = kportal_create(local)) >=  0);
 	test_assert(kportal_awrite(portalid, buffer, MESSAGE_SIZE) < 0);
@@ -406,20 +406,20 @@ void test_portal(void)
 {
 	int nodenum;
 
-	nodenum = processor_node_get_num();
+	nodenum = processor_node_get_num(core_get_id());
 
 	/* API Tests */
-	if (nodenum == processor_node_get_num())
+	if (nodenum == processor_node_get_num(core_get_id()))
 		nanvix_puts("--------------------------------------------------------------------------------");
 	for (unsigned i = 0; portal_tests_api[i].test_fn != NULL; i++)
 	{
 		portal_tests_api[i].test_fn();
-		if (nodenum == processor_node_get_num())
+		if (nodenum == processor_node_get_num(core_get_id()))
 			nanvix_puts(portal_tests_api[i].name);
 	}
 
 	/* Fault Tests */
-	if (nodenum == processor_node_get_num())
+	if (nodenum == processor_node_get_num(core_get_id()))
 	{
 		nanvix_puts("--------------------------------------------------------------------------------");
 		for (unsigned i = 0; portal_tests_fault[i].test_fn != NULL; i++)

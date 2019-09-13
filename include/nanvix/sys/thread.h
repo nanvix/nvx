@@ -22,45 +22,50 @@
  * SOFTWARE.
  */
 
-#include <nanvix/kernel/kernel.h>
-#include <stdint.h>
-
 /**
- * @todo TODO provide a detailed description for this function.
+ * @addtogroup nanvix Nanvix System
  */
-PUBLIC int nanvix_perf_query(int event)
-{
-	return (perf_query(event));
-}
+/**@{*/
 
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC int nanvix_perf_start(int perf, int event)
-{
-	return (perf_start(perf, event));
-}
+#ifndef NANVIX_SYS_THREAD_H_
+#define NANVIX_SYS_THREAD_H_
 
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC int nanvix_perf_stop(int perf)
-{
-	return (perf_stop(perf));
-}
+	#include <nanvix/kernel/kernel.h>
+	#include <sys/types.h>
+	#include <stdbool.h>
+	#include <stdint.h>
 
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC int nanvix_perf_restart(int perf)
-{
-	return (perf_restart(perf));
-}
+	/**
+	 * @brief Thread ID.
+	 */
+	typedef int kthread_t;
 
-/**
- * @todo TODO provide a detailed description for this function.
- */
-PUBLIC uint64_t nanvix_perf_read(int perf)
-{
-	return (perf_read(perf));
-}
+	/**
+	 * @name Thread Management Kernel Calls
+	 */
+	/**@{*/
+	extern kthread_t kthread_self(void);
+	extern int kthread_create(kthread_t *, void *(*)(void*), void *);
+	extern int kthread_exit(void *);
+	extern int kthread_join(kthread_t, void **);
+	/**@}*/
+
+	/**
+	 * @name Thread Synchronization Kernel Calls
+	 */
+	/**@{*/
+	extern int ksleep(void);
+	extern int kwakeup(kthread_t);
+	/**@}*/
+
+	/**
+	 * @brief Shutdowns the kernel.
+	 *
+	 * @returns Upon successful completion, this function does not
+	 * return.Upon failure, a negative error code is returned instead.
+	 */
+	extern int kshutdown(void);
+
+#endif /* NANVIX_SYS_THREAD_H_ */
+
+/**@}*/

@@ -29,7 +29,7 @@
 # C Source Files
 SRC = $(wildcard dev/*.c) \
       $(wildcard etc/*.c) \
-      $(wildcard icc/*.c) \
+      $(wildcard ikc/*.c) \
       $(wildcard thread/*.c)
 
 # Object Files

@@ -22,9 +22,9 @@
  * SOFTWARE.
  */
 
-#include <nanvix.h>
+#include <nanvix/kernel/kernel.h>
 #include <sys/types.h>
-#include <errno.h>
+#include <posix/errno.h>
 
 /**
  * @brief Writes data to a file.

@@ -35,17 +35,73 @@
 	#include <stdbool.h>
 	#include <stdint.h>
 
-	/**
-	 * @name Sync Kernel Calls
+		/**
+	 * @brief Creates a synchronization point.
+	 *
+	 * @param nodes  Logic IDs of Target Nodes.
+	 * @param nnodes Number of Target Nodes.
+	 * @param type   Type of synchronization point.
+	 *
+	 * @returns Upon successful completion, the ID of the newly created
+	 * synchronization point is returned. Upon failure, a negative error
+	 * code is returned instead.
 	 */
-	/**@{*/
-	extern int ksync_create(const int *, int, int);
-	extern int ksync_open(const int *, int, int);
-	extern int ksync_wait(int);
-	extern int ksync_signal(int);
-	extern int ksync_close(int);
-	extern int ksync_unlink(int);
-	/**@}*/
+	extern int ksync_create(const int * nodes, int nnodes, int type);
+
+	/**
+	 * @brief Opens a synchronization point.
+	 *
+	 * @param nodes  Logic IDs of Target Nodes.
+	 * @param nnodes Number of Target Nodes.
+	 * @param type   Type of synchronization point.
+	 *
+	 * @returns Upon successful completion, the ID of the target
+	 * synchronization point is returned. Upon failure, a negative error
+	 * code is returned instead.
+	 *
+	 * @todo Check for Invalid Remote
+	 */
+	extern int ksync_open(const int *nodes, int nnodes, int type);
+
+		/**
+	 * @brief Destroys a synchronization point.
+	 *
+	 * @param syncid ID of the target synchronization point.
+	 *
+	 * @returns Upon successful completion, zero is returned. Upon
+	 * failure, a negative error code is returned instead.
+	 */
+	extern int ksync_unlink(int syncid);
+
+	/**
+	 * @brief Closes a synchronization point.
+	 *
+	 * @param syncid ID of the target synchronization point.
+	 *
+	 * @returns Upon successful completion, zero is returned. Upon
+	 * failure, a negative error code is returned instead.
+	 */
+	extern int ksync_close(int syncid);
+
+	/**
+	 * @brief Waits on a synchronization point.
+	 *
+	 * @param syncid ID of the target synchronization point.
+	 *
+	 * @returns Upon successful completion, zero is returned. Upon
+	 * failure, a negative error code is returned instead.
+	 */
+	extern int ksync_wait(int syncid);
+
+	/**
+	 * @brief Signals Waits on a synchronization point.
+	 *
+	 * @param syncid ID of the target synchronization point.
+	 *
+	 * @returns Upon successful completion, zero is returned. Upon
+	 * failure, a negative error code is returned instead.
+	 */
+	extern int ksync_signal(int syncid);
 
 #endif /* NANVIX_SYS_SYNC_H_ */
 

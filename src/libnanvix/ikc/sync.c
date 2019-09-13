@@ -71,8 +71,9 @@ PRIVATE int ksync_list_is_valid(int local, const int *nodes, int nnodes)
  * ksync_create()                                                             *
  *============================================================================*/
 
-/*
- * @see kernel_sync_create()
+/**
+ * @details The ksync_create() function creates an input sync
+ * and attaches it to the list NoC node @p nodes.
  */
 int ksync_create(const int *nodes, int nnodes, int type)
 {
@@ -125,8 +126,9 @@ int ksync_create(const int *nodes, int nnodes, int type)
  * ksync_open()                                                               *
  *============================================================================*/
 
-/*
- * @see kernel_sync_open()
+/**
+ * @details The ksync_open() function opens an output sync to the
+ * NoC node list @p nodes.
  */
 int ksync_open(const int *nodes, int nnodes, int type)
 {
@@ -179,8 +181,8 @@ int ksync_open(const int *nodes, int nnodes, int type)
  * ksync_wait()                                                               *
  *============================================================================*/
 
-/*
- * @see kernel_sync_wait()
+/**
+ * @details The ksync_wait() waits incomming signal on a input sync @p syncid.
  */
 int ksync_wait(int syncid)
 {
@@ -198,8 +200,8 @@ int ksync_wait(int syncid)
  * ksync_signal()                                                             *
  *============================================================================*/
 
-/*
- * @see kernel_sync_signal()
+/**
+ * @details The ksync_signal() emmit a signal from a output sync @p syncid.
  */
 int ksync_signal(int syncid)
 {
@@ -217,8 +219,9 @@ int ksync_signal(int syncid)
  * ksync_close()                                                              *
  *============================================================================*/
 
-/*
- * @see kernel_sync_close()
+/**
+ * @details The ksync_close() function closes and releases the
+ * underlying resources associated to the output sync @p syncid.
  */
 int ksync_close(int syncid)
 {
@@ -236,8 +239,9 @@ int ksync_close(int syncid)
  * ksync_unlink()                                                             *
  *============================================================================*/
 
-/*
- * @see kernel_sync_unlink()
+/**
+ * @details The ksync_unlink() function removes and releases the underlying
+ * resources associated to the input sync @p syncid.
  */
 int ksync_unlink(int syncid)
 {

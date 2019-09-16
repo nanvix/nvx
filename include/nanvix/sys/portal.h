@@ -37,6 +37,8 @@
 
 	/**
 	 * @name Portal Kernel Calls
+	 *
+	 * @todo TODO: provide description for these functions.
 	 */
 	/**@{*/
 	extern int kportal_create(int);
@@ -45,7 +47,9 @@
 	extern int kportal_unlink(int);
 	extern int kportal_close(int);
 	extern int kportal_awrite(int, const void *, size_t);
+	extern int kportal_write(int, const void *, size_t);
 	extern int kportal_aread(int, void *, size_t);
+	extern int kportal_read(int, void *, size_t);
 	extern int kportal_wait(int);
 	/**@}*/
 

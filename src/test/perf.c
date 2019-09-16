@@ -93,7 +93,7 @@ void test_perf(void)
 #if (CORE_HAS_PERF)
 
 	/* API Tests */
-	nanvix_puts("--------------------------------------------------------------------------------");
+	nanvix_puts("--------------------------------------------------------------------------------\n");
 	for (int i = 0; perf_tests_api[i].test_fn != NULL; i++)
 	{
 		perf_tests_api[i].test_fn();

@@ -216,20 +216,20 @@ static void test_stress_kthread_create(void)
  * @brief API tests.
  */
 static struct test thread_mgmt_tests_api[] = {
-	{ test_api_kthread_self,   "[test][thread][api] thread identification       [passed]" },
-	{ test_api_kthread_create, "[test][thread][api] thread creation/termination [passed]" },
-	{ NULL,                     NULL                                                      },
+	{ test_api_kthread_self,   "[test][thread][api] thread identification       [passed]\n" },
+	{ test_api_kthread_create, "[test][thread][api] thread creation/termination [passed]\n" },
+	{ NULL,                     NULL                                                        },
 };
 
 /**
  * @brief Fault tests.
  */
 static struct test thread_mgmt_tests_fault[] = {
-	{ test_fault_kthread_create_invalid,  "[test][thread][fault] invalid thread create [passed]" },
-	{ test_fault_kthread_create_bad,      "[test][thread][fault] bad thread create     [passed]" },
-	{ test_fault_kthread_join_invalid,    "[test][thread][fault] invalid thread join   [passed]" },
-	{ test_fault_kthread_join_bad,        "[test][thread][fault] bad thread join       [passed]" },
-	{ NULL,                                NULL                                                  },
+	{ test_fault_kthread_create_invalid,  "[test][thread][fault] invalid thread create [passed]\n" },
+	{ test_fault_kthread_create_bad,      "[test][thread][fault] bad thread create     [passed]\n" },
+	{ test_fault_kthread_join_invalid,    "[test][thread][fault] invalid thread join   [passed]\n" },
+	{ test_fault_kthread_join_bad,        "[test][thread][fault] bad thread join       [passed]\n" },
+	{ NULL,                                NULL                                                    },
 };
 
 /**
@@ -237,10 +237,10 @@ static struct test thread_mgmt_tests_fault[] = {
  */
 static struct test thread_mgmt_tests_stress[] = {
 #if (UTEST_KTHREAD_STRESS)
-	{ test_fault_kthread_create_overflow, "[test][thread][stress] thread creation overflow    [passed]" },
-	{ test_stress_kthread_create,         "[test][thread][stress] thread creation/termination [passed]" },
+	{ test_fault_kthread_create_overflow, "[test][thread][stress] thread creation overflow    [passed]\n" },
+	{ test_stress_kthread_create,         "[test][thread][stress] thread creation/termination [passed]\n" },
 #endif
-	{ NULL,                                NULL                                                         },
+	{ NULL,                                NULL                                                           },
 };
 
 /**
@@ -251,7 +251,7 @@ static struct test thread_mgmt_tests_stress[] = {
 void test_thread_mgmt(void)
 {
 	/* API Tests */
-	nanvix_puts("--------------------------------------------------------------------------------");
+	nanvix_puts("--------------------------------------------------------------------------------\n");
 	for (int i = 0; thread_mgmt_tests_api[i].test_fn != NULL; i++)
 	{
 		thread_mgmt_tests_api[i].test_fn();
@@ -259,7 +259,7 @@ void test_thread_mgmt(void)
 	}
 
 	/* Fault Tests */
-	nanvix_puts("--------------------------------------------------------------------------------");
+	nanvix_puts("--------------------------------------------------------------------------------\n");
 	for (int i = 0; thread_mgmt_tests_fault[i].test_fn != NULL; i++)
 	{
 		thread_mgmt_tests_fault[i].test_fn();
@@ -267,7 +267,7 @@ void test_thread_mgmt(void)
 	}
 
 	/* Stress Tests */
-	nanvix_puts("--------------------------------------------------------------------------------");
+	nanvix_puts("--------------------------------------------------------------------------------\n");
 	for (int i = 0; thread_mgmt_tests_stress[i].test_fn != NULL; i++)
 	{
 		thread_mgmt_tests_stress[i].test_fn();

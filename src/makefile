@@ -35,7 +35,7 @@
 all: all-libnanvix all-test
 
 # Cleans Build Objects
-clean: clean-kernel clean-libnanvix clean-test
+clean: clean-libnanvix clean-test
 
 # Cleans Everything
 distclean: distclean-libnanvix distclean-test

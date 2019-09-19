@@ -65,6 +65,7 @@
 	extern void test_perf(void);
 	extern void test_signal(void);
 	extern void test_network(void);
+	extern void test_noc(void);
 	extern void test_sync(void);
 	extern void test_mailbox(void);
 	extern void test_portal(void);

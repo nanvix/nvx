@@ -77,7 +77,7 @@
 	 * negative error code is returned instead.
 	 */
 	extern int kportal_unlink(int portalid);
-	
+
 	/**
 	 * @brief Closes a portal.
 	 *
@@ -101,7 +101,7 @@
 	extern int kportal_read(int portalid, void * buffer, size_t size);
 
 	/**
-	 * @brief Reads data asynchronously from a portal.
+	 * @brief Asynchronously reads data from a portal.
 	 *
 	 * @param portalid ID of the Target Portal.
 	 * @param buffer   Location from where data should be written.
@@ -122,10 +122,10 @@
 	 * @returns Upon successful, zero is returned. Upon failure, a
 	 * negative error code is returned instead.
 	 */
-	extern int kportal_awrite(int portalid, const void * buffer, size_t size);
+	extern int kportal_write(int portalid, const void * buffer, size_t size);
 
 	/**
-	 * @brief Writes data asynchronously to a portal.
+	 * @brief Asynchronously writes data to a portal.
 	 *
 	 * @param portalid ID of the Target Portal.
 	 * @param buffer   Location from where data should be read.

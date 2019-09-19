@@ -173,8 +173,6 @@ static void test_api_portal_read_write(void)
 	test_assert((portal_in = kportal_create(local)) >= 0);
 	test_assert((portal_out = kportal_open(local, remote)) >= 0);
 
-	test_assert(kportal_allow(portal_in, remote) == 0);
-
 	test_assert(kportal_ioctl(portal_in, PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == 0);
 	test_assert(kportal_ioctl(portal_in, PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
@@ -191,6 +189,7 @@ static void test_api_portal_read_write(void)
 		{
 			kmemset(message, 0, MESSAGE_SIZE);
 
+			test_assert(kportal_allow(portal_in, remote) == 0);
 			test_assert(kportal_aread(portal_in, message, MESSAGE_SIZE) == MESSAGE_SIZE);
 			test_assert(kportal_wait(portal_in) == 0);
 
@@ -214,6 +213,7 @@ static void test_api_portal_read_write(void)
 
 			kmemset(message, 0, MESSAGE_SIZE);
 
+			test_assert(kportal_allow(portal_in, remote) == 0);
 			test_assert(kportal_aread(portal_in, message, MESSAGE_SIZE) == MESSAGE_SIZE);
 			test_assert(kportal_wait(portal_in) == 0);
 
@@ -378,7 +378,7 @@ static void test_fault_portal_invalid_read_size(void)
 		test_assert(kportal_aread(portalid, buffer, -1) == -EINVAL);
 		test_assert(kportal_aread(portalid, buffer, 0) == -EINVAL);
 		test_assert(kportal_aread(portalid, buffer, PORTAL_MAX_SIZE + 1) == -EINVAL);
-	
+
 	test_assert(kportal_unlink(portalid) == 0);
 }
 

@@ -37,7 +37,11 @@
 #define NR_NODES       2
 #define NR_NODES_MAX   PROCESSOR_NOC_NODES_NUM
 #define MASTER_NODENUM 0
-#define SLAVE_NODENUM  1
+#ifdef __mppa256__
+	#define SLAVE_NODENUM  8
+#else
+	#define SLAVE_NODENUM  1
+#endif
 
 /*============================================================================*
  * API Test: Create Unlink                                                    *
@@ -91,30 +95,12 @@ static void test_api_mailbox_read_write(void)
 	char message[MAILBOX_MSG_SIZE];
 
 	local  = knode_get_num();
-	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	test_assert((mbx_in = kmailbox_create(local)) >= 0);
 	test_assert((mbx_out = kmailbox_open(remote)) >= 0);
 
-	if (local != MASTER_NODENUM)
-	{
-		for (unsigned i = 0; i < NITERATIONS; i++)
-		{
-			kmemset(message, 0, MAILBOX_MSG_SIZE);
-
-			test_assert(kmailbox_aread(mbx_in, message, MAILBOX_MSG_SIZE) == MAILBOX_MSG_SIZE);
-			test_assert(kmailbox_wait(mbx_in) == 0);
-
-			for (unsigned j = 0; j < MAILBOX_MSG_SIZE; ++j)
-				test_assert(message[j] == 1);
-
-			kmemset(message, 2, MAILBOX_MSG_SIZE);
-
-			test_assert(kmailbox_awrite(mbx_out, message, MAILBOX_MSG_SIZE) == MAILBOX_MSG_SIZE);
-			test_assert(kmailbox_wait(mbx_out) == 0);
-		}
-	}
-	else
+	if (local == MASTER_NODENUM)
 	{
 		for (unsigned i = 0; i < NITERATIONS; i++)
 		{
@@ -132,6 +118,24 @@ static void test_api_mailbox_read_write(void)
 				test_assert(message[j] == 2);
 		}
 	}
+	else
+	{
+		for (unsigned i = 0; i < NITERATIONS; i++)
+		{
+			kmemset(message, 0, MAILBOX_MSG_SIZE);
+
+			test_assert(kmailbox_aread(mbx_in, message, MAILBOX_MSG_SIZE) == MAILBOX_MSG_SIZE);
+			test_assert(kmailbox_wait(mbx_in) == 0);
+
+			for (unsigned j = 0; j < MAILBOX_MSG_SIZE; ++j)
+				test_assert(message[j] == 1);
+
+			kmemset(message, 2, MAILBOX_MSG_SIZE);
+
+			test_assert(kmailbox_awrite(mbx_out, message, MAILBOX_MSG_SIZE) == MAILBOX_MSG_SIZE);
+			test_assert(kmailbox_wait(mbx_out) == 0);
+		}
+	}
 
 	test_assert(kmailbox_close(mbx_out) == 0);
 	test_assert(kmailbox_unlink(mbx_in) == 0);
@@ -146,32 +150,24 @@ static void test_api_mailbox_read_write(void)
  */
 static void test_fault_mailbox_invalid_create(void)
 {
-	int nodenum;
-
-	nodenum = (knode_get_num() + 4) % PROCESSOR_NOC_NODES_NUM;
-
-	test_assert(kmailbox_create(-1) < 0);
-	test_assert(kmailbox_create(nodenum) < 0);
-	test_assert(kmailbox_create(PROCESSOR_NOC_NODES_NUM) < 0);
+	test_assert(kmailbox_create(-1) == -EINVAL);
+	test_assert(kmailbox_create(PROCESSOR_NOC_NODES_NUM) == -EINVAL);
 }
 
 /*============================================================================*
- * Fault Test: Double Create                                                  *
+ * Fault Test: Bad Create                                                     *
  *============================================================================*/
 
 /**
- * @brief Fault Test: Double Create
+ * @brief Fault Test: Bad Create
  */
-static void test_fault_mailbox_double_create(void)
+static void test_fault_mailbox_bad_create(void)
 {
-	int local;
-	int mbxid;
+	int nodenum;
 
-	local = knode_get_num();
+	nodenum = (knode_get_num() == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	test_assert((mbxid = kmailbox_create(local)) >=  0);
-	test_assert(kmailbox_create(local) < 0);
-	test_assert(kmailbox_unlink(mbxid) == 0);
+	test_assert(kmailbox_create(nodenum) == -EINVAL);
 }
 
 /*============================================================================*
@@ -183,9 +179,9 @@ static void test_fault_mailbox_double_create(void)
  */
 static void test_fault_mailbox_invalid_unlink(void)
 {
-	test_assert(kmailbox_unlink(-1) < 0);
-	test_assert(kmailbox_unlink(MAILBOX_CREATE_MAX) < 0);
-	test_assert(kmailbox_unlink(1000000) < 0);
+	test_assert(kmailbox_unlink(-1) == -EBADF);
+	test_assert(kmailbox_unlink(MAILBOX_CREATE_MAX) == -EBADF);
+	test_assert(kmailbox_unlink(1000000) == -EBADF);
 }
 
 /*============================================================================*
@@ -202,9 +198,9 @@ static void test_fault_mailbox_double_unlink(void)
 
 	local = knode_get_num();
 
-	test_assert((mbxid = kmailbox_create(local)) >=  0);
+	test_assert((mbxid = kmailbox_create(local)) >= 0);
 	test_assert(kmailbox_unlink(mbxid) == 0);
-	test_assert(kmailbox_unlink(mbxid) < 0);
+	test_assert(kmailbox_unlink(mbxid) == -EBADF);
 }
 
 /*============================================================================*
@@ -216,8 +212,27 @@ static void test_fault_mailbox_double_unlink(void)
  */
 static void test_fault_mailbox_invalid_open(void)
 {
-	test_assert(kmailbox_open(-1) < 0);
-	test_assert(kmailbox_open(PROCESSOR_NOC_NODES_NUM) < 0);
+	test_assert(kmailbox_open(-1) == -EINVAL);
+	test_assert(kmailbox_open(PROCESSOR_NOC_NODES_NUM) == -EINVAL);
+}
+
+/*============================================================================*
+ * Fault Test: Bad Open                                                       *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Bad Open
+ */
+static void test_fault_mailbox_bad_open(void)
+{
+	int nodenum;
+
+	nodenum = knode_get_num();
+
+#ifdef __mppa256__
+	if (processor_noc_is_cnode(nodenum))
+#endif
+		test_assert(kmailbox_open(nodenum) == -EINVAL);
 }
 
 /*============================================================================*
@@ -229,9 +244,28 @@ static void test_fault_mailbox_invalid_open(void)
  */
 static void test_fault_mailbox_invalid_close(void)
 {
-	test_assert(kmailbox_close(-1) < 0);
-	test_assert(kmailbox_close(MAILBOX_OPEN_MAX) < 0);
-	test_assert(kmailbox_close(1000000) < 0);
+	test_assert(kmailbox_close(-1) == -EBADF);
+	test_assert(kmailbox_close(MAILBOX_OPEN_MAX) == -EBADF);
+	test_assert(kmailbox_close(1000000) == -EBADF);
+}
+
+/*============================================================================*
+ * Fault Test: Double Close                                                   *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Double Close
+ */
+static void test_fault_mailbox_double_close(void)
+{
+	int mbxid;
+	int nodenum;
+
+	nodenum = (knode_get_num() == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((mbxid = kmailbox_open(nodenum)) >= 0);
+	test_assert(kmailbox_close(mbxid) == 0);
+	test_assert(kmailbox_close(mbxid) == -EBADF);
 }
 
 /*============================================================================*
@@ -248,8 +282,10 @@ static void test_fault_mailbox_bad_close(void)
 
 	local = knode_get_num();
 
-	test_assert((mbxid = kmailbox_create(local)) >=  0);
-	test_assert(kmailbox_close(mbxid) < 0);
+	test_assert((mbxid = kmailbox_create(local)) >= 0);
+
+		test_assert(kmailbox_close(mbxid) == -EBADF);
+
 	test_assert(kmailbox_unlink(mbxid) == 0);
 }
 
@@ -264,9 +300,9 @@ static void test_fault_mailbox_invalid_read(void)
 {
 	char buffer[MAILBOX_MSG_SIZE];
 
-	test_assert(kmailbox_aread(-1, buffer, MAILBOX_MSG_SIZE) < 0);
-	test_assert(kmailbox_aread(MAILBOX_CREATE_MAX, buffer, MAILBOX_MSG_SIZE) < 0);
-	test_assert(kmailbox_aread(1000000, buffer, MAILBOX_MSG_SIZE) < 0);
+	test_assert(kmailbox_aread(-1, buffer, MAILBOX_MSG_SIZE) == -EBADF);
+	test_assert(kmailbox_aread(MAILBOX_CREATE_MAX, buffer, MAILBOX_MSG_SIZE) == -EBADF);
+	test_assert(kmailbox_aread(1000000, buffer, MAILBOX_MSG_SIZE) == -EBADF);
 }
 
 /*============================================================================*
@@ -284,11 +320,13 @@ static void test_fault_mailbox_invalid_read_size(void)
 
 	local = knode_get_num();
 
-	test_assert((mbxid = kmailbox_create(local)) >=  0);
-	test_assert(kmailbox_aread(mbxid, buffer, -1) < 0);
-	test_assert(kmailbox_aread(mbxid, buffer, 0) < 0);
-	test_assert(kmailbox_aread(mbxid, buffer, MAILBOX_MSG_SIZE - 1) < 0);
-	test_assert(kmailbox_aread(mbxid, buffer, MAILBOX_MSG_SIZE + 1) < 0);
+	test_assert((mbxid = kmailbox_create(local)) >= 0);
+
+		test_assert(kmailbox_aread(mbxid, buffer, -1) == -EINVAL);
+		test_assert(kmailbox_aread(mbxid, buffer, 0) == -EINVAL);
+		test_assert(kmailbox_aread(mbxid, buffer, MAILBOX_MSG_SIZE - 1) == -EINVAL);
+		test_assert(kmailbox_aread(mbxid, buffer, MAILBOX_MSG_SIZE + 1) == -EINVAL);
+
 	test_assert(kmailbox_unlink(mbxid) == 0);
 }
 
@@ -306,8 +344,10 @@ static void test_fault_mailbox_null_read(void)
 
 	local = knode_get_num();
 
-	test_assert((mbxid = kmailbox_create(local)) >=  0);
-	test_assert(kmailbox_aread(mbxid, NULL, MAILBOX_MSG_SIZE) < 0);
+	test_assert((mbxid = kmailbox_create(local)) >= 0);
+
+		test_assert(kmailbox_aread(mbxid, NULL, MAILBOX_MSG_SIZE) == -EINVAL);
+
 	test_assert(kmailbox_unlink(mbxid) == 0);
 }
 
@@ -322,9 +362,9 @@ static void test_fault_mailbox_invalid_write(void)
 {
 	char buffer[MAILBOX_MSG_SIZE];
 
-	test_assert(kmailbox_awrite(-1, buffer, MAILBOX_MSG_SIZE) < 0);
-	test_assert(kmailbox_awrite(MAILBOX_OPEN_MAX, buffer, MAILBOX_MSG_SIZE) < 0);
-	test_assert(kmailbox_awrite(1000000, buffer, MAILBOX_MSG_SIZE) < 0);
+	test_assert(kmailbox_awrite(-1, buffer, MAILBOX_MSG_SIZE) == -EBADF);
+	test_assert(kmailbox_awrite(MAILBOX_OPEN_MAX, buffer, MAILBOX_MSG_SIZE) == -EBADF);
+	test_assert(kmailbox_awrite(1000000, buffer, MAILBOX_MSG_SIZE) == -EBADF);
 }
 
 /*============================================================================*
@@ -342,8 +382,10 @@ static void test_fault_mailbox_bad_write(void)
 
 	local = knode_get_num();
 
-	test_assert((mbxid = kmailbox_create(local)) >=  0);
-	test_assert(kmailbox_awrite(mbxid, buffer, MAILBOX_MSG_SIZE) < 0);
+	test_assert((mbxid = kmailbox_create(local)) >= 0);
+
+		test_assert(kmailbox_awrite(mbxid, buffer, MAILBOX_MSG_SIZE) == -EBADF);
+
 	test_assert(kmailbox_unlink(mbxid) == 0);
 }
 
@@ -356,12 +398,12 @@ static void test_fault_mailbox_bad_write(void)
  */
 static void test_fault_mailbox_bad_wait(void)
 {
-	test_assert(kmailbox_wait(-1) < 0);
+	test_assert(kmailbox_wait(-1) == -EBADF);
 #ifndef __unix64__
-	test_assert(kmailbox_wait(MAILBOX_CREATE_MAX) < 0);
-	test_assert(kmailbox_wait(MAILBOX_OPEN_MAX) < 0);
+	test_assert(kmailbox_wait(MAILBOX_CREATE_MAX) == -EBADF);
+	test_assert(kmailbox_wait(MAILBOX_OPEN_MAX) == -EBADF);
 #endif
-	test_assert(kmailbox_wait(1000000) < 0);
+	test_assert(kmailbox_wait(1000000) == -EBADF);
 }
 
 /*============================================================================*
@@ -383,7 +425,6 @@ static struct test mailbox_tests_api[] = {
  */
 static struct test mailbox_tests_fault[] = {
 	{ test_fault_mailbox_invalid_create,    "[test][mailbox][fault] mailbox invalid create    [passed]\n" },
-	{ test_fault_mailbox_double_create,     "[test][mailbox][fault] mailbox double create     [passed]\n" },
 	{ test_fault_mailbox_invalid_unlink,    "[test][mailbox][fault] mailbox invalid unlink    [passed]\n" },
 	{ test_fault_mailbox_double_unlink,     "[test][mailbox][fault] mailbox double unlink     [passed]\n" },
 	{ test_fault_mailbox_invalid_open,      "[test][mailbox][fault] mailbox invalid open      [passed]\n" },
@@ -409,24 +450,28 @@ void test_mailbox(void)
 
 	nodenum = knode_get_num();
 
-	/* API Tests */
-	if (nodenum == PROCESSOR_NODENUM_MASTER)
-		nanvix_puts("--------------------------------------------------------------------------------\n");
-	for (unsigned i = 0; mailbox_tests_api[i].test_fn != NULL; i++)
+	if (nodenum == MASTER_NODENUM || nodenum == SLAVE_NODENUM)
 	{
-		mailbox_tests_api[i].test_fn();
-		if (nodenum == PROCESSOR_NODENUM_MASTER)
-			nanvix_puts(mailbox_tests_api[i].name);
-	}
+		/* API Tests */
+		if (nodenum == MASTER_NODENUM)
+			nanvix_puts("--------------------------------------------------------------------------------\n");
+		for (unsigned i = 0; mailbox_tests_api[i].test_fn != NULL; i++)
+		{
+			mailbox_tests_api[i].test_fn();
 
-	if (nodenum == PROCESSOR_NODENUM_MASTER)
-	{
+			if (nodenum == MASTER_NODENUM)
+				nanvix_puts(mailbox_tests_api[i].name);
+		}
+
 		/* Fault Tests */
-		nanvix_puts("--------------------------------------------------------------------------------\n");
+		if (nodenum == MASTER_NODENUM)
+			nanvix_puts("--------------------------------------------------------------------------------\n");
 		for (unsigned i = 0; mailbox_tests_fault[i].test_fn != NULL; i++)
 		{
 			mailbox_tests_fault[i].test_fn();
-			nanvix_puts(mailbox_tests_fault[i].name);
+
+			if (nodenum == MASTER_NODENUM)
+				nanvix_puts(mailbox_tests_fault[i].name);
 		}
 	}
 }

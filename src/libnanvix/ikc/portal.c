@@ -23,6 +23,7 @@
  */
 
 #include <nanvix/kernel/kernel.h>
+#include <nanvix/sys/noc.h>
 #include <posix/errno.h>
 
 #if __TARGET_HAS_PORTAL
@@ -32,11 +33,15 @@
  *============================================================================*/
 
 /*
- * @see sys_portal_create()
+ * @see kernel_portal_create()
  */
 int kportal_create(int local)
 {
 	int ret;
+
+	/* Invalid local number for the requesting core ID. */
+	if (local != knode_get_num())
+		return (-EINVAL);
 
 	ret = kcall1(
 		NR_portal_create,
@@ -51,11 +56,15 @@ int kportal_create(int local)
  *============================================================================*/
 
 /*
- * @see sys_portal_allow()
+ * @see kernel_portal_allow()
  */
 int kportal_allow(int portalid, int remote)
 {
 	int ret;
+
+	/* Invalid remote number for the requesting core ID. */
+	if (remote == knode_get_num())
+		return (-EINVAL);
 
 	ret = kcall2(
 		NR_portal_allow,
@@ -71,11 +80,26 @@ int kportal_allow(int portalid, int remote)
  *============================================================================*/
 
 /*
- * @see sys_portal_open()
+ * @see kernel_portal_open()
  */
 int kportal_open(int local, int remote)
 {
 	int ret;
+	int nodenum;
+
+	nodenum = knode_get_num();
+
+	/* Invalid local number for the requesting core ID. */
+	if (local != nodenum)
+		return (-EINVAL);
+
+	/* Invalid remote number for the requesting core ID. */
+	if (remote == nodenum)
+		return (-EINVAL);
+
+	/* Invalid remote number for the requesting core ID. */
+	if (remote == knode_get_num())
+		return (-EINVAL);
 
 	ret = kcall2(
 		NR_portal_open,
@@ -91,7 +115,7 @@ int kportal_open(int local, int remote)
  *============================================================================*/
 
 /*
- * @see sys_portal_unlink()
+ * @see kernel_portal_unlink()
  */
 int kportal_unlink(int portalid)
 {
@@ -110,7 +134,7 @@ int kportal_unlink(int portalid)
  *============================================================================*/
 
 /*
- * @see sys_portal_close()
+ * @see kernel_portal_close()
  */
 int kportal_close(int portalid)
 {
@@ -129,11 +153,19 @@ int kportal_close(int portalid)
  *============================================================================*/
 
 /*
- * @see sys_portal_aread()
+ * @see kernel_portal_aread()
  */
 int kportal_aread(int portalid, void * buffer, size_t size)
 {
 	int ret;
+
+	/* Invalid buffer. */
+	if (buffer == NULL)
+		return (-EINVAL);
+
+	/* Invalid size. */
+	if (size == 0 || size > PORTAL_MAX_SIZE)
+		return (-EINVAL);
 
 	ret = kcall3(
 		NR_portal_aread,
@@ -150,11 +182,19 @@ int kportal_aread(int portalid, void * buffer, size_t size)
  *============================================================================*/
 
 /*
- * @see sys_portal_awrite()
+ * @see kernel_portal_awrite()
  */
 int kportal_awrite(int portalid, const void * buffer, size_t size)
 {
 	int ret;
+
+	/* Invalid buffer. */
+	if (buffer == NULL)
+		return (-EINVAL);
+
+	/* Invalid size. */
+	if (size == 0 || size > PORTAL_MAX_SIZE)
+		return (-EINVAL);
 
 	ret = kcall3(
 		NR_portal_awrite,
@@ -171,7 +211,7 @@ int kportal_awrite(int portalid, const void * buffer, size_t size)
  *============================================================================*/
 
 /*
- * @see sys_portal_wait()
+ * @see kernel_portal_wait()
  */
 int kportal_wait(int portalid)
 {

@@ -23,6 +23,7 @@
  */
 
 #include <nanvix/sys/dev.h>
+#include <nanvix/sys/noc.h>
 #include "test.h"
 
 #ifdef __mppa256__
@@ -96,7 +97,7 @@ void ___start(int argc, const char *argv[])
 	((void) argc);
 	((void) argv);
 
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = knode_get_num();
 
 	if (nodenum == PROCESSOR_NODENUM_MASTER)
 	{

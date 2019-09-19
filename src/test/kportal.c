@@ -36,9 +36,13 @@
  */
 #define NR_NODES       2
 #define NR_NODES_MAX   PROCESSOR_NOC_NODES_NUM
-#define MASTER_NODENUM 0
-#define SLAVE_NODENUM  1
 #define MESSAGE_SIZE   1024
+#define MASTER_NODENUM 0
+#ifdef __mppa256__
+	#define SLAVE_NODENUM  8
+#else
+	#define SLAVE_NODENUM  1
+#endif
 
 /*============================================================================*
  * API Test: Create Unlink                                                    *
@@ -54,7 +58,7 @@ static void test_api_portal_create_unlink(void)
 	int portalid;
 
 	local  = knode_get_num();
-	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	test_assert((portalid = kportal_create(local)) >= 0);
 	test_assert(kportal_unlink(portalid) == 0);
@@ -78,7 +82,7 @@ static void test_api_portal_open_close(void)
 	int portalid;
 
 	local  = knode_get_num();
-	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	test_assert((portalid = kportal_open(local, remote)) >= 0);
 	test_assert(kportal_close(portalid) == 0);
@@ -100,10 +104,12 @@ static void test_api_portal_read_write(void)
 	char message[MESSAGE_SIZE];
 
 	local  = knode_get_num();
-	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	test_assert((portal_in = kportal_create(local)) >= 0);
 	test_assert((portal_out = kportal_open(local, remote)) >= 0);
+
+	test_assert(kportal_allow(portal_in, remote) == 0);
 
 	if (local == MASTER_NODENUM)
 	{
@@ -111,7 +117,6 @@ static void test_api_portal_read_write(void)
 		{
 			kmemset(message, 0, MESSAGE_SIZE);
 
-			test_assert(kportal_allow(portal_in, remote) == 0);
 			test_assert(kportal_aread(portal_in, message, MESSAGE_SIZE) == MESSAGE_SIZE);
 			test_assert(kportal_wait(portal_in) == 0);
 
@@ -135,7 +140,6 @@ static void test_api_portal_read_write(void)
 
 			kmemset(message, 0, MESSAGE_SIZE);
 
-			test_assert(kportal_allow(portal_in, remote) == 0);
 			test_assert(kportal_aread(portal_in, message, MESSAGE_SIZE) == MESSAGE_SIZE);
 			test_assert(kportal_wait(portal_in) == 0);
 
@@ -159,11 +163,11 @@ static void test_fault_portal_invalid_create(void)
 {
 	int nodenum;
 
-	nodenum = (knode_get_num() + 4) % PROCESSOR_NOC_NODES_NUM;
+	nodenum = (knode_get_num() == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	test_assert(kportal_create(-1) < 0);
-	test_assert(kportal_create(nodenum) < 0);
-	test_assert(kportal_create(PROCESSOR_NOC_NODES_NUM) < 0);
+	test_assert(kportal_create(-1) == -EINVAL);
+	test_assert(kportal_create(nodenum) == -EINVAL);
+	test_assert(kportal_create(PROCESSOR_NOC_NODES_NUM) == -EINVAL);
 }
 
 /*============================================================================*
@@ -175,9 +179,9 @@ static void test_fault_portal_invalid_create(void)
  */
 static void test_fault_portal_invalid_unlink(void)
 {
-	test_assert(kportal_unlink(-1) < 0);
-	test_assert(kportal_unlink(PORTAL_CREATE_MAX) < 0);
-	test_assert(kportal_unlink(1000000) < 0);
+	test_assert(kportal_unlink(-1) == -EBADF);
+	test_assert(kportal_unlink(PORTAL_CREATE_MAX) == -EBADF);
+	test_assert(kportal_unlink(1000000) == -EBADF);
 }
 
 /*============================================================================*
@@ -194,9 +198,9 @@ static void test_fault_portal_double_unlink(void)
 
 	local = knode_get_num();
 
-	test_assert((portalid = kportal_create(local)) >=  0);
+	test_assert((portalid = kportal_create(local)) >= 0);
 	test_assert(kportal_unlink(portalid) == 0);
-	test_assert(kportal_unlink(portalid) < 0);
+	test_assert(kportal_unlink(portalid) == -EBADF);
 }
 
 /*============================================================================*
@@ -212,12 +216,12 @@ static void test_fault_portal_invalid_open(void)
 
 	local = knode_get_num();
 
-	test_assert(kportal_open(local, -1) < 0);
-	test_assert(kportal_open(-1, local + 1) < 0);
-	test_assert(kportal_open(-1, -1) < 0);
-	test_assert(kportal_open(local, PROCESSOR_NOC_NODES_NUM) < 0);
-	test_assert(kportal_open(PROCESSOR_NOC_NODES_NUM, local + 1) < 0);
-	test_assert(kportal_open(local, local) < 0);
+	test_assert(kportal_open(local, -1) == -EINVAL);
+	test_assert(kportal_open(-1, local + 1) == -EINVAL);
+	test_assert(kportal_open(-1, -1) == -EINVAL);
+	test_assert(kportal_open(local, PROCESSOR_NOC_NODES_NUM) == -EINVAL);
+	test_assert(kportal_open(PROCESSOR_NOC_NODES_NUM, local + 1) == -EINVAL);
+	test_assert(kportal_open(local, local) == -EINVAL);
 }
 
 /*============================================================================*
@@ -229,9 +233,9 @@ static void test_fault_portal_invalid_open(void)
  */
 static void test_fault_portal_invalid_close(void)
 {
-	test_assert(kportal_close(-1) < 0);
-	test_assert(kportal_close(PORTAL_OPEN_MAX) < 0);
-	test_assert(kportal_close(1000000) < 0);
+	test_assert(kportal_close(-1) == -EBADF);
+	test_assert(kportal_close(PORTAL_OPEN_MAX) == -EBADF);
+	test_assert(kportal_close(1000000) == -EBADF);
 }
 
 /*============================================================================*
@@ -248,8 +252,8 @@ static void test_fault_portal_bad_close(void)
 
 	local = knode_get_num();
 
-	test_assert((portalid = kportal_create(local)) >=  0);
-	test_assert(kportal_close(portalid) < 0);
+	test_assert((portalid = kportal_create(local)) >= 0);
+	test_assert(kportal_close(portalid) == -EBADF);
 	test_assert(kportal_unlink(portalid) == 0);
 }
 
@@ -264,10 +268,10 @@ static void test_fault_portal_invalid_read(void)
 {
 	char buffer[MESSAGE_SIZE];
 
-	test_assert(kportal_aread(-1, buffer, MESSAGE_SIZE) < 0);
-	test_assert(kportal_aread(0, buffer, MESSAGE_SIZE) < 0);
-	test_assert(kportal_aread(PORTAL_CREATE_MAX, buffer, MESSAGE_SIZE) < 0);
-	test_assert(kportal_aread(1000000, buffer, MESSAGE_SIZE) < 0);
+	test_assert(kportal_aread(-1, buffer, MESSAGE_SIZE) == -EBADF);
+	test_assert(kportal_aread(0, buffer, MESSAGE_SIZE) == -EBADF);
+	test_assert(kportal_aread(PORTAL_CREATE_MAX, buffer, MESSAGE_SIZE) == -EBADF);
+	test_assert(kportal_aread(1000000, buffer, MESSAGE_SIZE) == -EBADF);
 }
 
 /*============================================================================*
@@ -285,10 +289,12 @@ static void test_fault_portal_invalid_read_size(void)
 
 	local = knode_get_num();
 
-	test_assert((portalid = kportal_create(local)) >=  0);
-	test_assert(kportal_aread(portalid, buffer, -1) < 0);
-	test_assert(kportal_aread(portalid, buffer, 0) < 0);
-	test_assert(kportal_aread(portalid, buffer, PORTAL_MAX_SIZE + 1) < 0);
+	test_assert((portalid = kportal_create(local)) >= 0);
+
+		test_assert(kportal_aread(portalid, buffer, -1) == -EINVAL);
+		test_assert(kportal_aread(portalid, buffer, 0) == -EINVAL);
+		test_assert(kportal_aread(portalid, buffer, PORTAL_MAX_SIZE + 1) == -EINVAL);
+	
 	test_assert(kportal_unlink(portalid) == 0);
 }
 
@@ -306,8 +312,10 @@ static void test_fault_portal_null_read(void)
 
 	local = knode_get_num();
 
-	test_assert((portalid = kportal_create(local)) >=  0);
-	test_assert(kportal_aread(portalid, NULL, MESSAGE_SIZE) < 0);
+	test_assert((portalid = kportal_create(local)) >= 0);
+
+		test_assert(kportal_aread(portalid, NULL, MESSAGE_SIZE) == -EINVAL);
+
 	test_assert(kportal_unlink(portalid) == 0);
 }
 
@@ -322,10 +330,10 @@ static void test_fault_portal_invalid_write(void)
 {
 	char buffer[MESSAGE_SIZE];
 
-	test_assert(kportal_awrite(-1, buffer, MESSAGE_SIZE) < 0);
-	test_assert(kportal_awrite(0, buffer, MESSAGE_SIZE) < 0);
-	test_assert(kportal_awrite(PORTAL_OPEN_MAX, buffer, MESSAGE_SIZE) < 0);
-	test_assert(kportal_awrite(1000000, buffer, MESSAGE_SIZE) < 0);
+	test_assert(kportal_awrite(-1, buffer, MESSAGE_SIZE) == -EBADF);
+	test_assert(kportal_awrite(0, buffer, MESSAGE_SIZE) == -EBADF);
+	test_assert(kportal_awrite(PORTAL_OPEN_MAX, buffer, MESSAGE_SIZE) == -EBADF);
+	test_assert(kportal_awrite(1000000, buffer, MESSAGE_SIZE) == -EBADF);
 }
 
 /*============================================================================*
@@ -343,8 +351,10 @@ static void test_fault_portal_bad_write(void)
 
 	local = knode_get_num();
 
-	test_assert((portalid = kportal_create(local)) >=  0);
-	test_assert(kportal_awrite(portalid, buffer, MESSAGE_SIZE) < 0);
+	test_assert((portalid = kportal_create(local)) >= 0);
+
+		test_assert(kportal_awrite(portalid, buffer, MESSAGE_SIZE) == -EBADF);
+
 	test_assert(kportal_unlink(portalid) == 0);
 }
 
@@ -357,12 +367,12 @@ static void test_fault_portal_bad_write(void)
  */
 static void test_fault_portal_bad_wait(void)
 {
-	test_assert(kportal_wait(-1) < 0);
+	test_assert(kportal_wait(-1) == -EBADF);
 #ifndef __unix64__
-	test_assert(kportal_wait(PORTAL_CREATE_MAX) < 0);
-	test_assert(kportal_wait(PORTAL_OPEN_MAX) < 0);
+	test_assert(kportal_wait(PORTAL_CREATE_MAX) == -EBADF);
+	test_assert(kportal_wait(PORTAL_OPEN_MAX) == -EBADF);
 #endif
-	test_assert(kportal_wait(1000000) < 0);
+	test_assert(kportal_wait(1000000) == -EBADF);
 }
 
 /*============================================================================*
@@ -409,24 +419,28 @@ void test_portal(void)
 
 	nodenum = knode_get_num();
 
-	/* API Tests */
-	if (nodenum == PROCESSOR_NODENUM_MASTER)
-		nanvix_puts("--------------------------------------------------------------------------------\n");
-	for (unsigned i = 0; portal_tests_api[i].test_fn != NULL; i++)
+	if (nodenum == MASTER_NODENUM || nodenum == SLAVE_NODENUM)
 	{
-		portal_tests_api[i].test_fn();
-		if (nodenum == PROCESSOR_NODENUM_MASTER)
-			nanvix_puts(portal_tests_api[i].name);
-	}
+		/* API Tests */
+		if (nodenum == MASTER_NODENUM)
+			nanvix_puts("--------------------------------------------------------------------------------\n");
+		for (unsigned i = 0; portal_tests_api[i].test_fn != NULL; i++)
+		{
+			portal_tests_api[i].test_fn();
 
-	/* Fault Tests */
-	if (nodenum == PROCESSOR_NODENUM_MASTER)
-	{
-		nanvix_puts("--------------------------------------------------------------------------------\n");
+			if (nodenum == MASTER_NODENUM)
+				nanvix_puts(portal_tests_api[i].name);
+		}
+
+		/* Fault Tests */
+		if (nodenum == MASTER_NODENUM)
+			nanvix_puts("--------------------------------------------------------------------------------\n");
 		for (unsigned i = 0; portal_tests_fault[i].test_fn != NULL; i++)
 		{
 			portal_tests_fault[i].test_fn();
-			nanvix_puts(portal_tests_fault[i].name);
+
+			if (nodenum == MASTER_NODENUM)
+				nanvix_puts(portal_tests_fault[i].name);
 		}
 	}
 }

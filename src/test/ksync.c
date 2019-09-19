@@ -37,7 +37,11 @@
 #define NR_NODES       2
 #define NR_NODES_MAX   PROCESSOR_NOC_NODES_NUM
 #define MASTER_NODENUM 0
-#define SLAVE_NODENUM  1
+#ifdef __mppa256__
+	#define SLAVE_NODENUM  8
+#else
+	#define SLAVE_NODENUM  1
+#endif
 
 /**
  * @brief Auxiliar array
@@ -56,6 +60,7 @@ int nodenums[NR_NODES] = {
  */
 void test_api_sync_create_unlink(void)
 {
+	int tmp;
 	int syncid;
 	int nodes[NR_NODES];
 
@@ -71,6 +76,13 @@ void test_api_sync_create_unlink(void)
 
 	test_assert((syncid = ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
 	test_assert(ksync_unlink(syncid) == 0);
+
+	tmp = nodes[0];
+	nodes[0] = nodes[1];
+	nodes[1] = tmp;
+
+	test_assert((syncid = ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
+	test_assert(ksync_unlink(syncid) == 0);
 }
 
 /*============================================================================*
@@ -82,6 +94,7 @@ void test_api_sync_create_unlink(void)
  */
 void test_api_sync_open_close(void)
 {
+	int tmp;
 	int syncid;
 	int nodes[NR_NODES];
 
@@ -95,7 +108,14 @@ void test_api_sync_open_close(void)
 		nodes[j++] = nodenums[i];
 	}
 
-	test_assert((syncid = ksync_open(&nodes[0], NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
+	test_assert((syncid = ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
+	test_assert(ksync_close(syncid) == 0);
+
+	tmp = nodes[0];
+	nodes[0] = nodes[1];
+	nodes[1] = tmp;
+
+	test_assert((syncid = ksync_open(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
 	test_assert(ksync_close(syncid) == 0);
 }
 
@@ -124,10 +144,10 @@ void test_api_sync_signal_wait(void)
 		nodes[j++] = nodenums[i];
 	}
 
-	if (nodenum == MASTER_NODENUM)
+	if (nodenum != MASTER_NODENUM)
 	{
-		test_assert((syncin = ksync_create(&nodes[0], NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
-		test_assert((syncout = ksync_open(&nodes[0], NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
+		test_assert((syncin = ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
+		test_assert((syncout = ksync_open(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
 
 		for (int i = 1; i < NITERATIONS; i++)
 		{
@@ -137,8 +157,8 @@ void test_api_sync_signal_wait(void)
 	}
 	else
 	{
-		test_assert((syncin = ksync_create(&nodes[0], NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
-		test_assert((syncout = ksync_open(&nodes[0], NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
+		test_assert((syncin = ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
+		test_assert((syncout = ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
 
 		for (int i = 1; i < NITERATIONS; i++)
 		{
@@ -174,16 +194,16 @@ void test_fault_sync_invalid_create(void)
 		nodes[j++] = nodenums[i];
 	}
 
-	test_assert((ksync_create(NULL, NR_NODES, SYNC_ONE_TO_ALL)) < 0);
-	test_assert((ksync_create(nodes, -1, SYNC_ONE_TO_ALL)) < 0);
-	test_assert((ksync_create(nodes, 0, SYNC_ONE_TO_ALL)) < 0);
-	test_assert((ksync_create(nodes, 1, SYNC_ONE_TO_ALL)) < 0);
-	test_assert((ksync_create(nodes, NR_NODES_MAX + 1, SYNC_ONE_TO_ALL)) < 0);
-	test_assert((ksync_create(nodes, NR_NODES, -1)) < 0);
+	test_assert((ksync_create(NULL, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
+	test_assert((ksync_create(nodes, -1, SYNC_ONE_TO_ALL)) == -EINVAL);
+	test_assert((ksync_create(nodes, 0, SYNC_ONE_TO_ALL)) == -EINVAL);
+	test_assert((ksync_create(nodes, 1, SYNC_ONE_TO_ALL)) == -EINVAL);
+	test_assert((ksync_create(nodes, NR_NODES_MAX + 1, SYNC_ONE_TO_ALL)) == -EINVAL);
+	test_assert((ksync_create(nodes, NR_NODES, -1)) == -EINVAL);
 	nodes[0] = -1;
-	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) < 0);
+	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
 	nodes[0] = 1000000;
-	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) < 0);
+	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
 }
 
 /*============================================================================*
@@ -203,7 +223,7 @@ void test_fault_sync_bad_create1(void)
 	/* Invalid list of NoC nodes. */
 	for (int i = NR_NODES - 1; i >= 0; i--)
 		nodes[i] = -1;
-	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) < 0);
+	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
 
 	/* Underlying NoC node is the sender. */
 	nodes[0] = nodenum;
@@ -215,7 +235,7 @@ void test_fault_sync_bad_create1(void)
 		nodes[j++] = nodenums[i];
 	}
 
-	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) < 0);
+	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
 
 	/* Underlying NoC node is not listed. */
 	nodes[0] = (nodenum == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
@@ -226,12 +246,12 @@ void test_fault_sync_bad_create1(void)
 
 		nodes[j++] = nodenums[i];
 	}
-	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) < 0);
+	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
 
 	/* Underlying NoC node appears twice in the list. */
 	nodes[NR_NODES - 1] = nodenum;
 	nodes[NR_NODES - 2] = nodenum;
-	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) < 0);
+	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
 }
 
 /**
@@ -247,7 +267,7 @@ void test_fault_sync_bad_create2(void)
 	/* Invalid list of NoC nodes. */
 	for (int i = NR_NODES - 1; i >= 0; i--)
 		nodes[i] = -1;
-	test_assert((ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) < 0);
+	test_assert((ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) == -EINVAL);
 
 	/* Underlying NoC node is not the receiver. */
 	nodes[0] = (nodenum == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
@@ -258,7 +278,7 @@ void test_fault_sync_bad_create2(void)
 
 		nodes[j++] = nodenums[i];
 	}
-	test_assert((ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) < 0);
+	test_assert((ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) == -EINVAL);
 
 	/* Underlying NoC node is not listed. */
 	nodes[0] = (nodenum == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
@@ -269,12 +289,12 @@ void test_fault_sync_bad_create2(void)
 
 		nodes[j++] = nodenums[i];
 	}
-	test_assert((ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) < 0);
+	test_assert((ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) == -EINVAL);
 
 	/* Underlying NoC node appears twice in the list. */
 	nodes[NR_NODES - 1] = nodenum;
 	nodes[NR_NODES - 2] = nodenum;
-	test_assert((ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) < 0);
+	test_assert((ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) == -EINVAL);
 }
 
 /**
@@ -310,16 +330,16 @@ void test_fault_sync_invalid_open(void)
 		nodes[j++] = nodenums[i];
 	}
 
-	test_assert((ksync_open(NULL, NR_NODES, SYNC_ONE_TO_ALL)) < 0);
-	test_assert((ksync_open(nodes, -1, SYNC_ONE_TO_ALL)) < 0);
-	test_assert((ksync_open(nodes, 0, SYNC_ONE_TO_ALL)) < 0);
-	test_assert((ksync_open(nodes, 1, SYNC_ONE_TO_ALL)) < 0);
-	test_assert((ksync_open(nodes, NR_NODES_MAX + 1, SYNC_ONE_TO_ALL)) < 0);
-	test_assert((ksync_open(nodes, NR_NODES, -1)) < 0);
+	test_assert((ksync_open(NULL, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
+	test_assert((ksync_open(nodes, -1, SYNC_ONE_TO_ALL)) == -EINVAL);
+	test_assert((ksync_open(nodes, 0, SYNC_ONE_TO_ALL)) == -EINVAL);
+	test_assert((ksync_open(nodes, 1, SYNC_ONE_TO_ALL)) == -EINVAL);
+	test_assert((ksync_open(nodes, NR_NODES_MAX + 1, SYNC_ONE_TO_ALL)) == -EINVAL);
+	test_assert((ksync_open(nodes, NR_NODES, -1)) == -EINVAL);
 	nodes[0] = -1;
-	test_assert((ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) < 0);
+	test_assert((ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
 	nodes[0] = 1000000;
-	test_assert((ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) < 0);
+	test_assert((ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
 }
 
 /*============================================================================*
@@ -340,7 +360,7 @@ void test_fault_sync_bad_open1(void)
 	/* Invalid list of NoC nodes. */
 	for (int i = NR_NODES - 1; i >= 0; i--)
 		nodes[i] = -1;
-	test_assert((ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) < 0);
+	test_assert((ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
 
 	/* Underlying NoC node is not the sender. */
 	nodes[NR_NODES - 1] = nodenum;
@@ -351,15 +371,15 @@ void test_fault_sync_bad_open1(void)
 
 		nodes[j++] = nodenums[i];
 	}
-	test_assert((ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) < 0);
+	test_assert((ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
 
 	/* Underlying NoC node is not listed. */
-	test_assert((ksync_open(nodes, NR_NODES - 1, SYNC_ONE_TO_ALL)) < 0);
+	test_assert((ksync_open(nodes, NR_NODES - 1, SYNC_ONE_TO_ALL)) == -EINVAL);
 
 	/* Underlying NoC node appears twice in the list. */
 	nodes[0] = nodenum;
 	nodes[NR_NODES - 1] = nodenum;
-	test_assert((ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) < 0);
+	test_assert((ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
 }
 
 /**
@@ -375,7 +395,7 @@ void test_fault_sync_bad_open2(void)
 	/* Invalid list of NoC nodes. */
 	for (int i = NR_NODES - 1; i >= 0; i--)
 		nodes[i] = -1;
-	test_assert((ksync_open(nodes, NR_NODES, SYNC_ALL_TO_ONE)) < 0);
+	test_assert((ksync_open(nodes, NR_NODES, SYNC_ALL_TO_ONE)) == -EINVAL);
 
 	/* Underlying NoC node is not the sender. */
 	nodes[0] = nodenum;
@@ -386,15 +406,15 @@ void test_fault_sync_bad_open2(void)
 
 		nodes[j++] = nodenums[i];
 	}
-	test_assert((ksync_open(nodes, NR_NODES, SYNC_ALL_TO_ONE)) < 0);
+	test_assert((ksync_open(nodes, NR_NODES, SYNC_ALL_TO_ONE)) == -EINVAL);
 
 	/* Underlying NoC node is not listed. */
-	test_assert((ksync_open(&nodes[1], NR_NODES - 1, SYNC_ALL_TO_ONE)) < 0);
+	test_assert((ksync_open(&nodes[1], NR_NODES - 1, SYNC_ALL_TO_ONE)) == -EINVAL);
 
 	/* Underlying NoC node appears twice in the list. */
 	nodes[0] = nodenum;
 	nodes[NR_NODES - 1] = nodenum;
-	test_assert((ksync_open(&nodes[1], NR_NODES, SYNC_ALL_TO_ONE)) < 0);
+	test_assert((ksync_open(&nodes[1], NR_NODES, SYNC_ALL_TO_ONE)) == -EINVAL);
 }
 
 /**
@@ -415,9 +435,9 @@ void test_fault_sync_bad_open(void)
  */
 void test_fault_sync_invalid_unlink(void)
 {
-	test_assert(ksync_unlink(-1) < 0);
-	test_assert(ksync_unlink(1) < 0);
-	test_assert(ksync_unlink(1000000) < 0);
+	test_assert(ksync_unlink(-1) == -EBADF);
+	test_assert(ksync_unlink(1) == -EBADF);
+	test_assert(ksync_unlink(1000000) == -EBADF);
 }
 
 /*============================================================================*
@@ -446,7 +466,9 @@ void test_fault_sync_bad_unlink(void)
 	}
 
 	test_assert((syncid = ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
-	test_assert(ksync_unlink(syncid) < 0);
+
+		test_assert(ksync_unlink(syncid) == -EBADF);
+
 	test_assert(ksync_close(syncid) == 0);
 }
 
@@ -477,7 +499,7 @@ void test_fault_sync_double_unlink(void)
 
 	test_assert((syncid = ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
 	test_assert(ksync_unlink(syncid) == 0);
-	test_assert(ksync_unlink(syncid) < 0);
+	test_assert(ksync_unlink(syncid) == -EBADF);
 }
 
 /*============================================================================*
@@ -489,9 +511,9 @@ void test_fault_sync_double_unlink(void)
  */
 void test_fault_sync_invalid_close(void)
 {
-	test_assert(ksync_close(-1) < 0);
-	test_assert(ksync_close(1) < 0);
-	test_assert(ksync_close(1000000) < 0);
+	test_assert(ksync_close(-1) == -EBADF);
+	test_assert(ksync_close(1) == -EBADF);
+	test_assert(ksync_close(1000000) == -EBADF);
 }
 
 /*============================================================================*
@@ -520,7 +542,9 @@ void test_fault_sync_bad_close(void)
 	}
 
 	test_assert((syncid = ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
-	test_assert(ksync_close(syncid) < 0);
+
+		test_assert(ksync_close(syncid) == -EBADF);
+
 	test_assert(ksync_unlink(syncid) == 0);
 }
 
@@ -551,7 +575,7 @@ void test_fault_sync_double_close(void)
 
 	test_assert((syncid = ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
 	test_assert(ksync_close(syncid) == 0);
-	test_assert(ksync_close(syncid) < 0);
+	test_assert(ksync_close(syncid) == -EBADF);
 }
 
 /*============================================================================*
@@ -563,9 +587,9 @@ void test_fault_sync_double_close(void)
  */
 void test_fault_sync_invalid_signal(void)
 {
-	test_assert(ksync_signal(-1) < 0);
-	test_assert(ksync_signal(1) < 0);
-	test_assert(ksync_signal(1000000) < 0);
+	test_assert(ksync_signal(-1) == -EBADF);
+	test_assert(ksync_signal(1) == -EBADF);
+	test_assert(ksync_signal(1000000) == -EBADF);
 }
 
 /*============================================================================*
@@ -594,7 +618,9 @@ void test_fault_sync_bad_signal(void)
 	}
 
 	test_assert((syncid = ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
-	test_assert(ksync_signal(syncid) < 0);
+
+		test_assert(ksync_signal(syncid) == -EBADF);
+
 	test_assert(ksync_unlink(syncid) == 0);
 }
 
@@ -607,9 +633,9 @@ void test_fault_sync_bad_signal(void)
  */
 void test_fault_sync_invalid_wait(void)
 {
-	test_assert(ksync_wait(-1) < 0);
-	test_assert(ksync_wait(1) < 0);
-	test_assert(ksync_wait(1000000) < 0);
+	test_assert(ksync_wait(-1) == -EBADF);
+	test_assert(ksync_wait(1) == -EBADF);
+	test_assert(ksync_wait(1000000) == -EBADF);
 }
 
 /*============================================================================*
@@ -638,7 +664,9 @@ void test_fault_sync_bad_wait(void)
 	}
 
 	test_assert((syncid = ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
-	test_assert(ksync_wait(syncid) < 0);
+
+		test_assert(ksync_wait(syncid) == -EBADF);
+
 	test_assert(ksync_close(syncid) == 0);
 }
 
@@ -688,25 +716,28 @@ void test_sync(void)
 
 	nodenum = knode_get_num();
 
-	/* API Tests */
-	if (nodenum == PROCESSOR_NODENUM_MASTER)
-		nanvix_puts("--------------------------------------------------------------------------------\n");
-	for (int i = 0; sync_tests_api[i].test_fn != NULL; i++)
+	if (nodenum == MASTER_NODENUM || nodenum == SLAVE_NODENUM)
 	{
-		sync_tests_api[i].test_fn();
+		/* API Tests */
+		// if (nodenum == MASTER_NODENUM)
+			nanvix_puts("--------------------------------------------------------------------------------\n");
+		for (int i = 0; sync_tests_api[i].test_fn != NULL; i++)
+		{
+			sync_tests_api[i].test_fn();
 
-		if (nodenum == PROCESSOR_NODENUM_MASTER)
-			nanvix_puts(sync_tests_api[i].name);
-	}
+			// if (nodenum == MASTER_NODENUM)
+				nanvix_puts(sync_tests_api[i].name);
+		}
 
-	if (nodenum == PROCESSOR_NODENUM_MASTER)
-	{
 		/* Fault Tests */
-		nanvix_puts("--------------------------------------------------------------------------------\n");
+		// if (nodenum == MASTER_NODENUM)
+			nanvix_puts("--------------------------------------------------------------------------------\n");
 		for (int i = 0; sync_tests_fault[i].test_fn != NULL; i++)
 		{
 			sync_tests_fault[i].test_fn();
-			nanvix_puts(sync_tests_fault[i].name);
+
+			// if (nodenum == MASTER_NODENUM)
+				nanvix_puts(sync_tests_fault[i].name);
 		}
 	}
 }

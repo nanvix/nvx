@@ -23,57 +23,48 @@
  */
 
 #include <nanvix/kernel/kernel.h>
+#include <nanvix/sys/noc.h>
 #include <posix/errno.h>
 
 #if __TARGET_HAS_SYNC
 
 /*============================================================================*
- * ksync_sort()                                                               *
+ * ksync_list_is_valid()                                                      *
  *============================================================================*/
 
 /**
- * @brief Sort the list of RX/TX NoC nodes.
+ * @brief Check if the list of RX/TX NoC nodes is valid.
  *
- * @param ranks  Target list of RX NoC nodes.
- * @param nodes  IDs of target NoC nodes.
+ * @param local  Logic ID of the local node.
+ * @param nodes  Logic IDs of target NoC nodes.
  * @param nnodes Number of target NoC nodes.
  *
- * @return Zero if only one occurrence of nodenum was found and non zero
+ * @return Non zero if only one occurrence of local was found and zero
  * otherwise.
- *
- * @note This function is non-blocking.
  */
-PRIVATE int ksync_sort(int nodenum, int *_nodes, const int *nodes, int nnodes)
+PRIVATE int ksync_list_is_valid(int local, const int *nodes, int nnodes)
 {
-	int found;
-	int j, tmp;
+	uint64_t checks;
 
-	j = 1;
-	found = 0;
+	KASSERT(PROCESSOR_NOC_NODES_NUM <= 64);
+
+	checks = 0ULL;
 
 	/* Build list of RX NoC nodes. */
-	for (int i = 0; i < nnodes; i++)
+	for (int i = 0; i < nnodes; ++i)
 	{
 		if (!WITHIN(nodes[i], 0, PROCESSOR_NOC_NODES_NUM))
-			return (-EINVAL);
+			return (0);
 
-		if (nodenum == nodes[i])
-		{
-			j = i;
-			found++;
-		}
-
-		_nodes[i] = nodes[i];
+		/* Does a node appear twice? */
+		if (checks & (1ULL << nodes[i]))
+			return (0);
+		
+		checks |= (1ULL << nodes[i]);
 	}
 
-	if (found != 1)
-		return (-EINVAL);
-
-	tmp = _nodes[1];
-	_nodes[1] = _nodes[j];
-	_nodes[j] = tmp;
-
-	return (0);
+	/* Local Node found. */
+	return (checks & (1ULL << local));
 }
 
 /*============================================================================*
@@ -81,53 +72,48 @@ PRIVATE int ksync_sort(int nodenum, int *_nodes, const int *nodes, int nnodes)
  *============================================================================*/
 
 /*
- * @see sys_sync_create()
+ * @see kernel_sync_create()
  */
 int ksync_create(const int *nodes, int nnodes, int type)
 {
 	int ret;
-	int nodenum;
-	int _nodes[PROCESSOR_NOC_NODES_NUM];
+	int local;
 
 	/* Invalid nodes list. */
 	if (nodes == NULL)
 		return (-EINVAL);
 
 	/* Invalid number of nodes. */
-	if ((nnodes < 2) || (nnodes > PROCESSOR_NOC_NODES_NUM))
-		return (-EINVAL);
+	if (!WITHIN(nnodes, 2, (PROCESSOR_NOC_NODES_NUM + 1)))
+		return(-EINVAL);
 
-	nodenum = processor_node_get_num(core_get_id());
+	local = knode_get_num();
 
-	/* Invalid type. */
 	if (type == SYNC_ONE_TO_ALL)
 	{
-		if (nodenum == nodes[0])
-			return (-EINVAL);
-
-		if (ksync_sort(nodenum, _nodes, nodes, nnodes) < 0)
+		/* Is the local node not the sender? */
+		if (local == nodes[0])
 			return (-EINVAL);
 	}
+
 	else if (type == SYNC_ALL_TO_ONE)
 	{
-		if (nodenum != nodes[0])
+		/* Is the local node not the receiver? */
+		if (local != nodes[0])
 			return (-EINVAL);
-
-		_nodes[0] = nodes[0];
-		for (int i = 1; i < nnodes; i++)
-		{
-			if (nodenum == nodes[i] || !WITHIN(nodes[i], 0, PROCESSOR_NOC_NODES_NUM))
-				return (-EINVAL);
-
-			_nodes[i] = nodes[i];
-		}
 	}
+
+	/* Invalid type. */
 	else
 		return (-EINVAL);
+	
+	/* Is the node list not valid? */
+	if (!ksync_list_is_valid(local, nodes, nnodes))
+			return (-EINVAL);
 
 	ret = kcall3(
 		NR_sync_create,
-		(word_t) _nodes,
+		(word_t) nodes,
 		(word_t) nnodes,
 		(word_t) type
 	);
@@ -140,53 +126,48 @@ int ksync_create(const int *nodes, int nnodes, int type)
  *============================================================================*/
 
 /*
- * @see sys_sync_open()
+ * @see kernel_sync_open()
  */
 int ksync_open(const int *nodes, int nnodes, int type)
 {
 	int ret;
-	int nodenum;
-	int _nodes[PROCESSOR_NOC_NODES_NUM];
+	int local;
 
 	/* Invalid list of nodes. */
 	if (nodes == NULL)
 		return (-EINVAL);
 
 	/* Invalid number of nodes. */
-	if ((nnodes < 2) || (nnodes > PROCESSOR_NOC_NODES_NUM))
-		return (-EINVAL);
+	if (!WITHIN(nnodes, 2, (PROCESSOR_NOC_NODES_NUM + 1)))
+		return(-EINVAL);
 
-	nodenum = processor_node_get_num(core_get_id());
+	local = knode_get_num();
 
-	/* Invalid type. */
 	if (type == SYNC_ONE_TO_ALL)
 	{
-		if (nodenum != nodes[0])
+		/* Is the local node not the sender? */
+		if (local != nodes[0])
 			return (-EINVAL);
-
-		_nodes[0] = nodes[0];
-		for (int i = 1; i < nnodes; i++)
-		{
-			if (nodenum == nodes[i] || !WITHIN(nodes[i], 0, PROCESSOR_NOC_NODES_NUM))
-				return (-EINVAL);
-
-			_nodes[i] = nodes[i];
-		}
 	}
+
 	else if (type == SYNC_ALL_TO_ONE)
 	{
-		if (nodenum == nodes[0])
-			return (-EINVAL);
-
-		if (ksync_sort(nodenum, _nodes, nodes, nnodes) < 0)
+		/* Is the local node not the receiver? */
+		if (local == nodes[0])
 			return (-EINVAL);
 	}
+
+	/* Invalid type. */
 	else
 		return (-EINVAL);
 
+	/* Is the node list not valid? */
+	if (!ksync_list_is_valid(local, nodes, nnodes))
+			return (-EINVAL);
+
 	ret = kcall3(
 		NR_sync_open,
-		(word_t) _nodes,
+		(word_t) nodes,
 		(word_t) nnodes,
 		(word_t) type
 	);
@@ -199,7 +180,7 @@ int ksync_open(const int *nodes, int nnodes, int type)
  *============================================================================*/
 
 /*
- * @see sys_sync_wait()
+ * @see kernel_sync_wait()
  */
 int ksync_wait(int syncid)
 {
@@ -218,7 +199,7 @@ int ksync_wait(int syncid)
  *============================================================================*/
 
 /*
- * @see sys_sync_signal()
+ * @see kernel_sync_signal()
  */
 int ksync_signal(int syncid)
 {
@@ -237,7 +218,7 @@ int ksync_signal(int syncid)
  *============================================================================*/
 
 /*
- * @see sys_sync_close()
+ * @see kernel_sync_close()
  */
 int ksync_close(int syncid)
 {
@@ -256,7 +237,7 @@ int ksync_close(int syncid)
  *============================================================================*/
 
 /*
- * @see sys_sync_unlink()
+ * @see kernel_sync_unlink()
  */
 int ksync_unlink(int syncid)
 {

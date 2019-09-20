@@ -719,24 +719,24 @@ void test_sync(void)
 	if (nodenum == MASTER_NODENUM || nodenum == SLAVE_NODENUM)
 	{
 		/* API Tests */
-		// if (nodenum == MASTER_NODENUM)
+		if (nodenum == MASTER_NODENUM)
 			nanvix_puts("--------------------------------------------------------------------------------\n");
 		for (int i = 0; sync_tests_api[i].test_fn != NULL; i++)
 		{
 			sync_tests_api[i].test_fn();
 
-			// if (nodenum == MASTER_NODENUM)
+			if (nodenum == MASTER_NODENUM)
 				nanvix_puts(sync_tests_api[i].name);
 		}
 
 		/* Fault Tests */
-		// if (nodenum == MASTER_NODENUM)
+		if (nodenum == MASTER_NODENUM)
 			nanvix_puts("--------------------------------------------------------------------------------\n");
 		for (int i = 0; sync_tests_fault[i].test_fn != NULL; i++)
 		{
 			sync_tests_fault[i].test_fn();
 
-			// if (nodenum == MASTER_NODENUM)
+			if (nodenum == MASTER_NODENUM)
 				nanvix_puts(sync_tests_fault[i].name);
 		}
 	}

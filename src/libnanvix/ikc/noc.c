@@ -23,7 +23,7 @@
  */
 
 #include <nanvix/kernel/kernel.h>
-#include <errno.h>
+#include <posix/errno.h>
 
 /*============================================================================*
  * knode_get_num()                                                            *

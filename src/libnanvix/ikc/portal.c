@@ -32,8 +32,9 @@
  * kportal_create()                                                           *
  *============================================================================*/
 
-/*
- * @see kernel_portal_create()
+/**
+ * @details The kportal_create() function creates an input portal
+ * and attaches it to the local NoC node @p local.
  */
 int kportal_create(int local)
 {
@@ -55,8 +56,9 @@ int kportal_create(int local)
  * kportal_allow()                                                            *
  *============================================================================*/
 
-/*
- * @see kernel_portal_allow()
+/**
+ * @details The kportal_allow() function allow read data from a input portal
+ * associated with the NoC node @p remote.
  */
 int kportal_allow(int portalid, int remote)
 {
@@ -79,8 +81,9 @@ int kportal_allow(int portalid, int remote)
  * kportal_open()                                                             *
  *============================================================================*/
 
-/*
- * @see kernel_portal_open()
+/**
+ * @details The kportal_open() function opens an output portal to the remote
+ * NoC node @p remote and attaches it to the local NoC node @p local.
  */
 int kportal_open(int local, int remote)
 {
@@ -97,10 +100,6 @@ int kportal_open(int local, int remote)
 	if (remote == nodenum)
 		return (-EINVAL);
 
-	/* Invalid remote number for the requesting core ID. */
-	if (remote == knode_get_num())
-		return (-EINVAL);
-
 	ret = kcall2(
 		NR_portal_open,
 		(word_t) local,
@@ -114,8 +113,9 @@ int kportal_open(int local, int remote)
  * kportal_unlink()                                                           *
  *============================================================================*/
 
-/*
- * @see kernel_portal_unlink()
+/**
+ * @details The kportal_unlink() function removes and releases the underlying
+ * resources associated to the input portal @p portalid.
  */
 int kportal_unlink(int portalid)
 {
@@ -133,8 +133,9 @@ int kportal_unlink(int portalid)
  * kportal_close()                                                            *
  *============================================================================*/
 
-/*
- * @see kernel_portal_close()
+/**
+ * @details The kportal_close() function closes and releases the
+ * underlying resources associated to the output portal @p portalid.
  */
 int kportal_close(int portalid)
 {
@@ -152,8 +153,9 @@ int kportal_close(int portalid)
  * kportal_aread()                                                            *
  *============================================================================*/
 
-/*
- * @see kernel_portal_aread()
+/**
+ * @details The kportal_aread() asynchronously read @p size bytes of
+ * data pointed to by @p buffer from the input portal @p portalid.
  */
 int kportal_aread(int portalid, void * buffer, size_t size)
 {
@@ -181,8 +183,9 @@ int kportal_aread(int portalid, void * buffer, size_t size)
  * kportal_awrite()                                                           *
  *============================================================================*/
 
-/*
- * @see kernel_portal_awrite()
+/**
+ * @details The kportal_awrite() asynchronously write @p size bytes
+ * of data pointed to by @p buffer to the output portal @p portalid.
  */
 int kportal_awrite(int portalid, const void * buffer, size_t size)
 {
@@ -210,8 +213,9 @@ int kportal_awrite(int portalid, const void * buffer, size_t size)
  * kportal_wait()                                                             *
  *============================================================================*/
 
-/*
- * @see kernel_portal_wait()
+/**
+ * @details The kportal_wait() waits for asyncrhonous operations in
+ * the input/output portal @p portalid to complete.
  */
 int kportal_wait(int portalid)
 {
@@ -265,6 +269,37 @@ ssize_t kportal_read(int portalid, void *buffer, size_t size)
 		return (ret);
 
 	return (size);
+}
+
+/*============================================================================*
+ * kportal_ioctl()                                                            *
+ *============================================================================*/
+
+/**
+ * @details The kportal_ioctl() reads the measurement parameter associated
+ * with the request id @p request of the portal @p portalid.
+ */
+int kportal_ioctl(int portalid, unsigned request, ...)
+{
+	int ret;
+	va_list args;
+
+	va_start(args, request);
+
+		dcache_invalidate();
+
+		ret = kcall3(
+			NR_portal_ioctl,
+			(word_t) portalid,
+			(word_t) request,
+			(word_t) &args
+		);
+
+		dcache_invalidate();
+
+	va_end(args);
+
+	return (ret);
 }
 
 #endif /* __TARGET_HAS_PORTAL */

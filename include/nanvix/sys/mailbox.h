@@ -23,7 +23,7 @@
  */
 
 /**
- * @addtogroup libnanvix-mailbox Mailbox
+ * @addtogroup nanvix Nanvix System
  */
 /**@{*/
 
@@ -136,6 +136,18 @@
 	 * failure, a negative error code is returned instead.
 	 */
 	extern int kmailbox_wait(int mbxid);
+
+	/**
+	 * @brief Performs control operations in a mailbox.
+	 *
+	 * @param mbxid   Target mailbox.
+	 * @param request Request.
+	 * @param ...     Additional arguments.
+	 *
+	 * @param Upon successful completion, zero is returned. Upon failure,
+	 * a negative error code is returned instead.
+	 */
+	extern int kmailbox_ioctl(int, unsigned, ...);
 
 #endif /* NANVIX_SYS_MAILBOX_H_ */
 

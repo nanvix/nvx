@@ -227,4 +227,35 @@ ssize_t kmailbox_read(int mbxid, void *buffer, size_t size)
 	return (size);
 }
 
+/*============================================================================*
+ * kmailbox_ioctl()                                                           *
+ *============================================================================*/
+
+/**
+ * @details The kmailbox_ioctl() reads the measurement parameter associated
+ * with the request id @p request of the mailbox @p mbxid.
+ */
+int kmailbox_ioctl(int mbxid, unsigned request, ...)
+{
+	int ret;
+	va_list args;
+
+	va_start(args, request);
+
+		dcache_invalidate();
+
+		ret = kcall3(
+			NR_mailbox_ioctl,
+			(word_t) mbxid,
+			(word_t) request,
+			(word_t) &args
+		);
+
+		dcache_invalidate();
+
+	va_end(args);
+
+	return (ret);
+}
+
 #endif /* __TARGET_HAS_MAILBOX */

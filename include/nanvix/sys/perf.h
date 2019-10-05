@@ -89,6 +89,16 @@
 	 */
 	extern uint64_t nanvix_perf_read(int perf);
 
+	/**
+	 * @brief Gets the kernel wall clock.
+	 *
+	 * @param buffer Store location for wall clock.
+	 *
+	 * @returns Upon successful completion, zero is returned. Upon
+	 * failure, a negative error code is returned instead.
+	 */
+	extern int kclock(uint64_t *buffer);
+
 #endif /* NANVIX_SYS_PERF_H_ */
 
 /**@}*/

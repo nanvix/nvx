@@ -23,6 +23,7 @@
  */
 
 #include <nanvix/kernel/kernel.h>
+#include <posix/errno.h>
 #include <stdint.h>
 
 /**
@@ -63,4 +64,23 @@ PUBLIC int nanvix_perf_restart(int perf)
 PUBLIC uint64_t nanvix_perf_read(int perf)
 {
 	return (perf_read(perf));
+}
+
+/**
+ * @todo TODO provide a detailed description for this function.
+ */
+PUBLIC uint64_t kclock(uint64_t *buffer)
+{
+	int ret;
+
+	/* Invalid buffer. */
+	if (buffer == NULL)
+		return (-EINVAL);
+
+	ret = kcall1(
+		NR_clock,
+		(word_t) buffer
+	);
+
+	return (ret);
 }

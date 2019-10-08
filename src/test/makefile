@@ -31,7 +31,7 @@ LIBS  = -Wl,--whole-archive $(LIBNANVIX) $(LIBKERNEL) $(LIBHAL) $(LIBLWIP)
 LIBS += -Wl,--no-whole-archive $(THEIR_LIBS)
 
 #===============================================================================
-# Sources and Objects
+# Sources, Objects & Binaries
 #===============================================================================
 
 # C Source Files
@@ -39,6 +39,9 @@ SRC = $(wildcard *.c)
 
 # Object Files
 OBJ = $(SRC:.c=.$(OBJ_SUFFIX).o)
+
+# Binary File
+EXEC = test-driver.$(OBJ_SUFFIX)
 
 #===============================================================================
 # Sources (Target Specific)
@@ -81,10 +84,10 @@ endif
 # Cleans Everything
 distclean: clean
 ifeq ($(VERBOSE), no)
-	@echo [CLEAN] $(BINDIR)/$(EXEC)
-	@rm -rf $(BINDIR)/$(EXEC)
+	@echo [CLEAN] $(BINDIR)/*.$(TARGET)
+	@rm -rf $(BINDIR)/*.$(TARGET)
 else
-	rm -rf $(BINDIR)/$(EXEC)
+	rm -rf $(BINDIR)/*.$(TARGET)
 endif
 
 # Builds a C Source file

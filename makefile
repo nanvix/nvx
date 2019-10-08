@@ -56,6 +56,7 @@ export LINKERDIR  := $(BUILDDIR)/$(TARGET)/linker
 export MAKEDIR    := $(BUILDDIR)/$(TARGET)/make
 export DOCDIR     := $(ROOTDIR)/doc
 export INCDIR     := $(ROOTDIR)/include
+export IMGDIR     := $(ROOTDIR)/img
 export LIBDIR     := $(ROOTDIR)/lib
 export SRCDIR     := $(ROOTDIR)/src
 export TOOLSDIR   := $(ROOTDIR)/utils
@@ -68,17 +69,6 @@ export TOOLSDIR   := $(ROOTDIR)/utils
 export LIBHAL    = $(LIBDIR)/libhal-$(TARGET).a
 export LIBKERNEL = $(LIBDIR)/libkernel-$(TARGET).a
 export LIBNANVIX = $(LIBDIR)/libnanvix-$(TARGET).a
-
-#
-# Binaries
-#
-# TODO: We should make this generic.
-#
-export EXEC     = test-driver
-export BINARIES = $(EXEC)
-ifeq ($(TARGET), unix64)
-export BINARIES += $(EXEC)
-endif
 
 #===============================================================================
 # Target-Specific Make Rules
@@ -109,6 +99,9 @@ export ARFLAGS = rc
 
 #===============================================================================
 
+# Image Source
+export IMGSRC = $(IMGDIR)/$(TARGET).img
+
 # Image Name
 export IMAGE = libnanvix-debug.img
 
@@ -121,7 +114,7 @@ make-dirs:
 	@mkdir -p $(LIBDIR)
 
 image-tests: | make-dirs all-target
-	bash $(TOOLSDIR)/nanvix-build-image.sh $(IMAGE) $(BINDIR) "$(BINARIES)"
+	bash $(TOOLSDIR)/nanvix-build-image.sh $(IMAGE) $(BINDIR) $(IMGSRC)
 
 # Cleans builds.
 clean: clean-target

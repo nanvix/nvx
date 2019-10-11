@@ -43,6 +43,17 @@
 	#define SLAVE_NODENUM  1
 #endif
 
+/**
+ * @brief Multiple open / create test parameters.
+ */
+#define TEST_NR_INPUT_MAILBOXES   5
+#define TEST_NR_OUTPUT_MAILBOXES 15
+
+/**
+ * @brief Multiplex test parameters.
+ */
+#define TEST_NR_MAILBOX_PAIRS 5
+
 /*============================================================================*
  * API Test: Create Unlink                                                    *
  *============================================================================*/
@@ -62,11 +73,11 @@ static void test_api_mailbox_create_unlink(void)
 }
 
 /*============================================================================*
- * API Test: Create Unlink                                                    *
+ * API Test: Open Close                                                    *
  *============================================================================*/
 
 /**
- * @brief API Test: Mailbox Create Unlink
+ * @brief API Test: Mailbox Open Close
  */
 static void test_api_mailbox_open_close(void)
 {
@@ -181,7 +192,6 @@ static void test_api_mailbox_read_write(void)
 			kmemset(message, 1, MAILBOX_MSG_SIZE);
 
 			test_assert(kmailbox_awrite(mbx_out, message, MAILBOX_MSG_SIZE) == MAILBOX_MSG_SIZE);
-			test_assert(kmailbox_wait(mbx_out) == 0);
 
 			kmemset(message, 0, MAILBOX_MSG_SIZE);
 
@@ -207,7 +217,6 @@ static void test_api_mailbox_read_write(void)
 			kmemset(message, 2, MAILBOX_MSG_SIZE);
 
 			test_assert(kmailbox_awrite(mbx_out, message, MAILBOX_MSG_SIZE) == MAILBOX_MSG_SIZE);
-			test_assert(kmailbox_wait(mbx_out) == 0);
 		}
 	}
 
@@ -223,6 +232,123 @@ static void test_api_mailbox_read_write(void)
 
 	test_assert(kmailbox_close(mbx_out) == 0);
 	test_assert(kmailbox_unlink(mbx_in) == 0);
+}
+
+/*============================================================================*
+ * API Test: Multiple create / open                                           *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Multiple create / open of virtual mailboxes.
+ */
+static void test_api_mailbox_multiple_create_open(void)
+{
+	int local;
+	int remote;
+	int mbx_in[TEST_NR_INPUT_MAILBOXES];
+	int mbx_out[TEST_NR_OUTPUT_MAILBOXES];
+
+	local  = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	/* Creates multiple virtual mailboxes. */
+	for (unsigned i = 0; i < TEST_NR_INPUT_MAILBOXES; ++i)
+		test_assert((mbx_in[i] = kmailbox_create(local)) >= 0);
+
+	for (unsigned i = 0; i < TEST_NR_OUTPUT_MAILBOXES; ++i)
+		test_assert((mbx_out[i] = kmailbox_open(remote)) >= 0);
+
+	/* Deletion of the created virtual mailboxes. */
+	for (unsigned i = 0; i < TEST_NR_INPUT_MAILBOXES; ++i)
+		test_assert(kmailbox_unlink(mbx_in[i]) == 0);
+
+	for (unsigned i = 0; i < TEST_NR_OUTPUT_MAILBOXES; ++i)
+		test_assert(kmailbox_close(mbx_out[i]) == 0);
+}
+
+/*============================================================================*
+ * API Test: Multiplex                                                        *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Multiplex of virtual to hardware mailboxes.
+ */
+static void test_api_mailbox_multiplex(void)
+{
+	int local;
+	int remote;
+	size_t volume;
+	uint64_t latency;
+	int mbx_in[TEST_NR_MAILBOX_PAIRS];
+	int mbx_out[TEST_NR_MAILBOX_PAIRS];
+	char message[MAILBOX_MSG_SIZE];
+
+	local  = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	/* Creates multiple virtual mailboxes. */
+	for (unsigned i = 0; i < TEST_NR_MAILBOX_PAIRS; ++i)
+	{
+		test_assert((mbx_in[i] = kmailbox_create(local)) >= 0);
+		test_assert((mbx_out[i] = kmailbox_open(remote)) >= 0);
+	}
+
+	/* Multiple write/read operations to test multiplex. */
+	if (local == MASTER_NODENUM)
+	{
+		for (unsigned i = 0; i < TEST_NR_MAILBOX_PAIRS; ++i)
+		{
+			kmemset(message, i, MAILBOX_MSG_SIZE);
+
+			test_assert(kmailbox_awrite(mbx_out[i], message, MAILBOX_MSG_SIZE) == MAILBOX_MSG_SIZE);
+
+			kmemset(message, 0, MAILBOX_MSG_SIZE);
+
+			test_assert(kmailbox_aread(mbx_in[i], message, MAILBOX_MSG_SIZE) == MAILBOX_MSG_SIZE);
+			test_assert(kmailbox_wait(mbx_in[i]) == 0);
+
+			for (unsigned j = 0; j < MAILBOX_MSG_SIZE; ++j)
+				test_assert(message[j] - (i + 1) == 0);
+		}
+	}
+	else
+	{
+		for (unsigned i = 0; i < TEST_NR_MAILBOX_PAIRS; ++i)
+		{
+			kmemset(message, 0, MAILBOX_MSG_SIZE);
+
+			test_assert(kmailbox_aread(mbx_in[i], message, MAILBOX_MSG_SIZE) == MAILBOX_MSG_SIZE);
+			test_assert(kmailbox_wait(mbx_in[i]) == 0);
+
+			for (unsigned j = 0; j < MAILBOX_MSG_SIZE; ++j)
+				test_assert(message[j] - i == 0);
+
+			kmemset(message, i + 1, MAILBOX_MSG_SIZE);
+
+			test_assert(kmailbox_awrite(mbx_out[i], message, MAILBOX_MSG_SIZE) == MAILBOX_MSG_SIZE);
+		}
+	}
+
+	/* Checks the data volume transferred by each vmailbox. */
+	for (unsigned i = 0; i < TEST_NR_MAILBOX_PAIRS; ++i)
+	{
+		test_assert(kmailbox_ioctl(mbx_in[i], MAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
+		test_assert(volume == MAILBOX_MSG_SIZE);
+		test_assert(kmailbox_ioctl(mbx_in[i], MAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency > 0);
+
+		test_assert(kmailbox_ioctl(mbx_out[i], MAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
+		test_assert(volume == MAILBOX_MSG_SIZE);
+		test_assert(kmailbox_ioctl(mbx_out[i], MAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency > 0);
+	}
+
+	/* Deletion of the created virtual mailboxes. */
+	for (unsigned i = 0; i < TEST_NR_MAILBOX_PAIRS; ++i)
+	{
+		test_assert(kmailbox_unlink(mbx_in[i]) == 0);
+		test_assert(kmailbox_close(mbx_out[i]) == 0);
+	}
 }
 
 /*============================================================================*
@@ -540,12 +666,14 @@ static void test_fault_mailbox_bad_ioctl(void)
  * @brief Unit tests.
  */
 static struct test mailbox_tests_api[] = {
-	{ test_api_mailbox_create_unlink, "[test][mailbox][api] mailbox create unlink [passed]\n" },
-	{ test_api_mailbox_open_close,    "[test][mailbox][api] mailbox open close    [passed]\n" },
-	{ test_api_mailbox_get_volume,    "[test][mailbox][api] mailbox get volume    [passed]\n" },
-	{ test_api_mailbox_get_latency,   "[test][mailbox][api] mailbox get latency   [passed]\n" },
-	{ test_api_mailbox_read_write,    "[test][mailbox][api] mailbox read write    [passed]\n" },
-	{ NULL,                            NULL                                                   },
+	{ test_api_mailbox_create_unlink,        "[test][mailbox][api] mailbox create unlink        [passed]\n" },
+	{ test_api_mailbox_open_close,           "[test][mailbox][api] mailbox open close           [passed]\n" },
+	{ test_api_mailbox_get_volume,           "[test][mailbox][api] mailbox get volume           [passed]\n" },
+	{ test_api_mailbox_get_latency,          "[test][mailbox][api] mailbox get latency          [passed]\n" },
+	{ test_api_mailbox_read_write,           "[test][mailbox][api] mailbox read write           [passed]\n" },
+	{ test_api_mailbox_multiple_create_open, "[test][mailbox][api] mailbox multiple create open [passed]\n" },
+	{ test_api_mailbox_multiplex,            "[test][mailbox][api] mailbox multiplex            [passed]\n" },
+	{ NULL,                                   NULL                                                          },
 };
 
 /**

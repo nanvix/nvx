@@ -41,10 +41,10 @@ int __stdsync_setup(void)
 
 	/* Master cluster */
 	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
-		return ((__stdsync = sync_create(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)));
+		return ((__stdsync = ksync_create(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)));
 
 	/* Slave cluster. */
-	return ((__stdsync = sync_open(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)));
+	return ((__stdsync = ksync_open(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE));
 }
 
 /**
@@ -54,9 +54,9 @@ int __stdsync_cleanup(void)
 {
 	/* Master cluster */
 	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
-		return (sync_unlink(__stdsync));
+		return (ksync_unlink(__stdsync));
 
-	return (sync_close(__stdsync));
+	return (ksync_close(__stdsync));
 }
 
 /**
@@ -66,7 +66,7 @@ int stdsync_fence(void)
 {
 	/* Master cluster */
 	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
-		return (sync_wait(__stdsync));
+		return (ksync_wait(__stdsync));
 
-	return (sync_signal(__stdsync));
+	return (ksync_signal(__stdsync));
 }

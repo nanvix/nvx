@@ -23,6 +23,7 @@
  */
 
 #include <nanvix/sys/sync.h>
+#include <nanvix/runtime/stdikc.h>
 
 /**
  * @brief Kernel standard sync.
@@ -44,7 +45,9 @@ int __stdsync_setup(void)
 		return ((__stdsync = ksync_create(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)));
 
 	/* Slave cluster. */
-	return ((__stdsync = ksync_open(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE));
+	return (((__stdsync = ksync_open(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)) < 0) ?
+		-1 : -0
+	);
 }
 
 /**

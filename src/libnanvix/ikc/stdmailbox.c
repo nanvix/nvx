@@ -23,6 +23,7 @@
  */
 
 #include <nanvix/sys/mailbox.h>
+#include <nanvix/runtime/stdikc.h>
 
 /**
  * @brief Kernel standard input mailbox.
@@ -38,7 +39,7 @@ int __stdmailbox_setup(void)
 
 	local = processor_node_get_num(core_get_id());
 
-	return (__stdinbox = kmailbox_create(local));
+	return (((__stdinbox = kmailbox_create(local)) < 0) ? -1 : 0);
 }
 
 /**

@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+#include <nanvix/sys/perf.h>
 #include <nanvix/sys/sync.h>
 #include <nanvix/runtime/stdikc.h>
 
@@ -29,6 +30,28 @@
  * @brief Kernel standard sync.
  */
 static int __stdsync = -1;
+
+/**
+ * @brief Forces a platform-independent delay.
+ *
+ * @param cycles Delay in cycles.
+ *
+ * @author João Vicente Souto
+ */
+static void delay(uint64_t cycles)
+{
+	uint64_t t0, t1;
+
+	for (int i = 0; i < PROCESSOR_CLUSTERS_NUM; ++i)
+	{
+		kclock(&t0);
+
+		do
+			kclock(&t1);
+		while ((t1 - t0) < cycles);
+	}
+}
+
 
 /**
  * @todo TODO: provide a detailed description for this function.
@@ -70,6 +93,11 @@ int stdsync_fence(void)
 	/* Master cluster */
 	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
 		return (ksync_wait(__stdsync));
+
+#ifndef __unix64__
+	/* Waits one second. */
+	delay(CLUSTER_FREQ);
+#endif
 
 	return (ksync_signal(__stdsync));
 }

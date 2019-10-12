@@ -263,9 +263,9 @@ static void test_fault_mailbox_bad_create(void)
  */
 static void test_fault_mailbox_invalid_unlink(void)
 {
-	test_assert(kmailbox_unlink(-1) == -EBADF);
+	test_assert(kmailbox_unlink(-1) == -EINVAL);
 	test_assert(kmailbox_unlink(MAILBOX_CREATE_MAX) == -EBADF);
-	test_assert(kmailbox_unlink(1000000) == -EBADF);
+	test_assert(kmailbox_unlink(1000000) == -EINVAL);
 }
 
 /*============================================================================*
@@ -328,9 +328,9 @@ static void test_fault_mailbox_bad_open(void)
  */
 static void test_fault_mailbox_invalid_close(void)
 {
-	test_assert(kmailbox_close(-1) == -EBADF);
+	test_assert(kmailbox_close(-1) == -EINVAL);
 	test_assert(kmailbox_close(MAILBOX_OPEN_MAX) == -EBADF);
-	test_assert(kmailbox_close(1000000) == -EBADF);
+	test_assert(kmailbox_close(1000000) == -EINVAL);
 }
 
 /*============================================================================*
@@ -384,9 +384,9 @@ static void test_fault_mailbox_invalid_read(void)
 {
 	char buffer[MAILBOX_MSG_SIZE];
 
-	test_assert(kmailbox_aread(-1, buffer, MAILBOX_MSG_SIZE) == -EBADF);
+	test_assert(kmailbox_aread(-1, buffer, MAILBOX_MSG_SIZE) == -EINVAL);
 	test_assert(kmailbox_aread(MAILBOX_CREATE_MAX, buffer, MAILBOX_MSG_SIZE) == -EBADF);
-	test_assert(kmailbox_aread(1000000, buffer, MAILBOX_MSG_SIZE) == -EBADF);
+	test_assert(kmailbox_aread(1000000, buffer, MAILBOX_MSG_SIZE) == -EINVAL);
 }
 
 /*============================================================================*
@@ -446,9 +446,9 @@ static void test_fault_mailbox_invalid_write(void)
 {
 	char buffer[MAILBOX_MSG_SIZE];
 
-	test_assert(kmailbox_awrite(-1, buffer, MAILBOX_MSG_SIZE) == -EBADF);
+	test_assert(kmailbox_awrite(-1, buffer, MAILBOX_MSG_SIZE) == -EINVAL);
 	test_assert(kmailbox_awrite(MAILBOX_OPEN_MAX, buffer, MAILBOX_MSG_SIZE) == -EBADF);
-	test_assert(kmailbox_awrite(1000000, buffer, MAILBOX_MSG_SIZE) == -EBADF);
+	test_assert(kmailbox_awrite(1000000, buffer, MAILBOX_MSG_SIZE) == -EINVAL);
 }
 
 /*============================================================================*
@@ -482,12 +482,12 @@ static void test_fault_mailbox_bad_write(void)
  */
 static void test_fault_mailbox_bad_wait(void)
 {
-	test_assert(kmailbox_wait(-1) == -EBADF);
+	test_assert(kmailbox_wait(-1) == -EINVAL);
 #ifndef __unix64__
 	test_assert(kmailbox_wait(MAILBOX_CREATE_MAX) == -EBADF);
 	test_assert(kmailbox_wait(MAILBOX_OPEN_MAX) == -EBADF);
 #endif
-	test_assert(kmailbox_wait(1000000) == -EBADF);
+	test_assert(kmailbox_wait(1000000) == -EINVAL);
 }
 
 /*============================================================================*
@@ -504,10 +504,10 @@ static void test_fault_mailbox_invalid_ioctl(void)
 	size_t volume;
 	uint64_t latency;
 
-	test_assert(kmailbox_ioctl(-1, MAILBOX_IOCTL_GET_VOLUME, &volume) == -EBADF);
-	test_assert(kmailbox_ioctl(-1, MAILBOX_IOCTL_GET_LATENCY, &latency) == -EBADF);
-	test_assert(kmailbox_ioctl(1000000, MAILBOX_IOCTL_GET_VOLUME, &volume) == -EBADF);
-	test_assert(kmailbox_ioctl(1000000, MAILBOX_IOCTL_GET_LATENCY, &latency) == -EBADF);
+	test_assert(kmailbox_ioctl(-1, MAILBOX_IOCTL_GET_VOLUME, &volume) == -EINVAL);
+	test_assert(kmailbox_ioctl(-1, MAILBOX_IOCTL_GET_LATENCY, &latency) == -EINVAL);
+	test_assert(kmailbox_ioctl(1000000, MAILBOX_IOCTL_GET_VOLUME, &volume) == -EINVAL);
+	test_assert(kmailbox_ioctl(1000000, MAILBOX_IOCTL_GET_LATENCY, &latency) == -EINVAL);
 
 	local = knode_get_num();
 

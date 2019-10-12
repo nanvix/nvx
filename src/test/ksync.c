@@ -435,9 +435,9 @@ void test_fault_sync_bad_open(void)
  */
 void test_fault_sync_invalid_unlink(void)
 {
-	test_assert(ksync_unlink(-1) == -EBADF);
+	test_assert(ksync_unlink(-1) == -EINVAL);
 	test_assert(ksync_unlink(1) == -EBADF);
-	test_assert(ksync_unlink(1000000) == -EBADF);
+	test_assert(ksync_unlink(1000000) == -EINVAL);
 }
 
 /*============================================================================*
@@ -511,9 +511,9 @@ void test_fault_sync_double_unlink(void)
  */
 void test_fault_sync_invalid_close(void)
 {
-	test_assert(ksync_close(-1) == -EBADF);
+	test_assert(ksync_close(-1) == -EINVAL);
 	test_assert(ksync_close(1) == -EBADF);
-	test_assert(ksync_close(1000000) == -EBADF);
+	test_assert(ksync_close(1000000) == -EINVAL);
 }
 
 /*============================================================================*
@@ -587,9 +587,9 @@ void test_fault_sync_double_close(void)
  */
 void test_fault_sync_invalid_signal(void)
 {
-	test_assert(ksync_signal(-1) == -EBADF);
+	test_assert(ksync_signal(-1) == -EINVAL);
 	test_assert(ksync_signal(1) == -EBADF);
-	test_assert(ksync_signal(1000000) == -EBADF);
+	test_assert(ksync_signal(1000000) == -EINVAL);
 }
 
 /*============================================================================*
@@ -633,9 +633,9 @@ void test_fault_sync_bad_signal(void)
  */
 void test_fault_sync_invalid_wait(void)
 {
-	test_assert(ksync_wait(-1) == -EBADF);
+	test_assert(ksync_wait(-1) == -EINVAL);
 	test_assert(ksync_wait(1) == -EBADF);
-	test_assert(ksync_wait(1000000) == -EBADF);
+	test_assert(ksync_wait(1000000) == -EINVAL);
 }
 
 /*============================================================================*

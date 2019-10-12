@@ -52,6 +52,39 @@ static void delay(uint64_t cycles)
 	}
 }
 
+/*
+ * Build a list of the node IDs
+ *
+ * @param nodes
+ * @param nioclusters
+ * @param ncclusters
+ *
+ * @author João Vicente Souto
+ */
+static void build_node_list(int *nodes, int nioclusters, int ncclusters)
+{
+	int base;
+	int step;
+	int index;
+	int max_clusters;
+
+	index = 0;
+
+	/* Build node IDs of the IO Clusters. */
+	base         = 0;
+	max_clusters = PROCESSOR_IOCLUSTERS_NUM;
+	step         = (PROCESSOR_NOC_IONODES_NUM / PROCESSOR_IOCLUSTERS_NUM);
+	for (int i = 0; i < max_clusters && i < nioclusters; i++, index++)
+		nodes[index] = base + (i * step);
+
+	/* Build node IDs of the Compute Clusters. */
+	base         = PROCESSOR_IOCLUSTERS_NUM * (PROCESSOR_NOC_IONODES_NUM / PROCESSOR_IOCLUSTERS_NUM);
+	max_clusters = PROCESSOR_CCLUSTERS_NUM;
+	step         = (PROCESSOR_NOC_CNODES_NUM / PROCESSOR_CCLUSTERS_NUM);
+	for (int i = 0; i < max_clusters && i < ncclusters; i++, index++)
+		nodes[index] = base + (i * step);
+}
+
 
 /**
  * @todo TODO: provide a detailed description for this function.
@@ -60,8 +93,7 @@ int __stdsync_setup(void)
 {
 	int nodes[PROCESSOR_CLUSTERS_NUM];
 
-	for (int i = 0; i < PROCESSOR_CLUSTERS_NUM; i++)
-		nodes[i] = i;
+	build_node_list(nodes, PROCESSOR_IOCLUSTERS_NUM, PROCESSOR_CCLUSTERS_NUM);
 
 	/* Master cluster */
 	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)

@@ -23,10 +23,11 @@
  */
 
 #include <nanvix/kernel/kernel.h>
-#include <nanvix/sys/noc.h>
-#include <posix/errno.h>
 
 #if __TARGET_HAS_PORTAL
+
+#include <nanvix/sys/noc.h>
+#include <posix/errno.h>
 
 /*============================================================================*
  * kportal_create()                                                           *
@@ -302,4 +303,6 @@ int kportal_ioctl(int portalid, unsigned request, ...)
 	return (ret);
 }
 
+#else
+extern int make_iso_compilers_happy;
 #endif /* __TARGET_HAS_PORTAL */

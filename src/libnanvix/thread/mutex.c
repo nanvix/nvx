@@ -25,7 +25,6 @@
 #include <nanvix/kernel/kernel.h>
 #include <nanvix/sys/mutex.h>
 #include <posix/errno.h>
-#include <stdbool.h>
 
 #if (CORES_NUM > 1)
 

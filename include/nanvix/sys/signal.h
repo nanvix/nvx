@@ -31,9 +31,9 @@
 #define NANVIX_SYS_SIGNAL_H_
 
 	#include <nanvix/kernel/kernel.h>
-	#include <sys/types.h>
-	#include <stdbool.h>
-	#include <stdint.h>
+	#include <posix/sys/types.h>
+	#include <posix/stdbool.h>
+	#include <posix/stdint.h>
 
 	/**
 	 * @brief Controls the behavior of a signal.

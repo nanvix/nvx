@@ -263,9 +263,9 @@ static void test_fault_portal_invalid_create(void)
  */
 static void test_fault_portal_invalid_unlink(void)
 {
-	test_assert(kportal_unlink(-1) == -EBADF);
+	test_assert(kportal_unlink(-1) == -EINVAL);
 	test_assert(kportal_unlink(PORTAL_CREATE_MAX) == -EBADF);
-	test_assert(kportal_unlink(1000000) == -EBADF);
+	test_assert(kportal_unlink(1000000) == -EINVAL);
 }
 
 /*============================================================================*
@@ -317,9 +317,9 @@ static void test_fault_portal_invalid_open(void)
  */
 static void test_fault_portal_invalid_close(void)
 {
-	test_assert(kportal_close(-1) == -EBADF);
+	test_assert(kportal_close(-1) == -EINVAL);
 	test_assert(kportal_close(PORTAL_OPEN_MAX) == -EBADF);
-	test_assert(kportal_close(1000000) == -EBADF);
+	test_assert(kportal_close(1000000) == -EINVAL);
 }
 
 /*============================================================================*
@@ -352,10 +352,10 @@ static void test_fault_portal_invalid_read(void)
 {
 	char buffer[MESSAGE_SIZE];
 
-	test_assert(kportal_aread(-1, buffer, MESSAGE_SIZE) == -EBADF);
+	test_assert(kportal_aread(-1, buffer, MESSAGE_SIZE) == -EINVAL);
 	test_assert(kportal_aread(0, buffer, MESSAGE_SIZE) == -EBADF);
 	test_assert(kportal_aread(PORTAL_CREATE_MAX, buffer, MESSAGE_SIZE) == -EBADF);
-	test_assert(kportal_aread(1000000, buffer, MESSAGE_SIZE) == -EBADF);
+	test_assert(kportal_aread(1000000, buffer, MESSAGE_SIZE) == -EINVAL);
 }
 
 /*============================================================================*
@@ -414,10 +414,10 @@ static void test_fault_portal_invalid_write(void)
 {
 	char buffer[MESSAGE_SIZE];
 
-	test_assert(kportal_awrite(-1, buffer, MESSAGE_SIZE) == -EBADF);
+	test_assert(kportal_awrite(-1, buffer, MESSAGE_SIZE) == -EINVAL);
 	test_assert(kportal_awrite(0, buffer, MESSAGE_SIZE) == -EBADF);
 	test_assert(kportal_awrite(PORTAL_OPEN_MAX, buffer, MESSAGE_SIZE) == -EBADF);
-	test_assert(kportal_awrite(1000000, buffer, MESSAGE_SIZE) == -EBADF);
+	test_assert(kportal_awrite(1000000, buffer, MESSAGE_SIZE) == -EINVAL);
 }
 
 /*============================================================================*
@@ -451,12 +451,12 @@ static void test_fault_portal_bad_write(void)
  */
 static void test_fault_portal_bad_wait(void)
 {
-	test_assert(kportal_wait(-1) == -EBADF);
+	test_assert(kportal_wait(-1) == -EINVAL);
 #ifndef __unix64__
 	test_assert(kportal_wait(PORTAL_CREATE_MAX) == -EBADF);
 	test_assert(kportal_wait(PORTAL_OPEN_MAX) == -EBADF);
 #endif
-	test_assert(kportal_wait(1000000) == -EBADF);
+	test_assert(kportal_wait(1000000) == -EINVAL);
 }
 
 /*============================================================================*
@@ -473,10 +473,10 @@ static void test_fault_portal_invalid_ioctl(void)
 	size_t volume;
 	uint64_t latency;
 
-	test_assert(kportal_ioctl(-1, PORTAL_IOCTL_GET_VOLUME, &volume) == -EBADF);
-	test_assert(kportal_ioctl(-1, PORTAL_IOCTL_GET_LATENCY, &latency) == -EBADF);
-	test_assert(kportal_ioctl(1000000, PORTAL_IOCTL_GET_VOLUME, &volume) == -EBADF);
-	test_assert(kportal_ioctl(1000000, PORTAL_IOCTL_GET_LATENCY, &latency) == -EBADF);
+	test_assert(kportal_ioctl(-1, PORTAL_IOCTL_GET_VOLUME, &volume) == -EINVAL);
+	test_assert(kportal_ioctl(-1, PORTAL_IOCTL_GET_LATENCY, &latency) == -EINVAL);
+	test_assert(kportal_ioctl(1000000, PORTAL_IOCTL_GET_VOLUME, &volume) == -EINVAL);
+	test_assert(kportal_ioctl(1000000, PORTAL_IOCTL_GET_LATENCY, &latency) == -EINVAL);
 
 	local = knode_get_num();
 

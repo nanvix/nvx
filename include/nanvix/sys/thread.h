@@ -31,9 +31,6 @@
 #define NANVIX_SYS_THREAD_H_
 
 	#include <nanvix/kernel/kernel.h>
-	#include <sys/types.h>
-	#include <stdbool.h>
-	#include <stdint.h>
 
 	/**
 	 * @brief Thread ID.

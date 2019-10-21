@@ -24,6 +24,10 @@
 
 #include <nanvix/sys/portal.h>
 
+#if __TARGET_HAS_PORTAL
+
+#include <nanvix/runtime/stdikc.h>
+
 /**
  * @brief Kernel standard input portal.
  */
@@ -38,7 +42,7 @@ int __stdportal_setup(void)
 
 	local = processor_node_get_num(core_get_id());
 
-	return (__stdinportal = kportal_create(local));
+	return (((__stdinportal = kportal_create(local)) < 0) ? -1 : 0);
 }
 
 /**
@@ -56,3 +60,7 @@ int stdinportal_get(void)
 {
 	return (__stdinportal);
 }
+
+#else
+extern int make_iso_compilers_happy;
+#endif /* __TARGET_HAS_PORTAL */

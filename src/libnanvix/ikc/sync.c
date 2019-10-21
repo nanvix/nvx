@@ -23,10 +23,11 @@
  */
 
 #include <nanvix/kernel/kernel.h>
-#include <nanvix/sys/noc.h>
-#include <posix/errno.h>
 
 #if __TARGET_HAS_SYNC
+
+#include <nanvix/sys/noc.h>
+#include <posix/errno.h>
 
 /*============================================================================*
  * ksync_list_is_valid()                                                      *
@@ -46,6 +47,9 @@ PRIVATE int ksync_list_is_valid(int local, const int *nodes, int nnodes)
 {
 	uint64_t checks;
 
+	/*
+	 * TODO: move this assertation to the HAL.
+	 */
 	KASSERT(PROCESSOR_NOC_NODES_NUM <= 64);
 
 	checks = 0ULL;
@@ -59,7 +63,7 @@ PRIVATE int ksync_list_is_valid(int local, const int *nodes, int nnodes)
 		/* Does a node appear twice? */
 		if (checks & (1ULL << nodes[i]))
 			return (0);
-		
+
 		checks |= (1ULL << nodes[i]);
 	}
 
@@ -107,7 +111,7 @@ int ksync_create(const int *nodes, int nnodes, int type)
 	/* Invalid type. */
 	else
 		return (-EINVAL);
-	
+
 	/* Is the node list not valid? */
 	if (!ksync_list_is_valid(local, nodes, nnodes))
 			return (-EINVAL);
@@ -255,4 +259,6 @@ int ksync_unlink(int syncid)
 	return (ret);
 }
 
-#endif /* __TARGET_SYNC */
+#else
+extern int make_iso_compilers_happy;
+#endif /* __TARGET_HAS_MAILBOX */

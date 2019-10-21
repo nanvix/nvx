@@ -24,10 +24,70 @@
 
 #include <nanvix/sys/sync.h>
 
+#if __TARGET_HAS_SYNC
+
+#include <nanvix/sys/perf.h>
+#include <nanvix/runtime/stdikc.h>
+
 /**
  * @brief Kernel standard sync.
  */
 static int __stdsync = -1;
+
+/**
+ * @brief Forces a platform-independent delay.
+ *
+ * @param cycles Delay in cycles.
+ *
+ * @author João Vicente Souto
+ */
+static void delay(uint64_t cycles)
+{
+	uint64_t t0, t1;
+
+	for (int i = 0; i < PROCESSOR_CLUSTERS_NUM; ++i)
+	{
+		kclock(&t0);
+
+		do
+			kclock(&t1);
+		while ((t1 - t0) < cycles);
+	}
+}
+
+/*
+ * Build a list of the node IDs
+ *
+ * @param nodes
+ * @param nioclusters
+ * @param ncclusters
+ *
+ * @author João Vicente Souto
+ */
+static void build_node_list(int *nodes, int nioclusters, int ncclusters)
+{
+	int base;
+	int step;
+	int index;
+	int max_clusters;
+
+	index = 0;
+
+	/* Build node IDs of the IO Clusters. */
+	base         = 0;
+	max_clusters = PROCESSOR_IOCLUSTERS_NUM;
+	step         = (PROCESSOR_NOC_IONODES_NUM / PROCESSOR_IOCLUSTERS_NUM);
+	for (int i = 0; i < max_clusters && i < nioclusters; i++, index++)
+		nodes[index] = base + (i * step);
+
+	/* Build node IDs of the Compute Clusters. */
+	base         = PROCESSOR_IOCLUSTERS_NUM * (PROCESSOR_NOC_IONODES_NUM / PROCESSOR_IOCLUSTERS_NUM);
+	max_clusters = PROCESSOR_CCLUSTERS_NUM;
+	step         = (PROCESSOR_NOC_CNODES_NUM / PROCESSOR_CCLUSTERS_NUM);
+	for (int i = 0; i < max_clusters && i < ncclusters; i++, index++)
+		nodes[index] = base + (i * step);
+}
+
 
 /**
  * @todo TODO: provide a detailed description for this function.
@@ -36,15 +96,16 @@ int __stdsync_setup(void)
 {
 	int nodes[PROCESSOR_CLUSTERS_NUM];
 
-	for (int i = 0; i < PROCESSOR_CLUSTERS_NUM; i++)
-		nodes[i] = i;
+	build_node_list(nodes, PROCESSOR_IOCLUSTERS_NUM, PROCESSOR_CCLUSTERS_NUM);
 
 	/* Master cluster */
 	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
-		return ((__stdsync = sync_create(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)));
+		return ((__stdsync = ksync_create(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)));
 
 	/* Slave cluster. */
-	return ((__stdsync = sync_open(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)));
+	return (((__stdsync = ksync_open(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)) < 0) ?
+		-1 : -0
+	);
 }
 
 /**
@@ -54,9 +115,9 @@ int __stdsync_cleanup(void)
 {
 	/* Master cluster */
 	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
-		return (sync_unlink(__stdsync));
+		return (ksync_unlink(__stdsync));
 
-	return (sync_close(__stdsync));
+	return (ksync_close(__stdsync));
 }
 
 /**
@@ -66,7 +127,16 @@ int stdsync_fence(void)
 {
 	/* Master cluster */
 	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
-		return (sync_wait(__stdsync));
+		return (ksync_wait(__stdsync));
 
-	return (sync_signal(__stdsync));
+#ifndef __unix64__
+	/* Waits one second. */
+	delay(CLUSTER_FREQ);
+#endif
+
+	return (ksync_signal(__stdsync));
 }
+
+#else
+extern int make_iso_compilers_happy;
+#endif /* __TARGET_HAS_MAILBOX */

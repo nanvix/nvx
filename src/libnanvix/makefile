@@ -23,7 +23,7 @@
 #
 
 #===============================================================================
-# Sources and Objects
+# Sources
 #===============================================================================
 
 # C Source Files
@@ -32,21 +32,24 @@ SRC = $(wildcard dev/*.c) \
       $(wildcard ikc/*.c) \
       $(wildcard thread/*.c)
 
+#===============================================================================
 # Object Files
+#===============================================================================
+
 OBJ = $(SRC:.c=.$(OBJ_SUFFIX).o)
 
 #===============================================================================
 
-# Builds All Object Files
+# Builds all object files.
 all: $(OBJ)
 ifeq ($(VERBOSE), no)
 	@echo [AR] $(LIBNANVIX)
-	@$(AR) $(ARFLAGS) $(LIBNANVIX) $(OBJ)
+	@$(AR) $(ARFLAGS) $(LIBDIR)/$(LIBNANVIX) $(OBJ)
 else
-	$(AR) $(ARFLAGS) $(LIBNANVIX) $(OBJ)
+	$(AR) $(ARFLAGS) $(LIBDIR)/$(LIBNANVIX) $(OBJ)
 endif
 
-# Cleans All Object Files
+# Cleans all object files.
 clean:
 ifeq ($(VERBOSE), no)
 	@echo [CLEAN] $(OBJ)
@@ -55,16 +58,16 @@ else
 	rm -rf $(OBJ)
 endif
 
-# Cleans Everything
+# Cleans everything.
 distclean: clean
 ifeq ($(VERBOSE), no)
 	@echo [CLEAN] $(LIBNANVIX)
-	@rm -rf $(LIBNANVIX)
+	@rm -rf $(LIBDIR)/$(LIBNANVIX)
 else
-	rm -rf $(LIBNANVIX)
+	rm -rf $(LIBDIR)/$(LIBNANVIX)
 endif
 
-# Builds a C Source file
+# Builds a C source file.
 %.$(OBJ_SUFFIX).o: %.c
 ifeq ($(VERBOSE), no)
 	@echo [CC] $@

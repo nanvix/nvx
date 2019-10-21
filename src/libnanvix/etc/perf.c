@@ -24,7 +24,7 @@
 
 #include <nanvix/kernel/kernel.h>
 #include <posix/errno.h>
-#include <stdint.h>
+#include <posix/stdint.h>
 
 /**
  * @todo TODO provide a detailed description for this function.

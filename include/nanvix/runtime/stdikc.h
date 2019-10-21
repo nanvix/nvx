@@ -73,7 +73,7 @@
 	 * returned. Upon failure, a negative error code is returned
 	 * instead.
 	 */
-	extern void __stdmailbox_setup(void);
+	extern int __stdmailbox_setup(void);
 
 	/**
 	 * @brief Cleans up the kernel standard mailbox facility.
@@ -82,7 +82,7 @@
 	 * returned. Upon failure, a negative error code is returned
 	 * instead.
 	 */
-	extern void __stdmailbox_cleanup(void);
+	extern int __stdmailbox_cleanup(void);
 
 /*============================================================================*
  * Kernel Standard Portal                                                     *
@@ -102,7 +102,7 @@
 	 * returned. Upon failure, a negative error code is returned
 	 * instead.
 	 */
-	extern void __stdportal_setup(void);
+	extern int __stdportal_setup(void);
 
 	/**
 	 * @brief Cleans up the kernel standard portal facility.
@@ -111,7 +111,7 @@
 	 * returned. Upon failure, a negative error code is returned
 	 * instead.
 	 */
-	extern void __stdportal_cleanup(void);
+	extern int __stdportal_cleanup(void);
 
 #endif /* NANVIX_RUNTIME_STDIKC_H_ */
 

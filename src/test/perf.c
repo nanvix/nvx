@@ -23,7 +23,7 @@
  */
 
 #include <nanvix/sys/perf.h>
-#include <stdint.h>
+#include <posix/stdint.h>
 #include "test.h"
 
 #if (CORE_HAS_PERF)

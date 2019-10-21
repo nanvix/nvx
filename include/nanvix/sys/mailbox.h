@@ -31,7 +31,7 @@
 #define NANVIX_SYS_MAILBOX_H_
 
 	#include <nanvix/kernel/kernel.h>
-	#include <sys/types.h>
+	#include <posix/sys/types.h>
 
 	/**
 	 * @brief Creates an input mailbox.

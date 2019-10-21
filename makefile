@@ -31,9 +31,6 @@
 # Build Options
 #===============================================================================
 
-# Use Docker?
-export DOCKER ?= no
-
 # Verbose Build?
 export VERBOSE ?= no
 
@@ -47,17 +44,16 @@ export PREFIX ?= $(HOME)
 # Directories
 #===============================================================================
 
-# Directories
 export ROOTDIR    := $(CURDIR)
 export BINDIR     := $(ROOTDIR)/bin
 export BUILDDIR   := $(ROOTDIR)/build
 export CONTRIBDIR := $(ROOTDIR)/contrib
+export DOCDIR     := $(ROOTDIR)/doc
+export IMGDIR     := $(ROOTDIR)/img
+export INCDIR     := $(ROOTDIR)/include
+export LIBDIR     := $(ROOTDIR)/lib
 export LINKERDIR  := $(BUILDDIR)/$(TARGET)/linker
 export MAKEDIR    := $(BUILDDIR)/$(TARGET)/make
-export DOCDIR     := $(ROOTDIR)/doc
-export INCDIR     := $(ROOTDIR)/include
-export IMGDIR     := $(ROOTDIR)/img
-export LIBDIR     := $(ROOTDIR)/lib
 export SRCDIR     := $(ROOTDIR)/src
 export TOOLSDIR   := $(ROOTDIR)/utils
 
@@ -66,9 +62,13 @@ export TOOLSDIR   := $(ROOTDIR)/utils
 #===============================================================================
 
 # Libraries
-export LIBHAL    = $(LIBDIR)/libhal-$(TARGET).a
-export LIBKERNEL = $(LIBDIR)/libkernel-$(TARGET).a
-export LIBNANVIX = $(LIBDIR)/libnanvix-$(TARGET).a
+export KLIB      := klib-$(TARGET).a
+export LIBHAL    := libhal-$(TARGET).a
+export LIBKERNEL := libkernel-$(TARGET).a
+export LIBNANVIX := libnanvix-$(TARGET).a
+
+# Binaries
+export EXEC := test-driver.$(TARGET)
 
 #===============================================================================
 # Target-Specific Make Rules
@@ -81,14 +81,15 @@ include $(MAKEDIR)/makefile
 #===============================================================================
 
 # Compiler Options
-export CFLAGS  += -std=c99 -fno-builtin
-export CFLAGS  += -Wall -Wextra -Werror -Wa,--warn
-export CFLAGS  += -Winit-self -Wswitch-default -Wfloat-equal
-export CFLAGS  += -Wundef -Wshadow -Wuninitialized -Wlogical-op
-export CFLAGS  += -Wno-unused-function
-export CFLAGS  += -fno-stack-protector
-export CFLAGS  += -Wvla # -Wredundant-decls
-export CFLAGS  += -I $(INCDIR)
+export CFLAGS += -std=c99 -fno-builtin
+export CFLAGS += -Wall -Wextra -Werror -Wa,--warn
+export CFLAGS += -Winit-self -Wswitch-default -Wfloat-equal
+export CFLAGS += -Wundef -Wshadow -Wuninitialized -Wlogical-op
+export CFLAGS += -Wvla # -Wredundant-decls
+export CFLAGS += -Wno-missing-profile
+export CFLAGS += -fno-stack-protector
+export CFLAGS += -Wno-unused-function
+export CFLAGS += -I $(INCDIR)
 export CFLAGS += -I $(ROOTDIR)/src/lwip/src/include
 
 # Additional C Flags
@@ -106,29 +107,23 @@ export IMGSRC = $(IMGDIR)/$(TARGET).img
 export IMAGE = libnanvix-debug.img
 
 # Builds everything.
-all: image-tests
+all: | make-dirs image
 
 # Make Directories
 make-dirs:
 	@mkdir -p $(BINDIR)
 	@mkdir -p $(LIBDIR)
 
-image-tests: | make-dirs all-target
-	bash $(TOOLSDIR)/nanvix-build-image.sh $(IMAGE) $(BINDIR) $(IMGSRC)
+# Builds image.
+image: all-target
+	@bash $(TOOLSDIR)/nanvix-build-image.sh $(IMAGE) $(BINDIR) $(IMGSRC)
 
-# Cleans builds.
+# Cleans build.
 clean: clean-target
 
 # Cleans everything.
 distclean: distclean-target
-	 @rm -f $(LIBDIR)/libnanvix-*
-	 @rm -rf $(BINDIR)
-	 @find $(SRCDIR) -name "*.o" -exec rm -rf {} \;
-
-# Builds documentation.
-documentation:
-	mkdir -p $(DOCDIR)
-	doxygen doxygen/doxygen.config
+	@rm -rf $(IMAGE) $(BINDIR)/$(EXECBIN) $(LIBDIR)/$(LIBNANVIX)
 
 #===============================================================================
 # Contrib Install and Uninstall Rules

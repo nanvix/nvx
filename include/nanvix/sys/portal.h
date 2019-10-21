@@ -31,9 +31,8 @@
 #define NANVIX_SYS_PORTAL_H_
 
 	#include <nanvix/kernel/kernel.h>
-	#include <sys/types.h>
-	#include <stdbool.h>
-	#include <stdint.h>
+	#include <posix/sys/types.h>
+	#include <posix/stdint.h>
 
 	/**
 	 * @brief Creates a portal.

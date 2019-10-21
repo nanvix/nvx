@@ -31,9 +31,7 @@
 #define NANVIX_SYS_SYNC_H_
 
 	#include <nanvix/kernel/kernel.h>
-	#include <sys/types.h>
-	#include <stdbool.h>
-	#include <stdint.h>
+	#include <posix/sys/types.h>
 
 		/**
 	 * @brief Creates a synchronization point.

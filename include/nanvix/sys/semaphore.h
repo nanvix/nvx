@@ -35,9 +35,6 @@
 #if (CORES_NUM > 1)
 
 	#include <nanvix/sys/thread.h>
-	#include <sys/types.h>
-	#include <stdbool.h>
-	#include <stdint.h>
 
 	/**
 	 * @brief Semaphore.

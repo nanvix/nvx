@@ -31,9 +31,7 @@
 #define NANVIX_SYS_DEV_H_
 
 	#include <nanvix/kernel/kernel.h>
-	#include <sys/types.h>
-	#include <stdbool.h>
-	#include <stdint.h>
+	#include <posix/sys/types.h>
 
 	/* System calls. */
 	extern ssize_t nanvix_write(int, const char *, size_t);

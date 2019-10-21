@@ -23,7 +23,7 @@
  */
 
 #include <nanvix/kernel/kernel.h>
-#include <sys/types.h>
+#include <posix/sys/types.h>
 #include <posix/errno.h>
 
 /**

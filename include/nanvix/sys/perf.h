@@ -31,9 +31,7 @@
 #define NANVIX_SYS_PERF_H_
 
 	#include <nanvix/kernel/kernel.h>
-	#include <sys/types.h>
-	#include <stdbool.h>
-	#include <stdint.h>
+	#include <posix/stdint.h>
 
 	/**
 	 * @brief Queries a performance event.

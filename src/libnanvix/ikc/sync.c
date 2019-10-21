@@ -23,10 +23,11 @@
  */
 
 #include <nanvix/kernel/kernel.h>
-#include <nanvix/sys/noc.h>
-#include <posix/errno.h>
 
 #if __TARGET_HAS_SYNC
+
+#include <nanvix/sys/noc.h>
+#include <posix/errno.h>
 
 /*============================================================================*
  * ksync_list_is_valid()                                                      *
@@ -258,4 +259,6 @@ int ksync_unlink(int syncid)
 	return (ret);
 }
 
-#endif /* __TARGET_SYNC */
+#else
+extern int make_iso_compilers_happy;
+#endif /* __TARGET_HAS_MAILBOX */

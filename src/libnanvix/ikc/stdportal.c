@@ -23,6 +23,9 @@
  */
 
 #include <nanvix/sys/portal.h>
+
+#if __TARGET_HAS_PORTAL
+
 #include <nanvix/runtime/stdikc.h>
 
 /**
@@ -57,3 +60,7 @@ int stdinportal_get(void)
 {
 	return (__stdinportal);
 }
+
+#else
+extern int make_iso_compilers_happy;
+#endif /* __TARGET_HAS_PORTAL */

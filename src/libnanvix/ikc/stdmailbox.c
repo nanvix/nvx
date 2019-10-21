@@ -23,6 +23,9 @@
  */
 
 #include <nanvix/sys/mailbox.h>
+
+#if __TARGET_HAS_MAILBOX
+
 #include <nanvix/runtime/stdikc.h>
 
 /**
@@ -57,3 +60,7 @@ int stdinbox_get(void)
 {
 	return (__stdinbox);
 }
+
+#else
+extern int make_iso_compilers_happy;
+#endif /* __TARGET_HAS_MAILBOX */

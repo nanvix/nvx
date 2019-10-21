@@ -23,9 +23,10 @@
  */
 
 #include <nanvix/kernel/kernel.h>
-#include <posix/errno.h>
 
 #if __TARGET_HAS_MAILBOX
+
+#include <posix/errno.h>
 
 /*============================================================================*
  * kmailbox_create()                                                          *
@@ -258,4 +259,6 @@ int kmailbox_ioctl(int mbxid, unsigned request, ...)
 	return (ret);
 }
 
+#else
+extern int make_iso_compilers_happy;
 #endif /* __TARGET_HAS_MAILBOX */

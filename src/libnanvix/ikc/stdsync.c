@@ -22,8 +22,11 @@
  * SOFTWARE.
  */
 
-#include <nanvix/sys/perf.h>
 #include <nanvix/sys/sync.h>
+
+#if __TARGET_HAS_SYNC
+
+#include <nanvix/sys/perf.h>
 #include <nanvix/runtime/stdikc.h>
 
 /**
@@ -133,3 +136,7 @@ int stdsync_fence(void)
 
 	return (ksync_signal(__stdsync));
 }
+
+#else
+extern int make_iso_compilers_happy;
+#endif /* __TARGET_HAS_MAILBOX */

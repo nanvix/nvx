@@ -42,3 +42,6 @@ include/posix/
 # Kernel Headers
 include/dev/
 include/nanvix/kernel/
+
+# Excludes
+!img/*

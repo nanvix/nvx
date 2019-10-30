@@ -97,6 +97,17 @@
 	 */
 	extern int kclock(uint64_t *buffer);
 
+	/**
+	 * @brief Gets performance statistics of the kernel.
+	 *
+	 * @param buffer Store location for the statistics.
+	 * @param perf   Performance counter to watch.
+	 *
+	 * @returns Upon successful completion, zero is returned. Upon
+	 * failure, a negative error code is returned instead.
+	 */
+	extern int kstats(uint64_t *buffer, int perf);
+
 #endif /* NANVIX_SYS_PERF_H_ */
 
 /**@}*/

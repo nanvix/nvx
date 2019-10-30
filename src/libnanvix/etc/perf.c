@@ -84,3 +84,23 @@ PUBLIC uint64_t kclock(uint64_t *buffer)
 
 	return (ret);
 }
+
+/**
+ * @todo TODO provide a detailed description for this function.
+ */
+PUBLIC uint64_t kstats(uint64_t *buffer, int perf)
+{
+	int ret;
+
+	/* Invalid performance counter. */
+	if (perf < 0)
+		return (-EINVAL);
+
+	ret = kcall2(
+		NR_stats,
+		(word_t) buffer,
+		(word_t) perf
+	);
+
+	return (ret);
+}

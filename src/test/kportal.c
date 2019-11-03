@@ -44,6 +44,17 @@
 	#define SLAVE_NODENUM  1
 #endif
 
+/**
+ * @brief Multiple open / create test parameters.
+ */
+#define TEST_NR_INPUT_PORTALS   5
+#define TEST_NR_OUTPUT_PORTALS 15
+
+/**
+ * @brief Multiplex test parameters.
+ */
+#define TEST_NR_PORTAL_PAIRS 5
+
 /*============================================================================*
  * API Test: Create Unlink                                                    *
  *============================================================================*/
@@ -69,11 +80,11 @@ static void test_api_portal_create_unlink(void)
 }
 
 /*============================================================================*
- * API Test: Create Unlink                                                    *
+ * API Test: Open Close                                                       *
  *============================================================================*/
 
 /**
- * @brief API Test: Mailbox Create Unlink
+ * @brief API Test: Mailbox Open Close
  */
 static void test_api_portal_open_close(void)
 {
@@ -237,6 +248,178 @@ static void test_api_portal_read_write(void)
 }
 
 /*============================================================================*
+ * API Test: Multiple create / open                                           *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Multiple create / open of virtual portals.
+ */
+static void test_api_portal_multiple_create_open(void)
+{
+	int local;
+	int remote;
+	int portal_in[TEST_NR_INPUT_PORTALS];
+	int portal_out[TEST_NR_OUTPUT_PORTALS];
+
+	local  = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	/* Creates multiple virtual portals. */
+	for (unsigned i = 0; i < TEST_NR_INPUT_PORTALS; ++i)
+		test_assert((portal_in[i] = kportal_create(local)) >= 0);
+
+	for (unsigned i = 0; i < TEST_NR_OUTPUT_PORTALS; ++i)
+		test_assert((portal_out[i] = kportal_open(local, remote)) >= 0);
+
+	/* Deletion of the created virtual portals. */
+	for (unsigned i = 0; i < TEST_NR_INPUT_PORTALS; ++i)
+		test_assert(kportal_unlink(portal_in[i]) == 0);
+
+	for (unsigned i = 0; i < TEST_NR_OUTPUT_PORTALS; ++i)
+		test_assert(kportal_close(portal_out[i]) == 0);
+}
+
+/*============================================================================*
+ * API Test: Multiplex                                                        *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Multiplex of virtual to hardware portals.
+ */
+static void test_api_portal_multiplex(void)
+{
+	int local;
+	int remote;
+	int portal_in[TEST_NR_PORTAL_PAIRS];
+	int portal_out[TEST_NR_PORTAL_PAIRS];
+	size_t volume;
+	uint64_t latency;
+	char message[MESSAGE_SIZE];
+
+	local  = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	/* Creates multiple virtual portals. */
+	for (unsigned i = 0; i < TEST_NR_PORTAL_PAIRS; ++i)
+	{
+		test_assert((portal_in[i] = kportal_create(local)) >= 0);
+		test_assert((portal_out[i] = kportal_open(local, remote)) >= 0);
+	}
+
+	/* Multiple write/read operations to test multiplexation. */
+	if (local == MASTER_NODENUM)
+	{
+		for (unsigned i = 0; i < TEST_NR_PORTAL_PAIRS; ++i)
+		{
+			kmemset(message, (i - 1), MESSAGE_SIZE);
+
+			test_assert(kportal_allow(portal_in[i], remote) == 0);
+			test_assert(kportal_aread(portal_in[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
+			test_assert(kportal_wait(portal_in[i]) == 0);
+
+			for (unsigned j = 0; j < MESSAGE_SIZE; ++j)
+				test_assert((message[j] - i) == 0);
+
+			kmemset(message, (i + 1), MESSAGE_SIZE);
+
+			test_assert(kportal_awrite(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
+			test_assert(kportal_wait(portal_out[i]) == 0);
+		}
+	}
+	else
+	{
+		for (unsigned i = 0; i < TEST_NR_PORTAL_PAIRS; ++i)
+		{
+			kmemset(message, i, MESSAGE_SIZE);
+
+			test_assert(kportal_awrite(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
+			test_assert(kportal_wait(portal_out[i]) == 0);
+
+			kmemset(message, i, MESSAGE_SIZE);
+
+			test_assert(kportal_allow(portal_in[i], remote) == 0);
+			test_assert(kportal_aread(portal_in[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
+			test_assert(kportal_wait(portal_in[i]) == 0);
+
+			for (unsigned j = 0; j < MESSAGE_SIZE; ++j)
+				test_assert((message[j] - i - 1) == 0);
+		}
+	}
+
+	/* Checks the data volume transferred by each vportal. */
+	for (unsigned i = 0; i < TEST_NR_PORTAL_PAIRS; ++i)
+	{
+		test_assert(kportal_ioctl(portal_in[i], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+		test_assert(volume == MESSAGE_SIZE);
+		test_assert(kportal_ioctl(portal_in[i], PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency > 0);
+
+		test_assert(kportal_ioctl(portal_out[i], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+		test_assert(volume == MESSAGE_SIZE);
+		test_assert(kportal_ioctl(portal_out[i], PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency > 0);
+	}
+
+	/* Deletion of the created virtual portals. */
+	for (unsigned i = 0; i < TEST_NR_PORTAL_PAIRS; ++i)
+	{
+		test_assert(kportal_unlink(portal_in[i]) == 0);
+		test_assert(kportal_close(portal_out[i]) == 0);
+	}
+}
+
+/*============================================================================*
+ * API Test: Allow                                                     *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Virtual portals allowing.
+ */
+static void test_api_portal_allow(void)
+{
+	int local;
+	int remote;
+	int portal_in1;
+	int portal_in2;
+	int portal_out1;
+	int portal_out2;
+	char message[MESSAGE_SIZE];
+
+	local  = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((portal_in1 = kportal_create(local)) >= 0);
+	test_assert((portal_in2 = kportal_create(local)) >= 0);
+	test_assert((portal_out1 = kportal_open(local, remote)) >= 0);
+	test_assert((portal_out2 = kportal_open(local, remote)) >= 0);
+
+	if (local == SLAVE_NODENUM)
+	{
+		test_assert(kportal_awrite(portal_out1, message, MESSAGE_SIZE) == MESSAGE_SIZE);
+		test_assert(kportal_wait(portal_out1) == 0);
+		test_assert(kportal_awrite(portal_out2, message, MESSAGE_SIZE) == MESSAGE_SIZE);
+		test_assert(kportal_wait(portal_out2) == 0);
+	}
+	else
+	{
+		/* Allowing tests. */
+		test_assert(kportal_allow(portal_in1, remote) == 0);
+		test_assert(kportal_aread(portal_in2, message, MESSAGE_SIZE) == -EACCES);
+		test_assert(kportal_aread(portal_in1, message, MESSAGE_SIZE) == MESSAGE_SIZE);
+		test_assert(kportal_aread(portal_in1, message, MESSAGE_SIZE) == -EACCES);
+		test_assert(kportal_allow(portal_in2, remote) == 0);
+		test_assert(kportal_aread(portal_in1, message, MESSAGE_SIZE) == -EACCES);
+		test_assert(kportal_aread(portal_in2, message, MESSAGE_SIZE) == MESSAGE_SIZE);
+	}
+
+	test_assert(kportal_unlink(portal_in1) == 0);
+	test_assert(kportal_unlink(portal_in2) == 0);
+
+	test_assert(kportal_close(portal_out1) == 0);
+	test_assert(kportal_close(portal_out2) == 0);
+}
+
+/*============================================================================*
  * Fault Test: Invalid Create                                                 *
  *============================================================================*/
 
@@ -266,6 +449,27 @@ static void test_fault_portal_invalid_unlink(void)
 	test_assert(kportal_unlink(-1) == -EINVAL);
 	test_assert(kportal_unlink(PORTAL_CREATE_MAX) == -EBADF);
 	test_assert(kportal_unlink(1000000) == -EINVAL);
+}
+
+/*============================================================================*
+ * Fault Test: Bad Unlink                                                 *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Bad Unlink
+ */
+static void test_fault_portal_bad_unlink(void)
+{
+	int local;
+	int remote;
+	int portalid;
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((portalid = kportal_open(local, remote)) >= 0);
+	test_assert(kportal_unlink(portalid) == -EBADF);
+	test_assert(kportal_close(portalid) == 0);
 }
 
 /*============================================================================*
@@ -339,6 +543,48 @@ static void test_fault_portal_bad_close(void)
 	test_assert((portalid = kportal_create(local)) >= 0);
 	test_assert(kportal_close(portalid) == -EBADF);
 	test_assert(kportal_unlink(portalid) == 0);
+}
+
+/*============================================================================*
+ * Fault Test: Double Close                                                 *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Double Close
+ */
+static void test_fault_portal_double_close(void)
+{
+	int local;
+	int remote;
+	int portalid;
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((portalid = kportal_open(local, remote)) >= 0);
+	test_assert(kportal_close(portalid) == 0);
+	test_assert(kportal_close(portalid) == -EBADF);
+}
+
+/*============================================================================*
+ * Fault Test: Bad allow                                                *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Bad allow
+ */
+static void test_fault_portal_bad_allow(void)
+{
+	int local;
+	int remote;
+	int portalid;
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((portalid = kportal_open(local, remote)) >= 0);
+	test_assert(kportal_allow(portalid, remote) == -EBADF);
+	test_assert(kportal_close(portalid) == 0);
 }
 
 /*============================================================================*
@@ -447,7 +693,7 @@ static void test_fault_portal_bad_write(void)
  *============================================================================*/
 
 /**
- * @brief Fault Test: Bad Write
+ * @brief Fault Test: Bad Wait
  */
 static void test_fault_portal_bad_wait(void)
 {
@@ -509,12 +755,15 @@ static void test_fault_portal_bad_ioctl(void)
  * @brief Unit tests.
  */
 static struct test portal_tests_api[] = {
-	{ test_api_portal_create_unlink, "[test][portal][api] portal create unlink [passed]\n" },
-	{ test_api_portal_open_close,    "[test][portal][api] portal open close    [passed]\n" },
-	{ test_api_portal_read_write,    "[test][portal][api] portal read write    [passed]\n" },
-	{ test_api_portal_get_volume,    "[test][portal][api] portal get volume    [passed]\n" },
-	{ test_api_portal_read_write,    "[test][portal][api] portal read write    [passed]\n" },
-	{ NULL,                           NULL                                                 },
+	{ test_api_portal_create_unlink,        "[test][portal][api] portal create unlink        [passed]\n" },
+	{ test_api_portal_open_close,           "[test][portal][api] portal open close           [passed]\n" },
+	{ test_api_portal_get_volume,           "[test][portal][api] portal get volume           [passed]\n" },
+	{ test_api_portal_get_latency,          "[test][portal][api] portal get latency          [passed]\n" },
+	{ test_api_portal_read_write,           "[test][portal][api] portal read write           [passed]\n" },
+	{ test_api_portal_multiple_create_open, "[test][portal][api] portal multiple create open [passed]\n" },
+	{ test_api_portal_multiplex,            "[test][portal][api] portal multiplex            [passed]\n" },
+	{ test_api_portal_allow,                "[test][portal][api] portal allow                [passed]\n" },
+	{ NULL,                                  NULL                                                        },
 };
 
 /**
@@ -523,10 +772,13 @@ static struct test portal_tests_api[] = {
 static struct test portal_tests_fault[] = {
 	{ test_fault_portal_invalid_create,    "[test][portal][fault] portal invalid create    [passed]\n" },
 	{ test_fault_portal_invalid_unlink,    "[test][portal][fault] portal invalid unlink    [passed]\n" },
+	{ test_fault_portal_bad_unlink,        "[test][portal][fault] portal bad unlink        [passed]\n" },
 	{ test_fault_portal_double_unlink,     "[test][portal][fault] portal double unlink     [passed]\n" },
 	{ test_fault_portal_invalid_open,      "[test][portal][fault] portal invalid open      [passed]\n" },
 	{ test_fault_portal_invalid_close,     "[test][portal][fault] portal invalid close     [passed]\n" },
 	{ test_fault_portal_bad_close,         "[test][portal][fault] portal bad close         [passed]\n" },
+	{ test_fault_portal_double_close,      "[test][portal][fault] portal double close      [passed]\n" },
+	{ test_fault_portal_bad_allow,         "[test][portal][fault] portal bad allow         [passed]\n" },
 	{ test_fault_portal_invalid_read,      "[test][portal][fault] portal invalid read      [passed]\n" },
 	{ test_fault_portal_invalid_read_size, "[test][portal][fault] portal invalid read size [passed]\n" },
 	{ test_fault_portal_null_read,         "[test][portal][fault] portal null read         [passed]\n" },

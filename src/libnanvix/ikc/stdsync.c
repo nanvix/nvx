@@ -27,12 +27,15 @@
 #if __TARGET_HAS_SYNC
 
 #include <nanvix/sys/perf.h>
+#include <nanvix/sys/thread.h>
 #include <nanvix/runtime/stdikc.h>
 
 /**
  * @brief Kernel standard sync.
  */
-static int __stdsync = -1;
+static int __stdsync[THREAD_MAX] = {
+	[0 ... (THREAD_MAX - 1)] = -1
+};
 
 /**
  * @brief Forces a platform-independent delay.
@@ -94,20 +97,23 @@ static void build_node_list(int *nodes, int nioclusters, int ncclusters)
  */
 int __stdsync_setup(void)
 {
+	int tid;
 	int nodes[PROCESSOR_CLUSTERS_NUM];
+
+	tid = kthread_self();
 
 	build_node_list(nodes, PROCESSOR_IOCLUSTERS_NUM, PROCESSOR_CCLUSTERS_NUM);
 
 	/* Master cluster */
 	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
 	{
-		return (((__stdsync = ksync_create(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)) < 0) ?
+		return (((__stdsync[tid] = ksync_create(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)) < 0) ?
 			-1 : 0
 		);
 	}
 
 	/* Slave cluster. */
-	return (((__stdsync = ksync_open(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)) < 0) ?
+	return (((__stdsync[tid] = ksync_open(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)) < 0) ?
 		-1 : -0
 	);
 }
@@ -117,11 +123,15 @@ int __stdsync_setup(void)
  */
 int __stdsync_cleanup(void)
 {
+	int tid;
+
+	tid = kthread_self();
+
 	/* Master cluster */
 	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
-		return (ksync_unlink(__stdsync));
+		return (ksync_unlink(__stdsync[tid]));
 
-	return (ksync_close(__stdsync));
+	return (ksync_close(__stdsync[tid]));
 }
 
 /**
@@ -129,16 +139,20 @@ int __stdsync_cleanup(void)
  */
 int stdsync_fence(void)
 {
+	int tid;
+
+	tid = kthread_self();
+
 	/* Master cluster */
 	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
-		return (ksync_wait(__stdsync));
+		return (ksync_wait(__stdsync[tid]));
 
 #ifndef __unix64__
 	/* Waits one second. */
 	delay(CLUSTER_FREQ);
 #endif
 
-	return (ksync_signal(__stdsync));
+	return (ksync_signal(__stdsync[tid]));
 }
 
 #else

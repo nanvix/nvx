@@ -200,16 +200,16 @@ static void test_stress_sleep_wakeup(void)
  * @brief API tests.
  */
 static struct test thread_sleep_tests_api[] = {
-	{ test_api_sleep_wakeup, "[test][thread][api] thread sleep/wakeup [passed]\n" },
-	{ NULL,                   NULL                                                },
+	{ test_api_sleep_wakeup, "[test][thread][api] thread sleep/wakeup [passed]" },
+	{ NULL,                   NULL                                              },
 };
 
 /**
  * @brief Fault injection tests.
  */
 static struct test thread_sleep_tests_fault[] = {
-	{ test_fault_sleep_wakeup, "[test][thread][fault] thread sleep/wakeup [passed]\n" },
-	{ NULL,                     NULL                                                  },
+	{ test_fault_sleep_wakeup, "[test][thread][fault] thread sleep/wakeup [passed]" },
+	{ NULL,                     NULL                                                },
 };
 
 /**
@@ -217,9 +217,9 @@ static struct test thread_sleep_tests_fault[] = {
  */
 static struct test thread_sleep_tests_stress[] = {
 #if UTEST_SLEEP_STRESS
-	{ test_stress_sleep_wakeup, "[test][thread][stress] thread sleep/wakeup [passed]\n" },
+	{ test_stress_sleep_wakeup, "[test][thread][stress] thread sleep/wakeup [passed]" },
 #endif
-	{ NULL,                      NULL                                                   },
+	{ NULL,                      NULL                                                 },
 };
 
 #endif
@@ -235,7 +235,7 @@ void test_thread_sleep(void)
 #if (THREAD_MAX > 2)
 
 	/* API Tests */
-	nanvix_puts("--------------------------------------------------------------------------------\n");
+	nanvix_puts("--------------------------------------------------------------------------------");
 	for (int i = 0; thread_sleep_tests_api[i].test_fn != NULL; i++)
 	{
 		thread_sleep_tests_api[i].test_fn();
@@ -243,7 +243,7 @@ void test_thread_sleep(void)
 	}
 
 	/* Fault Injection Tests */
-	nanvix_puts("--------------------------------------------------------------------------------\n");
+	nanvix_puts("--------------------------------------------------------------------------------");
 	for (int i = 0; thread_sleep_tests_fault[i].test_fn != NULL; i++)
 	{
 		thread_sleep_tests_fault[i].test_fn();
@@ -251,7 +251,7 @@ void test_thread_sleep(void)
 	}
 
 	/* Stress Tests */
-	nanvix_puts("--------------------------------------------------------------------------------\n");
+	nanvix_puts("--------------------------------------------------------------------------------");
 	for (int i = 0; thread_sleep_tests_stress[i].test_fn != NULL; i++)
 	{
 		thread_sleep_tests_stress[i].test_fn();

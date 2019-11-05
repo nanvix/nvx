@@ -755,39 +755,39 @@ static void test_fault_portal_bad_ioctl(void)
  * @brief Unit tests.
  */
 static struct test portal_tests_api[] = {
-	{ test_api_portal_create_unlink,        "[test][portal][api] portal create unlink        [passed]\n" },
-	{ test_api_portal_open_close,           "[test][portal][api] portal open close           [passed]\n" },
-	{ test_api_portal_get_volume,           "[test][portal][api] portal get volume           [passed]\n" },
-	{ test_api_portal_get_latency,          "[test][portal][api] portal get latency          [passed]\n" },
-	{ test_api_portal_read_write,           "[test][portal][api] portal read write           [passed]\n" },
-	{ test_api_portal_multiple_create_open, "[test][portal][api] portal multiple create open [passed]\n" },
-	{ test_api_portal_multiplex,            "[test][portal][api] portal multiplex            [passed]\n" },
-	{ test_api_portal_allow,                "[test][portal][api] portal allow                [passed]\n" },
-	{ NULL,                                  NULL                                                        },
+	{ test_api_portal_create_unlink,        "[test][portal][api] portal create unlink        [passed]" },
+	{ test_api_portal_open_close,           "[test][portal][api] portal open close           [passed]" },
+	{ test_api_portal_get_volume,           "[test][portal][api] portal get volume           [passed]" },
+	{ test_api_portal_get_latency,          "[test][portal][api] portal get latency          [passed]" },
+	{ test_api_portal_read_write,           "[test][portal][api] portal read write           [passed]" },
+	{ test_api_portal_multiple_create_open, "[test][portal][api] portal multiple create open [passed]" },
+	{ test_api_portal_multiplex,            "[test][portal][api] portal multiplex            [passed]" },
+	{ test_api_portal_allow,                "[test][portal][api] portal allow                [passed]" },
+	{ NULL,                                  NULL                                                      },
 };
 
 /**
  * @brief Unit tests.
  */
 static struct test portal_tests_fault[] = {
-	{ test_fault_portal_invalid_create,    "[test][portal][fault] portal invalid create    [passed]\n" },
-	{ test_fault_portal_invalid_unlink,    "[test][portal][fault] portal invalid unlink    [passed]\n" },
-	{ test_fault_portal_bad_unlink,        "[test][portal][fault] portal bad unlink        [passed]\n" },
-	{ test_fault_portal_double_unlink,     "[test][portal][fault] portal double unlink     [passed]\n" },
-	{ test_fault_portal_invalid_open,      "[test][portal][fault] portal invalid open      [passed]\n" },
-	{ test_fault_portal_invalid_close,     "[test][portal][fault] portal invalid close     [passed]\n" },
-	{ test_fault_portal_bad_close,         "[test][portal][fault] portal bad close         [passed]\n" },
-	{ test_fault_portal_double_close,      "[test][portal][fault] portal double close      [passed]\n" },
-	{ test_fault_portal_bad_allow,         "[test][portal][fault] portal bad allow         [passed]\n" },
-	{ test_fault_portal_invalid_read,      "[test][portal][fault] portal invalid read      [passed]\n" },
-	{ test_fault_portal_invalid_read_size, "[test][portal][fault] portal invalid read size [passed]\n" },
-	{ test_fault_portal_null_read,         "[test][portal][fault] portal null read         [passed]\n" },
-	{ test_fault_portal_invalid_write,     "[test][portal][fault] portal invalid write     [passed]\n" },
-	{ test_fault_portal_bad_write,         "[test][portal][fault] portal bad write         [passed]\n" },
-	{ test_fault_portal_bad_wait,          "[test][portal][fault] portal bad wait          [passed]\n" },
-	{ test_fault_portal_invalid_ioctl,     "[test][portal][fault] portal invalid ioctl     [passed]\n" },
-	{ test_fault_portal_bad_ioctl,         "[test][portal][fault] portal bad ioctl         [passed]\n" },
-	{ NULL,                                 NULL                                                       },
+	{ test_fault_portal_invalid_create,    "[test][portal][fault] portal invalid create    [passed]" },
+	{ test_fault_portal_invalid_unlink,    "[test][portal][fault] portal invalid unlink    [passed]" },
+	{ test_fault_portal_bad_unlink,        "[test][portal][fault] portal bad unlink        [passed]" },
+	{ test_fault_portal_double_unlink,     "[test][portal][fault] portal double unlink     [passed]" },
+	{ test_fault_portal_invalid_open,      "[test][portal][fault] portal invalid open      [passed]" },
+	{ test_fault_portal_invalid_close,     "[test][portal][fault] portal invalid close     [passed]" },
+	{ test_fault_portal_bad_close,         "[test][portal][fault] portal bad close         [passed]" },
+	{ test_fault_portal_double_close,      "[test][portal][fault] portal double close      [passed]" },
+	{ test_fault_portal_bad_allow,         "[test][portal][fault] portal bad allow         [passed]" },
+	{ test_fault_portal_invalid_read,      "[test][portal][fault] portal invalid read      [passed]" },
+	{ test_fault_portal_invalid_read_size, "[test][portal][fault] portal invalid read size [passed]" },
+	{ test_fault_portal_null_read,         "[test][portal][fault] portal null read         [passed]" },
+	{ test_fault_portal_invalid_write,     "[test][portal][fault] portal invalid write     [passed]" },
+	{ test_fault_portal_bad_write,         "[test][portal][fault] portal bad write         [passed]" },
+	{ test_fault_portal_bad_wait,          "[test][portal][fault] portal bad wait          [passed]" },
+	{ test_fault_portal_invalid_ioctl,     "[test][portal][fault] portal invalid ioctl     [passed]" },
+	{ test_fault_portal_bad_ioctl,         "[test][portal][fault] portal bad ioctl         [passed]" },
+	{ NULL,                                 NULL                                                     },
 };
 
 /**
@@ -805,7 +805,7 @@ void test_portal(void)
 	{
 		/* API Tests */
 		if (nodenum == MASTER_NODENUM)
-			nanvix_puts("--------------------------------------------------------------------------------\n");
+			nanvix_puts("--------------------------------------------------------------------------------");
 		for (unsigned i = 0; portal_tests_api[i].test_fn != NULL; i++)
 		{
 			portal_tests_api[i].test_fn();
@@ -816,7 +816,7 @@ void test_portal(void)
 
 		/* Fault Tests */
 		if (nodenum == MASTER_NODENUM)
-			nanvix_puts("--------------------------------------------------------------------------------\n");
+			nanvix_puts("--------------------------------------------------------------------------------");
 		for (unsigned i = 0; portal_tests_fault[i].test_fn != NULL; i++)
 		{
 			portal_tests_fault[i].test_fn();

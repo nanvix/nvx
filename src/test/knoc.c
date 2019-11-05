@@ -135,18 +135,18 @@ PRIVATE void test_node_bad_set_num(void)
  * @brief API Tests.
  */
 PRIVATE struct test test_api_noc[] = {
-	{ test_node_get_num,  "[test][processor][node][api] get logical noc node num [passed]\n" },
-	{ test_node_set_num,  "[test][processor][node][api] set logical noc node num [passed]\n" },
-	{ NULL,                NULL                                                              },
+	{ test_node_get_num,  "[test][processor][node][api] get logical noc node num [passed]" },
+	{ test_node_set_num,  "[test][processor][node][api] set logical noc node num [passed]" },
+	{ NULL,                NULL                                                            },
 };
 
 /**
  * @brief FAULT Tests.
  */
 PRIVATE struct test test_fault_noc[] = {
-	{ test_node_invalid_set_num, "[test][processor][node][fault] invalid set logical noc node num [passed]\n" },
-	{ test_node_bad_set_num,     "[test][processor][node][fault] bad set logical noc node num     [passed]\n" },
-	{ NULL,                       NULL                                                                        },
+	{ test_node_invalid_set_num, "[test][processor][node][fault] invalid set logical noc node num [passed]" },
+	{ test_node_bad_set_num,     "[test][processor][node][fault] bad set logical noc node num     [passed]" },
+	{ NULL,                       NULL                                                                      },
 };
 
 /**
@@ -159,7 +159,7 @@ PRIVATE struct test test_fault_noc[] = {
 PUBLIC void test_noc(void)
 {
 	/* API Tests */
-	nanvix_puts("--------------------------------------------------------------------------------\n");
+	nanvix_puts("--------------------------------------------------------------------------------");
 	for (int i = 0; test_api_noc[i].test_fn != NULL; i++)
 	{
 		test_api_noc[i].test_fn();
@@ -167,7 +167,7 @@ PUBLIC void test_noc(void)
 	}
 
 	/* FAULT Tests */
-	nanvix_puts("--------------------------------------------------------------------------------\n");
+	nanvix_puts("--------------------------------------------------------------------------------");
 	for (int i = 0; test_fault_noc[i].test_fn != NULL; i++)
 	{
 		test_fault_noc[i].test_fn();

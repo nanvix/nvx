@@ -70,10 +70,10 @@ void test_api_nanvix_perf_read(void)
  * @brief API tests.
  */
 static struct test perf_tests_api[] = {
-	{ test_api_nanvix_perf_query,      "[test][perf][api] query performance monitoring capabilities [passed]\n" },
-	{ test_api_nanvix_perf_start_stop, "[test][perf][api] start/stop performance monitor            [passed]\n" },
-	{ test_api_nanvix_perf_read,       "[test][perf][api] read performance monitor                  [passed]\n" },
-	{ NULL,                             NULL                                                                    },
+	{ test_api_nanvix_perf_query,      "[test][perf][api] query performance monitoring capabilities [passed]" },
+	{ test_api_nanvix_perf_start_stop, "[test][perf][api] start/stop performance monitor            [passed]" },
+	{ test_api_nanvix_perf_read,       "[test][perf][api] read performance monitor                  [passed]" },
+	{ NULL,                             NULL                                                                  },
 };
 
 #endif
@@ -93,7 +93,7 @@ void test_perf(void)
 #if (CORE_HAS_PERF)
 
 	/* API Tests */
-	nanvix_puts("--------------------------------------------------------------------------------\n");
+	nanvix_puts("--------------------------------------------------------------------------------");
 	for (int i = 0; perf_tests_api[i].test_fn != NULL; i++)
 	{
 		perf_tests_api[i].test_fn();

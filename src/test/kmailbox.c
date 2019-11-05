@@ -666,38 +666,38 @@ static void test_fault_mailbox_bad_ioctl(void)
  * @brief Unit tests.
  */
 static struct test mailbox_tests_api[] = {
-	{ test_api_mailbox_create_unlink,        "[test][mailbox][api] mailbox create unlink        [passed]\n" },
-	{ test_api_mailbox_open_close,           "[test][mailbox][api] mailbox open close           [passed]\n" },
-	{ test_api_mailbox_get_volume,           "[test][mailbox][api] mailbox get volume           [passed]\n" },
-	{ test_api_mailbox_get_latency,          "[test][mailbox][api] mailbox get latency          [passed]\n" },
-	{ test_api_mailbox_read_write,           "[test][mailbox][api] mailbox read write           [passed]\n" },
-	{ test_api_mailbox_multiple_create_open, "[test][mailbox][api] mailbox multiple create open [passed]\n" },
-	{ test_api_mailbox_multiplex,            "[test][mailbox][api] mailbox multiplex            [passed]\n" },
-	{ NULL,                                   NULL                                                          },
+	{ test_api_mailbox_create_unlink,        "[test][mailbox][api] mailbox create unlink        [passed]" },
+	{ test_api_mailbox_open_close,           "[test][mailbox][api] mailbox open close           [passed]" },
+	{ test_api_mailbox_get_volume,           "[test][mailbox][api] mailbox get volume           [passed]" },
+	{ test_api_mailbox_get_latency,          "[test][mailbox][api] mailbox get latency          [passed]" },
+	{ test_api_mailbox_read_write,           "[test][mailbox][api] mailbox read write           [passed]" },
+	{ test_api_mailbox_multiple_create_open, "[test][mailbox][api] mailbox multiple create open [passed]" },
+	{ test_api_mailbox_multiplex,            "[test][mailbox][api] mailbox multiplex            [passed]" },
+	{ NULL,                                   NULL                                                        },
 };
 
 /**
  * @brief Unit tests.
  */
 static struct test mailbox_tests_fault[] = {
-	{ test_fault_mailbox_invalid_create,    "[test][mailbox][fault] mailbox invalid create    [passed]\n" },
-	{ test_fault_mailbox_bad_create,        "[test][mailbox][fault] mailbox bad create        [passed]\n" },
-	{ test_fault_mailbox_invalid_unlink,    "[test][mailbox][fault] mailbox invalid unlink    [passed]\n" },
-	{ test_fault_mailbox_double_unlink,     "[test][mailbox][fault] mailbox double unlink     [passed]\n" },
-	{ test_fault_mailbox_invalid_open,      "[test][mailbox][fault] mailbox invalid open      [passed]\n" },
-	{ test_fault_mailbox_bad_open,          "[test][mailbox][fault] mailbox bad open          [passed]\n" },
-	{ test_fault_mailbox_invalid_close,     "[test][mailbox][fault] mailbox invalid close     [passed]\n" },
-	{ test_fault_mailbox_double_close,      "[test][mailbox][fault] mailbox double close      [passed]\n" },
-	{ test_fault_mailbox_bad_close,         "[test][mailbox][fault] mailbox bad close         [passed]\n" },
-	{ test_fault_mailbox_invalid_read,      "[test][mailbox][fault] mailbox invalid read      [passed]\n" },
-	{ test_fault_mailbox_invalid_read_size, "[test][mailbox][fault] mailbox invalid read size [passed]\n" },
-	{ test_fault_mailbox_null_read,         "[test][mailbox][fault] mailbox null read         [passed]\n" },
-	{ test_fault_mailbox_invalid_write,     "[test][mailbox][fault] mailbox invalid write     [passed]\n" },
-	{ test_fault_mailbox_bad_write,         "[test][mailbox][fault] mailbox bad write         [passed]\n" },
-	{ test_fault_mailbox_bad_wait,          "[test][mailbox][fault] mailbox bad wait          [passed]\n" },
-	{ test_fault_mailbox_invalid_ioctl,     "[test][mailbox][fault] mailbox invalid ioctl     [passed]\n" },
-	{ test_fault_mailbox_bad_ioctl,         "[test][mailbox][fault] mailbox bad ioctl         [passed]\n" },
-	{ NULL,                                  NULL                                                         },
+	{ test_fault_mailbox_invalid_create,    "[test][mailbox][fault] mailbox invalid create    [passed]" },
+	{ test_fault_mailbox_bad_create,        "[test][mailbox][fault] mailbox bad create        [passed]" },
+	{ test_fault_mailbox_invalid_unlink,    "[test][mailbox][fault] mailbox invalid unlink    [passed]" },
+	{ test_fault_mailbox_double_unlink,     "[test][mailbox][fault] mailbox double unlink     [passed]" },
+	{ test_fault_mailbox_invalid_open,      "[test][mailbox][fault] mailbox invalid open      [passed]" },
+	{ test_fault_mailbox_bad_open,          "[test][mailbox][fault] mailbox bad open          [passed]" },
+	{ test_fault_mailbox_invalid_close,     "[test][mailbox][fault] mailbox invalid close     [passed]" },
+	{ test_fault_mailbox_double_close,      "[test][mailbox][fault] mailbox double close      [passed]" },
+	{ test_fault_mailbox_bad_close,         "[test][mailbox][fault] mailbox bad close         [passed]" },
+	{ test_fault_mailbox_invalid_read,      "[test][mailbox][fault] mailbox invalid read      [passed]" },
+	{ test_fault_mailbox_invalid_read_size, "[test][mailbox][fault] mailbox invalid read size [passed]" },
+	{ test_fault_mailbox_null_read,         "[test][mailbox][fault] mailbox null read         [passed]" },
+	{ test_fault_mailbox_invalid_write,     "[test][mailbox][fault] mailbox invalid write     [passed]" },
+	{ test_fault_mailbox_bad_write,         "[test][mailbox][fault] mailbox bad write         [passed]" },
+	{ test_fault_mailbox_bad_wait,          "[test][mailbox][fault] mailbox bad wait          [passed]" },
+	{ test_fault_mailbox_invalid_ioctl,     "[test][mailbox][fault] mailbox invalid ioctl     [passed]" },
+	{ test_fault_mailbox_bad_ioctl,         "[test][mailbox][fault] mailbox bad ioctl         [passed]" },
+	{ NULL,                                  NULL                                                       },
 };
 
 /**
@@ -715,7 +715,7 @@ void test_mailbox(void)
 	{
 		/* API Tests */
 		if (nodenum == MASTER_NODENUM)
-			nanvix_puts("--------------------------------------------------------------------------------\n");
+			nanvix_puts("--------------------------------------------------------------------------------");
 		for (unsigned i = 0; mailbox_tests_api[i].test_fn != NULL; i++)
 		{
 			mailbox_tests_api[i].test_fn();
@@ -726,7 +726,7 @@ void test_mailbox(void)
 
 		/* Fault Tests */
 		if (nodenum == MASTER_NODENUM)
-			nanvix_puts("--------------------------------------------------------------------------------\n");
+			nanvix_puts("--------------------------------------------------------------------------------");
 		for (unsigned i = 0; mailbox_tests_fault[i].test_fn != NULL; i++)
 		{
 			mailbox_tests_fault[i].test_fn();

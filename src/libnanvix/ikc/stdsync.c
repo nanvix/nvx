@@ -100,7 +100,11 @@ int __stdsync_setup(void)
 
 	/* Master cluster */
 	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
-		return ((__stdsync = ksync_create(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)));
+	{
+		return (((__stdsync = ksync_create(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)) < 0) ?
+			-1 : 0
+		);
+	}
 
 	/* Slave cluster. */
 	return (((__stdsync = ksync_open(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)) < 0) ?

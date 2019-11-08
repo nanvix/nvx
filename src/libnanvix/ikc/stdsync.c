@@ -155,6 +155,18 @@ int stdsync_fence(void)
 	return (ksync_signal(__stdsync[tid]));
 }
 
+/**
+ * @todo TODO: provide a detailed description for this function.
+ */
+int stdsync_get(void)
+{
+	int tid;
+
+	tid = kthread_self();
+
+	return (__stdsync[tid]);
+}
+
 #else
 extern int make_iso_compilers_happy;
 #endif /* __TARGET_HAS_MAILBOX */

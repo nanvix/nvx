@@ -25,11 +25,7 @@
 #include <nanvix/kernel/kernel.h>
 
 /**
- * @brief Terminates the calling process.
- *
- * @param status Exit status.
- *
- * @note This function does not return.
+ * @todo TODO: provide a detailed description for this function.
  */
 void _kexit(int status)
 {

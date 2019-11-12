@@ -30,48 +30,6 @@
 #include <posix/errno.h>
 
 /*============================================================================*
- * ksync_list_is_valid()                                                      *
- *============================================================================*/
-
-/**
- * @brief Check if the list of RX/TX NoC nodes is valid.
- *
- * @param local  Logic ID of the local node.
- * @param nodes  Logic IDs of target NoC nodes.
- * @param nnodes Number of target NoC nodes.
- *
- * @return Non zero if only one occurrence of local was found and zero
- * otherwise.
- */
-PRIVATE int ksync_list_is_valid(int local, const int *nodes, int nnodes)
-{
-	uint64_t checks;
-
-	/*
-	 * TODO: move this assertation to the HAL.
-	 */
-	KASSERT(PROCESSOR_NOC_NODES_NUM <= 64);
-
-	checks = 0ULL;
-
-	/* Build list of RX NoC nodes. */
-	for (int i = 0; i < nnodes; ++i)
-	{
-		if (!WITHIN(nodes[i], 0, PROCESSOR_NOC_NODES_NUM))
-			return (0);
-
-		/* Does a node appear twice? */
-		if (checks & (1ULL << nodes[i]))
-			return (0);
-
-		checks |= (1ULL << nodes[i]);
-	}
-
-	/* Local Node found. */
-	return (checks & (1ULL << local));
-}
-
-/*============================================================================*
  * ksync_create()                                                             *
  *============================================================================*/
 
@@ -82,7 +40,6 @@ PRIVATE int ksync_list_is_valid(int local, const int *nodes, int nnodes)
 int ksync_create(const int *nodes, int nnodes, int type)
 {
 	int ret;
-	int local;
 
 	/* Invalid nodes list. */
 	if (nodes == NULL)
@@ -92,29 +49,9 @@ int ksync_create(const int *nodes, int nnodes, int type)
 	if (!WITHIN(nnodes, 2, (PROCESSOR_NOC_NODES_NUM + 1)))
 		return(-EINVAL);
 
-	local = knode_get_num();
-
-	if (type == SYNC_ONE_TO_ALL)
-	{
-		/* Is the local node not the sender? */
-		if (local == nodes[0])
-			return (-EINVAL);
-	}
-
-	else if (type == SYNC_ALL_TO_ONE)
-	{
-		/* Is the local node not the receiver? */
-		if (local != nodes[0])
-			return (-EINVAL);
-	}
-
-	/* Invalid type. */
-	else
+	/* Invalid sync type. */
+	if ((type != SYNC_ONE_TO_ALL) && (type != SYNC_ALL_TO_ONE))
 		return (-EINVAL);
-
-	/* Is the node list not valid? */
-	if (!ksync_list_is_valid(local, nodes, nnodes))
-			return (-EINVAL);
 
 	ret = kcall3(
 		NR_sync_create,
@@ -137,7 +74,6 @@ int ksync_create(const int *nodes, int nnodes, int type)
 int ksync_open(const int *nodes, int nnodes, int type)
 {
 	int ret;
-	int local;
 
 	/* Invalid list of nodes. */
 	if (nodes == NULL)
@@ -147,29 +83,9 @@ int ksync_open(const int *nodes, int nnodes, int type)
 	if (!WITHIN(nnodes, 2, (PROCESSOR_NOC_NODES_NUM + 1)))
 		return(-EINVAL);
 
-	local = knode_get_num();
-
-	if (type == SYNC_ONE_TO_ALL)
-	{
-		/* Is the local node not the sender? */
-		if (local != nodes[0])
-			return (-EINVAL);
-	}
-
-	else if (type == SYNC_ALL_TO_ONE)
-	{
-		/* Is the local node not the receiver? */
-		if (local == nodes[0])
-			return (-EINVAL);
-	}
-
-	/* Invalid type. */
-	else
+	/* Invalid sync type. */
+	if ((type != SYNC_ONE_TO_ALL) && (type != SYNC_ALL_TO_ONE))
 		return (-EINVAL);
-
-	/* Is the node list not valid? */
-	if (!ksync_list_is_valid(local, nodes, nnodes))
-			return (-EINVAL);
 
 	ret = kcall3(
 		NR_sync_open,

@@ -27,6 +27,7 @@
 #if __TARGET_HAS_PORTAL
 
 #include <nanvix/sys/thread.h>
+#include <nanvix/sys/noc.h>
 #include <nanvix/runtime/stdikc.h>
 
 /**
@@ -45,7 +46,7 @@ int __stdportal_setup(void)
 	int local;
 
 	tid = kthread_self();
-	local = processor_node_get_num(core_get_id());
+	local = knode_get_num();
 
 	return (((__stdinportal[tid] = kportal_create(local)) < 0) ? -1 : 0);
 }

@@ -115,7 +115,7 @@ int __stdsync_setup(void)
 		ret = __stdbarrier[tid][0] = ksync_create(
 			nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE
 		);
-		if (ret == 0)
+		if (ret >= 0)
 		{
 			ret = __stdbarrier[tid][1] = ksync_open(
 				nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ONE_TO_ALL
@@ -131,7 +131,7 @@ int __stdsync_setup(void)
 		ret = __stdbarrier[tid][0] = ksync_open(
 			nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE
 		);
-		if (ret == 0)
+		if (ret >= 0)
 		{
 			ret = __stdbarrier[tid][1] = ksync_create(
 				nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ONE_TO_ALL

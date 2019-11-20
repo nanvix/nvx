@@ -26,23 +26,29 @@
 
 #if __TARGET_HAS_MAILBOX
 
+#include <nanvix/sys/thread.h>
+#include <nanvix/sys/noc.h>
 #include <nanvix/runtime/stdikc.h>
 
 /**
  * @brief Kernel standard input mailbox.
  */
-static int __stdinbox = -1;
+static int __stdinbox[THREAD_MAX] = {
+	[0 ... (THREAD_MAX - 1)] = -1
+};
 
 /**
  * @todo TODO: provide a detailed description for this function.
  */
 int __stdmailbox_setup(void)
 {
+	int tid;
 	int local;
 
-	local = processor_node_get_num(core_get_id());
+	tid = kthread_self();
+	local = knode_get_num();
 
-	return (((__stdinbox = kmailbox_create(local)) < 0) ? -1 : 0);
+	return (((__stdinbox[tid] = kmailbox_create(local)) < 0) ? -1 : 0);
 }
 
 /**
@@ -50,7 +56,11 @@ int __stdmailbox_setup(void)
  */
 int __stdmailbox_cleanup(void)
 {
-	return (kmailbox_unlink(__stdinbox));
+	int tid;
+
+	tid = kthread_self();
+
+	return (kmailbox_unlink(__stdinbox[tid]));
 }
 
 /**
@@ -58,7 +68,11 @@ int __stdmailbox_cleanup(void)
  */
 int stdinbox_get(void)
 {
-	return (__stdinbox);
+	int tid;
+
+	tid = kthread_self();
+
+	return (__stdinbox[tid]);
 }
 
 #else

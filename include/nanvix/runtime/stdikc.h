@@ -30,6 +30,13 @@
  *============================================================================*/
 
 	/**
+	 * @brief Gets the kernel standard sync.
+	 *
+	 * @return The kernel standard sync.
+	 */
+	extern int stdsync_get(void);
+
+	/**
 	 * @brief Waits/Releases the standard kernel fence.
 	 *
 	 * @return Upon successful completion, zero is returned. Upon

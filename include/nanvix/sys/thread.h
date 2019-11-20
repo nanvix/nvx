@@ -63,6 +63,15 @@
 	 */
 	extern int kshutdown(void);
 
+	/**
+	 * @brief Terminates the calling process.
+	 *
+	 * @param status Exit status.
+	 *
+	 * @note This function does not return.
+	 */
+	extern void _kexit(int status);
+
 #endif /* NANVIX_SYS_THREAD_H_ */
 
 /**@}*/

@@ -217,8 +217,12 @@ ssize_t kmailbox_read(int mbxid, void *buffer, size_t size)
 	if (size > MAILBOX_MSG_SIZE)
 		return (-EINVAL);
 
-	if ((ret = kmailbox_aread(mbxid, buffer2, MAILBOX_MSG_SIZE)) < 0)
-		return (ret);
+	do
+	{
+		ret = kmailbox_aread(mbxid, buffer2, MAILBOX_MSG_SIZE);
+		if ((ret < 0) && (ret != -ETIMEDOUT))
+			return (ret);
+	} while(ret < 0);
 
 	if ((ret = kmailbox_wait(mbxid)) < 0)
 		return (ret);

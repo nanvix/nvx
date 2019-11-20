@@ -56,6 +56,8 @@ int knode_get_num(void)
  */
 int knode_set_num(int nodenum)
 {
+#if (PROCESSOR_HAS_NOC)
+
 	int ret;
     int coreid;
 
@@ -71,4 +73,12 @@ int knode_set_num(int nodenum)
 	);
 
 	return (ret);
+
+#else
+
+	UNUSED(nodenum);
+
+	return (-ENOSYS);
+
+#endif
 }

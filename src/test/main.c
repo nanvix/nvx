@@ -99,7 +99,7 @@ void ___start(int argc, const char *argv[])
 
 	nodenum = knode_get_num();
 
-	if (nodenum == PROCESSOR_NODENUM_MASTER)
+	if (nodenum == 0)
 	{
 		test_thread_mgmt();
 		test_thread_sleep();

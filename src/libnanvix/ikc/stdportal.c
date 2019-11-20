@@ -26,23 +26,29 @@
 
 #if __TARGET_HAS_PORTAL
 
+#include <nanvix/sys/thread.h>
+#include <nanvix/sys/noc.h>
 #include <nanvix/runtime/stdikc.h>
 
 /**
  * @brief Kernel standard input portal.
  */
-static int __stdinportal = -1;
+static int __stdinportal[THREAD_MAX] = {
+	[0 ... (THREAD_MAX - 1)] = -1
+};
 
 /**
  * @todo TODO: provide a detailed description for this function.
  */
 int __stdportal_setup(void)
 {
+	int tid;
 	int local;
 
-	local = processor_node_get_num(core_get_id());
+	tid = kthread_self();
+	local = knode_get_num();
 
-	return (((__stdinportal = kportal_create(local)) < 0) ? -1 : 0);
+	return (((__stdinportal[tid] = kportal_create(local)) < 0) ? -1 : 0);
 }
 
 /**
@@ -50,7 +56,11 @@ int __stdportal_setup(void)
  */
 int __stdportal_cleanup(void)
 {
-	return (kportal_unlink(__stdinportal));
+	int tid;
+
+	tid = kthread_self();
+
+	return (kportal_unlink(__stdinportal[tid]));
 }
 
 /**
@@ -58,7 +68,11 @@ int __stdportal_cleanup(void)
  */
 int stdinportal_get(void)
 {
-	return (__stdinportal);
+	int tid;
+
+	tid = kthread_self();
+
+	return (__stdinportal[tid]);
 }
 
 #else

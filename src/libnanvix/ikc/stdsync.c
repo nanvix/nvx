@@ -27,12 +27,17 @@
 #if __TARGET_HAS_SYNC
 
 #include <nanvix/sys/perf.h>
+#include <nanvix/sys/thread.h>
 #include <nanvix/runtime/stdikc.h>
 
 /**
  * @brief Kernel standard sync.
  */
-static int __stdsync = -1;
+static int __stdbarrier[THREAD_MAX][2] = {
+	[0 ... (THREAD_MAX - 1)] = { -1, -1},
+};
+
+#ifndef __unix64__
 
 /**
  * @brief Forces a platform-independent delay.
@@ -54,6 +59,8 @@ static void delay(uint64_t cycles)
 		while ((t1 - t0) < cycles);
 	}
 }
+
+#endif /* !__unix64__ */
 
 /*
  * Build a list of the node IDs
@@ -94,47 +101,121 @@ static void build_node_list(int *nodes, int nioclusters, int ncclusters)
  */
 int __stdsync_setup(void)
 {
+	int tid;
+	int ret;
 	int nodes[PROCESSOR_CLUSTERS_NUM];
+
+	tid = kthread_self();
 
 	build_node_list(nodes, PROCESSOR_IOCLUSTERS_NUM, PROCESSOR_CCLUSTERS_NUM);
 
 	/* Master cluster */
 	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
-		return ((__stdsync = ksync_create(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)));
+	{
+		ret = __stdbarrier[tid][0] = ksync_create(
+			nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE
+		);
+		if (ret >= 0)
+		{
+			ret = __stdbarrier[tid][1] = ksync_open(
+				nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ONE_TO_ALL
+			);
+
+			if (ret < 0)
+				ksync_unlink(__stdbarrier[tid][0]);
+		}
+	}
+
+	else
+	{
+		ret = __stdbarrier[tid][0] = ksync_open(
+			nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE
+		);
+		if (ret >= 0)
+		{
+			ret = __stdbarrier[tid][1] = ksync_create(
+				nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ONE_TO_ALL
+			);
+
+			if (ret < 0)
+				ksync_close(__stdbarrier[tid][0]);
+		}
+	}
 
 	/* Slave cluster. */
-	return (((__stdsync = ksync_open(nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE)) < 0) ?
-		-1 : -0
-	);
+	return ((ret < 0) ? -1 : -0);
 }
 
 /**
  * @todo TODO: provide a detailed description for this function.
+ * @bug FIXME: return value on bad cases.
  */
 int __stdsync_cleanup(void)
 {
+	int tid;
+	int ret;
+
+	tid = kthread_self();
+
 	/* Master cluster */
 	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
-		return (ksync_unlink(__stdsync));
+	{
+		ret = ksync_unlink(__stdbarrier[tid][0]);
+		ret = ksync_close(__stdbarrier[tid][1]);
+	}
 
-	return (ksync_close(__stdsync));
+	else
+	{
+		ret = ksync_close(__stdbarrier[tid][0]);
+		ret = ksync_unlink(__stdbarrier[tid][1]);
+	}
+
+	return (ret);
+}
+
+/**
+ * @todo TODO: provide a detailed description for this function.
+ * @bug FIXME: return value on bad cases.
+ */
+int stdsync_fence(void)
+{
+	int tid;
+	int ret;
+
+	tid = kthread_self();
+
+	/* Master cluster */
+	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
+	{
+		ret = ksync_wait(__stdbarrier[tid][0]);
+		ret = ksync_signal(__stdbarrier[tid][1]);
+	}
+
+	/* Slave cluster. */
+	else
+	{
+		/* Waits one second. */
+		#ifndef __unix64__
+			delay(CLUSTER_FREQ);
+		#endif
+
+		ret = ksync_signal(__stdbarrier[tid][0]);
+		ret = ksync_wait(__stdbarrier[tid][1]);
+	}
+
+	return (ret);
 }
 
 /**
  * @todo TODO: provide a detailed description for this function.
  */
-int stdsync_fence(void)
+int stdsync_get(void)
 {
-	/* Master cluster */
-	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
-		return (ksync_wait(__stdsync));
+	int tid;
 
-#ifndef __unix64__
-	/* Waits one second. */
-	delay(CLUSTER_FREQ);
-#endif
+	tid = kthread_self();
 
-	return (ksync_signal(__stdsync));
+	return (__stdbarrier[tid][0]);
 }
 
 #else

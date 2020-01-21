@@ -45,6 +45,7 @@ include/posix/
 # Kernel Headers
 include/dev/
 include/nanvix/kernel/
+include/nanvix/hal.h
 
 # Excludes
 !img/*

@@ -43,7 +43,7 @@
 void test_api_nanvix_perf_query(void)
 {
 	test_assert(PERF_EVENTS_MAX >= 1);
-	test_assert(nanvix_perf_query(PERF_CYCLES) == 0);
+	test_assert(nanvix_perf_query(0) == 0);
 }
 
 /**
@@ -51,7 +51,7 @@ void test_api_nanvix_perf_query(void)
  */
 void test_api_nanvix_perf_start_stop(void)
 {
-	test_assert(nanvix_perf_start(0, PERF_CYCLES) == 0);
+	test_assert(nanvix_perf_start(0, 0) == 0);
 	test_assert(nanvix_perf_stop(0) == 0);
 }
 
@@ -61,7 +61,7 @@ void test_api_nanvix_perf_start_stop(void)
 void test_api_nanvix_perf_read(void)
 {
 	/* Read performance monitor. */
-	test_assert(nanvix_perf_start(0, PERF_CYCLES) == 0);
+	test_assert(nanvix_perf_start(0, 0) == 0);
 	test_assert(nanvix_perf_stop(0) == 0);
 	nanvix_perf_read(0);
 }

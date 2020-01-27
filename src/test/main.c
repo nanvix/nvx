@@ -101,6 +101,8 @@ void ___start(int argc, const char *argv[])
 
 	if (nodenum == 0)
 	{
+		test_kframe_mgmt();
+		test_page_mgmt();
 		test_thread_mgmt();
 		test_thread_sleep();
 

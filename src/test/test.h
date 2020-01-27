@@ -60,6 +60,8 @@
 	 * @name User-Level Testing Units
 	 */
 	/**@{*/
+	extern void test_kframe_mgmt(void);
+	extern void test_page_mgmt(void);
 	extern void test_thread_mgmt(void);
 	extern void test_thread_sleep(void);
 	extern void test_perf(void);

@@ -30,6 +30,7 @@
 SRC = $(wildcard dev/*.c) \
       $(wildcard etc/*.c) \
       $(wildcard ikc/*.c) \
+      $(wildcard mm/*.c)  \
       $(wildcard thread/*.c)
 
 #===============================================================================

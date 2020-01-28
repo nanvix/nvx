@@ -34,11 +34,6 @@
 /**@}*/
 
 /**
- * @brief Unmapped address.
- */
-#define BAD_ADDRESS 0xdeadbeef
-
-/**
  * @brief Workload for stress tests.
  */
 #define NUM_PAGES 8
@@ -66,7 +61,7 @@ static void test_api_page_allocation(void)
 static void test_api_page_write(void)
 {
 	unsigned *pg;
-	const unsigned magic = BAD_ADDRESS;
+	const unsigned magic = 0xdeadbeef;
 
 	pg = (unsigned  *)(UBASE_VIRT);
 
@@ -179,7 +174,7 @@ static void test_stress_page_allocation(void)
 static void test_stress_page_write(void)
 {
 	unsigned *pg;
-	const unsigned magic = BAD_ADDRESS;
+	const unsigned magic = 0xdeadbeef;
 
 	/* Allocate pages. */
 	for (unsigned i = 0; i < NUM_PAGES; i++)

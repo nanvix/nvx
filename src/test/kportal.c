@@ -71,11 +71,11 @@ static void test_api_portal_create_unlink(void)
 	local  = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	test_assert((portalid = kportal_create(local)) >= 0);
+	test_assert((portalid = kportal_create(local, 0)) >= 0);
 	test_assert(kportal_unlink(portalid) == 0);
 
-	test_assert((portalid = kportal_create(local)) >= 0);
-	test_assert(kportal_allow(portalid, remote) >= 0);
+	test_assert((portalid = kportal_create(local, 0)) >= 0);
+	test_assert(kportal_allow(portalid, remote, 0) >= 0);
 	test_assert(kportal_unlink(portalid) == 0);
 }
 
@@ -95,7 +95,7 @@ static void test_api_portal_open_close(void)
 	local  = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	test_assert((portalid = kportal_open(local, remote)) >= 0);
+	test_assert((portalid = kportal_open(local, remote, 0)) >= 0);
 	test_assert(kportal_close(portalid) == 0);
 }
 
@@ -117,8 +117,8 @@ static void test_api_portal_get_volume(void)
 	local = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	test_assert((portal_in = kportal_create(local)) >= 0);
-	test_assert((portal_out = kportal_open(local, remote)) >= 0);
+	test_assert((portal_in = kportal_create(local, 0)) >= 0);
+	test_assert((portal_out = kportal_open(local, remote, (portal_in % PORTAL_PORT_NR))) >= 0);
 
 		test_assert(kportal_ioctl(portal_in, PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 		test_assert(volume == 0);
@@ -148,8 +148,8 @@ static void test_api_portal_get_latency(void)
 	local = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	test_assert((portal_in = kportal_create(local)) >= 0);
-	test_assert((portal_out = kportal_open(local, remote)) >= 0);
+	test_assert((portal_in = kportal_create(local, 0)) >= 0);
+	test_assert((portal_out = kportal_open(local, remote, (portal_in % PORTAL_PORT_NR))) >= 0);
 
 		test_assert(kportal_ioctl(portal_in, PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
 		test_assert(latency == 0);
@@ -167,6 +167,8 @@ static void test_api_portal_get_latency(void)
 
 /**
  * @brief API Test: Read Write 2 CC
+ *
+ * @bug FIXME: Call kportal_wait() when the kernel properly supports it.
  */
 static void test_api_portal_read_write(void)
 {
@@ -181,8 +183,8 @@ static void test_api_portal_read_write(void)
 	local  = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	test_assert((portal_in = kportal_create(local)) >= 0);
-	test_assert((portal_out = kportal_open(local, remote)) >= 0);
+	test_assert((portal_in = kportal_create(local, 0)) >= 0);
+	test_assert((portal_out = kportal_open(local, remote, (portal_in % PORTAL_PORT_NR))) >= 0);
 
 	test_assert(kportal_ioctl(portal_in, PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == 0);
@@ -200,9 +202,11 @@ static void test_api_portal_read_write(void)
 		{
 			kmemset(message, 0, MESSAGE_SIZE);
 
-			test_assert(kportal_allow(portal_in, remote) == 0);
+			test_assert(kportal_allow(portal_in, remote, (portal_out % PORTAL_PORT_NR)) == 0);
 			test_assert(kportal_aread(portal_in, message, MESSAGE_SIZE) == MESSAGE_SIZE);
+#if 0
 			test_assert(kportal_wait(portal_in) == 0);
+#endif
 
 			for (unsigned j = 0; j < MESSAGE_SIZE; ++j)
 				test_assert(message[j] == 1);
@@ -210,23 +214,29 @@ static void test_api_portal_read_write(void)
 			kmemset(message, 2, MESSAGE_SIZE);
 
 			test_assert(kportal_awrite(portal_out, message, MESSAGE_SIZE) == MESSAGE_SIZE);
+#if 0
 			test_assert(kportal_wait(portal_out) == 0);
+#endif
 		}
 	}
-	else
+	else if (local == SLAVE_NODENUM)
 	{
 		for (unsigned i = 0; i < NITERATIONS; i++)
 		{
 			kmemset(message, 1, MESSAGE_SIZE);
 
 			test_assert(kportal_awrite(portal_out, message, MESSAGE_SIZE) == MESSAGE_SIZE);
+#if 0
 			test_assert(kportal_wait(portal_out) == 0);
+#endif
 
 			kmemset(message, 0, MESSAGE_SIZE);
 
-			test_assert(kportal_allow(portal_in, remote) == 0);
+			test_assert(kportal_allow(portal_in, remote, (portal_out % PORTAL_PORT_NR)) == 0);
 			test_assert(kportal_aread(portal_in, message, MESSAGE_SIZE) == MESSAGE_SIZE);
+#if 0
 			test_assert(kportal_wait(portal_in) == 0);
+#endif
 
 			for (unsigned j = 0; j < MESSAGE_SIZE; ++j)
 				test_assert(message[j] == 2);
@@ -248,13 +258,13 @@ static void test_api_portal_read_write(void)
 }
 
 /*============================================================================*
- * API Test: Multiple create / open                                           *
+ * API Test: Virtualization                                                   *
  *============================================================================*/
 
 /**
- * @brief API Test: Multiple create / open of virtual portals.
+ * @brief API Test: Virtualization of HW portals.
  */
-static void test_api_portal_multiple_create_open(void)
+static void test_api_portal_virtualization(void)
 {
 	int local;
 	int remote;
@@ -266,10 +276,10 @@ static void test_api_portal_multiple_create_open(void)
 
 	/* Creates multiple virtual portals. */
 	for (unsigned i = 0; i < TEST_NR_INPUT_PORTALS; ++i)
-		test_assert((portal_in[i] = kportal_create(local)) >= 0);
+		test_assert((portal_in[i] = kportal_create(local, i)) >= 0);
 
 	for (unsigned i = 0; i < TEST_NR_OUTPUT_PORTALS; ++i)
-		test_assert((portal_out[i] = kportal_open(local, remote)) >= 0);
+		test_assert((portal_out[i] = kportal_open(local, remote, i)) >= 0);
 
 	/* Deletion of the created virtual portals. */
 	for (unsigned i = 0; i < TEST_NR_INPUT_PORTALS; ++i)
@@ -280,13 +290,15 @@ static void test_api_portal_multiple_create_open(void)
 }
 
 /*============================================================================*
- * API Test: Multiplex                                                        *
+ * API Test: Multiplexation                                                   *
  *============================================================================*/
 
 /**
- * @brief API Test: Multiplex of virtual to hardware portals.
+ * @brief API Test: Multiplexation of virtual to hardware portals.
+ *
+ * @bug FIXME: Call kportal_wait() when the kernel properly supports it.
  */
-static void test_api_portal_multiplex(void)
+static void test_api_portal_multiplexation(void)
 {
 	int local;
 	int remote;
@@ -302,8 +314,8 @@ static void test_api_portal_multiplex(void)
 	/* Creates multiple virtual portals. */
 	for (unsigned i = 0; i < TEST_NR_PORTAL_PAIRS; ++i)
 	{
-		test_assert((portal_in[i] = kportal_create(local)) >= 0);
-		test_assert((portal_out[i] = kportal_open(local, remote)) >= 0);
+		test_assert((portal_in[i] = kportal_create(local, i)) >= 0);
+		test_assert((portal_out[i] = kportal_open(local, remote, portal_in[i] % PORTAL_PORT_NR)) >= 0);
 	}
 
 	/* Multiple write/read operations to test multiplexation. */
@@ -313,9 +325,11 @@ static void test_api_portal_multiplex(void)
 		{
 			kmemset(message, (i - 1), MESSAGE_SIZE);
 
-			test_assert(kportal_allow(portal_in[i], remote) == 0);
+			test_assert(kportal_allow(portal_in[i], remote, portal_out[i] % PORTAL_PORT_NR) == 0);
 			test_assert(kportal_aread(portal_in[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
+#if 0
 			test_assert(kportal_wait(portal_in[i]) == 0);
+#endif
 
 			for (unsigned j = 0; j < MESSAGE_SIZE; ++j)
 				test_assert((message[j] - i) == 0);
@@ -323,23 +337,29 @@ static void test_api_portal_multiplex(void)
 			kmemset(message, (i + 1), MESSAGE_SIZE);
 
 			test_assert(kportal_awrite(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
+#if 0
 			test_assert(kportal_wait(portal_out[i]) == 0);
+#endif
 		}
 	}
-	else
+	else if (local == SLAVE_NODENUM)
 	{
 		for (unsigned i = 0; i < TEST_NR_PORTAL_PAIRS; ++i)
 		{
 			kmemset(message, i, MESSAGE_SIZE);
 
 			test_assert(kportal_awrite(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
+#if 0
 			test_assert(kportal_wait(portal_out[i]) == 0);
+#endif
 
 			kmemset(message, i, MESSAGE_SIZE);
 
-			test_assert(kportal_allow(portal_in[i], remote) == 0);
+			test_assert(kportal_allow(portal_in[i], remote, portal_out[i] % PORTAL_PORT_NR) == 0);
 			test_assert(kportal_aread(portal_in[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
+#if 0
 			test_assert(kportal_wait(portal_in[i]) == 0);
+#endif
 
 			for (unsigned j = 0; j < MESSAGE_SIZE; ++j)
 				test_assert((message[j] - i - 1) == 0);
@@ -369,11 +389,163 @@ static void test_api_portal_multiplex(void)
 }
 
 /*============================================================================*
- * API Test: Allow                                                     *
+ * API Test: Multiplexation 2                                                 *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Second multiplexation test.
+ *
+ * @bug FIXME: Call kportal_wait() when the kernel properly supports it.
+ */
+static void test_api_portal_multiplexation_2(void)
+{
+	int local;
+	int remote;
+	int portal_in[2];
+	int portal_out[2];
+	size_t volume;
+	uint64_t latency;
+	char message[MESSAGE_SIZE];
+
+	local  = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	/* Creates multiple virtual portals. */
+	for (unsigned i = 0; i < 2; ++i)
+	{
+		test_assert((portal_in[i] = kportal_create(local, i)) >= 0);
+		test_assert((portal_out[i] = kportal_open(local, remote, portal_in[i] % PORTAL_PORT_NR)) >= 0);
+	}
+
+	/* Multiplexation test. */
+	if (local == MASTER_NODENUM)
+	{
+		test_assert(kportal_allow(portal_in[0], remote, portal_out[0] % PORTAL_PORT_NR) == 0);
+		test_assert(kportal_allow(portal_in[1], remote, portal_out[1] % PORTAL_PORT_NR) == 0);
+
+		for (int i = 1; i >= 0; --i)
+		{
+			kmemset(message, i, MESSAGE_SIZE);
+
+			test_assert(kportal_aread(portal_in[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
+
+			for (unsigned j = 0; j < MESSAGE_SIZE; ++j)
+				test_assert((message[j] - i) == 0);
+
+			/* Checks the data transfered by each vportal. */
+			test_assert(kportal_ioctl(portal_in[i], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(volume == MESSAGE_SIZE);
+			test_assert(kportal_ioctl(portal_in[i], PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+			test_assert(latency > 0);
+		}
+	}
+	else if (local == SLAVE_NODENUM)
+	{
+		for (unsigned i = 0; i < 2; ++i)
+		{
+			kmemset(message, i, MESSAGE_SIZE);
+
+			test_assert(kportal_awrite(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
+
+			test_assert(kportal_ioctl(portal_out[i], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(volume == MESSAGE_SIZE);
+			test_assert(kportal_ioctl(portal_out[i], PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+			test_assert(latency > 0);
+		}
+	}
+
+	/* Deletion of the created virtual portals. */
+	for (unsigned i = 0; i < 2; ++i)
+	{
+		test_assert(kportal_unlink(portal_in[i]) == 0);
+		test_assert(kportal_close(portal_out[i]) == 0);
+	}
+}
+
+/*============================================================================*
+ * API Test: Multiplexation 3                                                 *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Third multiplexation test.
+ *
+ * @bug FIXME: Call kportal_wait() when the kernel properly supports it.
+ */
+static void test_api_portal_multiplexation_3(void)
+{
+	int local;
+	int remote;
+	int portal_in[2];
+	int portal_out[2];
+	size_t volume;
+	uint64_t latency;
+	char message[MESSAGE_SIZE];
+
+	local  = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	/* Multiplexation test. */
+	if (local == MASTER_NODENUM)
+	{
+		/* Creates multiple virtual portals. */
+		test_assert((portal_in[0] = kportal_create(local, 0)) >= 0);
+		test_assert((portal_in[1] = kportal_create(local, 1)) >= 0);
+
+		for (unsigned i = 0; i < 2; ++i)
+		{
+			kmemset(message, (i - 1), MESSAGE_SIZE);
+
+			test_assert(kportal_allow(portal_in[i], remote, i) == 0);
+			test_assert(kportal_aread(portal_in[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
+
+			for (unsigned j = 0; j < MESSAGE_SIZE; ++j)
+				test_assert((message[j] - i) == 0);
+		}
+
+		/* Checks the data volume transferred by each vportal. */
+		for (unsigned i = 0; i < 2; ++i)
+		{
+			test_assert(kportal_ioctl(portal_in[i], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(volume == MESSAGE_SIZE);
+			test_assert(kportal_ioctl(portal_in[i], PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+			test_assert(latency > 0);
+
+			/* Unlinks each vportal. */
+			test_assert(kportal_unlink(portal_in[i]) == 0);
+		}
+	}
+	else if (local == SLAVE_NODENUM)
+	{
+		test_assert((portal_out[0] = kportal_open(local, remote, 0)) >= 0);
+		test_assert((portal_out[1] = kportal_open(local, remote, 1)) >= 0);
+
+		kmemset(message, 1, MESSAGE_SIZE);
+
+			test_assert(kportal_awrite(portal_out[1], message, MESSAGE_SIZE) == MESSAGE_SIZE);
+
+			test_assert(kportal_ioctl(portal_out[1], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(volume == MESSAGE_SIZE);
+
+		kmemset(message, 0, MESSAGE_SIZE);
+
+			test_assert(kportal_awrite(portal_out[0], message, MESSAGE_SIZE) == MESSAGE_SIZE);
+
+			test_assert(kportal_ioctl(portal_out[0], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(volume == MESSAGE_SIZE);
+
+		test_assert(kportal_close(portal_out[0]) == 0);
+		test_assert(kportal_close(portal_out[1]) == 0);
+	}
+}
+
+/*============================================================================*
+ * API Test: Allow                                                            *
  *============================================================================*/
 
 /**
  * @brief API Test: Virtual portals allowing.
+ *
+ * @bug FIXME: Call kportal_wait() when the kernel properly supports it.
  */
 static void test_api_portal_allow(void)
 {
@@ -388,26 +560,30 @@ static void test_api_portal_allow(void)
 	local  = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	test_assert((portal_in1 = kportal_create(local)) >= 0);
-	test_assert((portal_in2 = kportal_create(local)) >= 0);
-	test_assert((portal_out1 = kportal_open(local, remote)) >= 0);
-	test_assert((portal_out2 = kportal_open(local, remote)) >= 0);
+	test_assert((portal_in1 = kportal_create(local, 0)) >= 0);
+	test_assert((portal_in2 = kportal_create(local, 1)) >= 0);
+	test_assert((portal_out1 = kportal_open(local, remote, portal_in1 % PORTAL_PORT_NR)) >= 0);
+	test_assert((portal_out2 = kportal_open(local, remote, portal_in2 % PORTAL_PORT_NR)) >= 0);
 
 	if (local == SLAVE_NODENUM)
 	{
 		test_assert(kportal_awrite(portal_out1, message, MESSAGE_SIZE) == MESSAGE_SIZE);
+#if 0
 		test_assert(kportal_wait(portal_out1) == 0);
+#endif
 		test_assert(kportal_awrite(portal_out2, message, MESSAGE_SIZE) == MESSAGE_SIZE);
+#if 0
 		test_assert(kportal_wait(portal_out2) == 0);
+#endif
 	}
-	else
+	else if (local == MASTER_NODENUM)
 	{
 		/* Allowing tests. */
-		test_assert(kportal_allow(portal_in1, remote) == 0);
+		test_assert(kportal_allow(portal_in1, remote, portal_out1 % PORTAL_PORT_NR) == 0);
 		test_assert(kportal_aread(portal_in2, message, MESSAGE_SIZE) == -EACCES);
 		test_assert(kportal_aread(portal_in1, message, MESSAGE_SIZE) == MESSAGE_SIZE);
 		test_assert(kportal_aread(portal_in1, message, MESSAGE_SIZE) == -EACCES);
-		test_assert(kportal_allow(portal_in2, remote) == 0);
+		test_assert(kportal_allow(portal_in2, remote, portal_out2 % PORTAL_PORT_NR) == 0);
 		test_assert(kportal_aread(portal_in1, message, MESSAGE_SIZE) == -EACCES);
 		test_assert(kportal_aread(portal_in2, message, MESSAGE_SIZE) == MESSAGE_SIZE);
 	}
@@ -432,9 +608,11 @@ static void test_fault_portal_invalid_create(void)
 
 	nodenum = (knode_get_num() == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	test_assert(kportal_create(-1) == -EINVAL);
-	test_assert(kportal_create(nodenum) == -EINVAL);
-	test_assert(kportal_create(PROCESSOR_NOC_NODES_NUM) == -EINVAL);
+	test_assert(kportal_create(-1, 0) == -EINVAL);
+	test_assert(kportal_create(nodenum, 0) == -EINVAL);
+	test_assert(kportal_create(PROCESSOR_NOC_NODES_NUM, 0) == -EINVAL);
+	test_assert(kportal_create(0, -1) == -EINVAL);
+	test_assert(kportal_create(0, 1000000) == -EINVAL);
 }
 
 /*============================================================================*
@@ -452,7 +630,7 @@ static void test_fault_portal_invalid_unlink(void)
 }
 
 /*============================================================================*
- * Fault Test: Bad Unlink                                                 *
+ * Fault Test: Bad Unlink                                                     *
  *============================================================================*/
 
 /**
@@ -467,7 +645,7 @@ static void test_fault_portal_bad_unlink(void)
 	local = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	test_assert((portalid = kportal_open(local, remote)) >= 0);
+	test_assert((portalid = kportal_open(local, remote, 0)) >= 0);
 	test_assert(kportal_unlink(portalid) == -EBADF);
 	test_assert(kportal_close(portalid) == 0);
 }
@@ -486,7 +664,7 @@ static void test_fault_portal_double_unlink(void)
 
 	local = knode_get_num();
 
-	test_assert((portalid = kportal_create(local)) >= 0);
+	test_assert((portalid = kportal_create(local, 0)) >= 0);
 	test_assert(kportal_unlink(portalid) == 0);
 	test_assert(kportal_unlink(portalid) == -EBADF);
 }
@@ -501,15 +679,19 @@ static void test_fault_portal_double_unlink(void)
 static void test_fault_portal_invalid_open(void)
 {
 	int local;
+	int remote;
 
 	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	test_assert(kportal_open(local, -1) == -EINVAL);
-	test_assert(kportal_open(-1, local + 1) == -EINVAL);
-	test_assert(kportal_open(-1, -1) == -EINVAL);
-	test_assert(kportal_open(local, PROCESSOR_NOC_NODES_NUM) == -EINVAL);
-	test_assert(kportal_open(PROCESSOR_NOC_NODES_NUM, local + 1) == -EINVAL);
-	test_assert(kportal_open(local, local) == -EINVAL);
+	test_assert(kportal_open(local, -1, 0) == -EINVAL);
+	test_assert(kportal_open(-1, remote, 0) == -EINVAL);
+	test_assert(kportal_open(-1, -1, 0) == -EINVAL);
+	test_assert(kportal_open(local, PROCESSOR_NOC_NODES_NUM, 0) == -EINVAL);
+	test_assert(kportal_open(PROCESSOR_NOC_NODES_NUM, remote, 0) == -EINVAL);
+	test_assert(kportal_open(local, local, 0) == -EINVAL);
+	test_assert(kportal_open(local, remote, -1) == -EINVAL);
+	test_assert(kportal_open(local, remote, 10000000) == -EINVAL);
 }
 
 /*============================================================================*
@@ -540,13 +722,13 @@ static void test_fault_portal_bad_close(void)
 
 	local = knode_get_num();
 
-	test_assert((portalid = kportal_create(local)) >= 0);
+	test_assert((portalid = kportal_create(local, 0)) >= 0);
 	test_assert(kportal_close(portalid) == -EBADF);
 	test_assert(kportal_unlink(portalid) == 0);
 }
 
 /*============================================================================*
- * Fault Test: Double Close                                                 *
+ * Fault Test: Double Close                                                   *
  *============================================================================*/
 
 /**
@@ -561,13 +743,13 @@ static void test_fault_portal_double_close(void)
 	local = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	test_assert((portalid = kportal_open(local, remote)) >= 0);
+	test_assert((portalid = kportal_open(local, remote, 0)) >= 0);
 	test_assert(kportal_close(portalid) == 0);
 	test_assert(kportal_close(portalid) == -EBADF);
 }
 
 /*============================================================================*
- * Fault Test: Bad allow                                                *
+ * Fault Test: Bad allow                                                      *
  *============================================================================*/
 
 /**
@@ -582,9 +764,31 @@ static void test_fault_portal_bad_allow(void)
 	local = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	test_assert((portalid = kportal_open(local, remote)) >= 0);
-	test_assert(kportal_allow(portalid, remote) == -EBADF);
+	test_assert((portalid = kportal_open(local, remote, 0)) >= 0);
+	test_assert(kportal_allow(portalid, remote, 0) == -EBADF);
 	test_assert(kportal_close(portalid) == 0);
+}
+
+/*============================================================================*
+ * Fault Test: Double allow                                                   *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Double allow
+ */
+static void test_fault_portal_double_allow(void)
+{
+	int local;
+	int remote;
+	int portalid;
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((portalid = kportal_create(local, 0)) >= 0);
+	test_assert(kportal_allow(portalid, remote, 0) == 0);
+	test_assert(kportal_allow(portalid, remote, 0) == -EBUSY);
+	test_assert(kportal_unlink(portalid) == 0);
 }
 
 /*============================================================================*
@@ -619,7 +823,7 @@ static void test_fault_portal_invalid_read_size(void)
 
 	local = knode_get_num();
 
-	test_assert((portalid = kportal_create(local)) >= 0);
+	test_assert((portalid = kportal_create(local, 0)) >= 0);
 
 		test_assert(kportal_aread(portalid, buffer, -1) == -EINVAL);
 		test_assert(kportal_aread(portalid, buffer, 0) == -EINVAL);
@@ -642,7 +846,7 @@ static void test_fault_portal_null_read(void)
 
 	local = knode_get_num();
 
-	test_assert((portalid = kportal_create(local)) >= 0);
+	test_assert((portalid = kportal_create(local, 0)) >= 0);
 
 		test_assert(kportal_aread(portalid, NULL, MESSAGE_SIZE) == -EINVAL);
 
@@ -681,7 +885,7 @@ static void test_fault_portal_bad_write(void)
 
 	local = knode_get_num();
 
-	test_assert((portalid = kportal_create(local)) >= 0);
+	test_assert((portalid = kportal_create(local, 0)) >= 0);
 
 		test_assert(kportal_awrite(portalid, buffer, MESSAGE_SIZE) == -EBADF);
 
@@ -726,7 +930,7 @@ static void test_fault_portal_invalid_ioctl(void)
 
 	local = knode_get_num();
 
-	test_assert((portalid = kportal_create(local)) >=  0);
+	test_assert((portalid = kportal_create(local, 0)) >=  0);
 
 		test_assert(kportal_ioctl(portalid, -1, &volume) == -ENOTSUP);
 
@@ -755,15 +959,17 @@ static void test_fault_portal_bad_ioctl(void)
  * @brief Unit tests.
  */
 static struct test portal_tests_api[] = {
-	{ test_api_portal_create_unlink,        "[test][portal][api] portal create unlink        [passed]" },
-	{ test_api_portal_open_close,           "[test][portal][api] portal open close           [passed]" },
-	{ test_api_portal_get_volume,           "[test][portal][api] portal get volume           [passed]" },
-	{ test_api_portal_get_latency,          "[test][portal][api] portal get latency          [passed]" },
-	{ test_api_portal_read_write,           "[test][portal][api] portal read write           [passed]" },
-	{ test_api_portal_multiple_create_open, "[test][portal][api] portal multiple create open [passed]" },
-	{ test_api_portal_multiplex,            "[test][portal][api] portal multiplex            [passed]" },
-	{ test_api_portal_allow,                "[test][portal][api] portal allow                [passed]" },
-	{ NULL,                                  NULL                                                      },
+	{ test_api_portal_create_unlink,    "[test][portal][api] portal create unlink    [passed]" },
+	{ test_api_portal_open_close,       "[test][portal][api] portal open close       [passed]" },
+	{ test_api_portal_get_volume,       "[test][portal][api] portal get volume       [passed]" },
+	{ test_api_portal_get_latency,      "[test][portal][api] portal get latency      [passed]" },
+	{ test_api_portal_read_write,       "[test][portal][api] portal read write       [passed]" },
+	{ test_api_portal_virtualization,   "[test][portal][api] portal virtualization   [passed]" },
+	{ test_api_portal_multiplexation,   "[test][portal][api] portal multiplexation   [passed]" },
+	{ test_api_portal_multiplexation_2, "[test][portal][api] portal multiplexation 2 [passed]" },
+	{ test_api_portal_multiplexation_3, "[test][portal][api] portal multiplexation 3 [passed]" },
+	{ test_api_portal_allow,            "[test][portal][api] portal allow            [passed]" },
+	{ NULL,                              NULL                                                  },
 };
 
 /**
@@ -779,6 +985,7 @@ static struct test portal_tests_fault[] = {
 	{ test_fault_portal_bad_close,         "[test][portal][fault] portal bad close         [passed]" },
 	{ test_fault_portal_double_close,      "[test][portal][fault] portal double close      [passed]" },
 	{ test_fault_portal_bad_allow,         "[test][portal][fault] portal bad allow         [passed]" },
+	{ test_fault_portal_double_allow,      "[test][portal][fault] portal double allow      [passed]" },
 	{ test_fault_portal_invalid_read,      "[test][portal][fault] portal invalid read      [passed]" },
 	{ test_fault_portal_invalid_read_size, "[test][portal][fault] portal invalid read size [passed]" },
 	{ test_fault_portal_null_read,         "[test][portal][fault] portal null read         [passed]" },

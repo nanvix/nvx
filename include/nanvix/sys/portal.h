@@ -37,35 +37,38 @@
 	/**
 	 * @brief Creates a portal.
 	 *
-	 * @param local Logic ID of the Local Node.
+	 * @param local      Logic ID of the Local Node.
+	 * @param local_port Logic ID of the Local Node port used.
 	 *
 	 * @returns Upon successful completion, the ID of a newly created
-	 * portal is returned. Upon failure, a negative error code is returned
-	 * instead.
+	 * portal is returned. Upon failure, a negative error code is
+	 * returned instead.
 	 */
-	extern int kportal_create(int local);
+	extern int kportal_create(int local, int local_port);
 
 	/**
 	 * @brief Enables read operations from a remote.
 	 *
-	 * @param portalid ID of the Target Portal.
-	 * @param remote   Logic ID of Target Node.
+	 * @param portalid    ID of the Target Portal.
+	 * @param remote      Logic ID of Target Node.
+	 * @param remote_port Target port number in @p remote.
 	 *
 	 * @returns Upons successful completion zero is returned. Upon failure,
 	 * a negative error code is returned instead.
 	 */
-	extern int kportal_allow(int portalid, int remote);
+	extern int kportal_allow(int portalid, int remote, int remote_port);
 
 	/**
 	 * @brief Opens a portal.
 	 *
-	 * @param local  Logic ID of the local NoC node.
-	 * @param remote Logic ID of the target NoC node.
+	 * @param local       Logic ID of the local NoC node.
+	 * @param remote      Logic ID of the target NoC node.
+	 * @param remote_port Target port number in @p remote.
 	 *
 	 * @returns Upon successful completion, the ID of the target portal is
 	 * returned. Upon failure, a negative error code is returned instead.
 	 */
-	extern int kportal_open(int local, int remote);
+	extern int kportal_open(int local, int remote, int remote_port);
 
 	/**
 	 * @brief Destroys a portal.

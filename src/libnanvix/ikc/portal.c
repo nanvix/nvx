@@ -34,10 +34,11 @@
  *============================================================================*/
 
 /**
- * @details The kportal_create() function creates an input portal
- * and attaches it to the local NoC node @p local.
+ * @details The kportal_create() function creates an input portal and
+ * attaches it to the local port @p local_port in the local NoC node @p
+ * local.
  */
-int kportal_create(int local)
+int kportal_create(int local, int local_port)
 {
 	int ret;
 
@@ -45,9 +46,10 @@ int kportal_create(int local)
 	if (local != knode_get_num())
 		return (-EINVAL);
 
-	ret = kcall1(
+	ret = kcall2(
 		NR_portal_create,
-		(word_t) local
+		(word_t) local,
+		(word_t) local_port
 	);
 
 	return (ret);
@@ -61,7 +63,7 @@ int kportal_create(int local)
  * @details The kportal_allow() function allow read data from a input portal
  * associated with the NoC node @p remote.
  */
-int kportal_allow(int portalid, int remote)
+int kportal_allow(int portalid, int remote, int remote_port)
 {
 	int ret;
 
@@ -69,10 +71,11 @@ int kportal_allow(int portalid, int remote)
 	if (remote == knode_get_num())
 		return (-EINVAL);
 
-	ret = kcall2(
+	ret = kcall3(
 		NR_portal_allow,
 		(word_t) portalid,
-		(word_t) remote
+		(word_t) remote,
+		(word_t) remote_port
 	);
 
 	return (ret);
@@ -86,7 +89,7 @@ int kportal_allow(int portalid, int remote)
  * @details The kportal_open() function opens an output portal to the remote
  * NoC node @p remote and attaches it to the local NoC node @p local.
  */
-int kportal_open(int local, int remote)
+int kportal_open(int local, int remote, int remote_port)
 {
 	int ret;
 	int nodenum;
@@ -101,10 +104,11 @@ int kportal_open(int local, int remote)
 	if (remote == nodenum)
 		return (-EINVAL);
 
-	ret = kcall2(
+	ret = kcall3(
 		NR_portal_open,
 		(word_t) local,
-		(word_t) remote
+		(word_t) remote,
+		(word_t) remote_port
 	);
 
 	return (ret);
@@ -161,6 +165,7 @@ int kportal_close(int portalid)
 int kportal_aread(int portalid, void * buffer, size_t size)
 {
 	int ret;
+	int ntrials = 100;
 
 	/* Invalid buffer. */
 	if (buffer == NULL)
@@ -170,12 +175,14 @@ int kportal_aread(int portalid, void * buffer, size_t size)
 	if (size == 0 || size > PORTAL_MAX_SIZE)
 		return (-EINVAL);
 
-	ret = kcall3(
-		NR_portal_aread,
-		(word_t) portalid,
-		(word_t) buffer,
-		(word_t) size
-	);
+	do
+	{
+		ret = kcall3(
+			NR_portal_aread,
+			(word_t) portalid,
+			(word_t) buffer,
+			(word_t) size);
+	} while ((ret == -EBUSY) && (ntrials-- > 0));
 
 	return (ret);
 }
@@ -191,6 +198,7 @@ int kportal_aread(int portalid, void * buffer, size_t size)
 int kportal_awrite(int portalid, const void * buffer, size_t size)
 {
 	int ret;
+	int ntrials = 100;
 
 	/* Invalid buffer. */
 	if (buffer == NULL)
@@ -200,12 +208,14 @@ int kportal_awrite(int portalid, const void * buffer, size_t size)
 	if (size == 0 || size > PORTAL_MAX_SIZE)
 		return (-EINVAL);
 
-	ret = kcall3(
-		NR_portal_awrite,
-		(word_t) portalid,
-		(word_t) buffer,
-		(word_t) size
-	);
+	do
+	{
+		ret = kcall3(
+			NR_portal_awrite,
+			(word_t) portalid,
+			(word_t) buffer,
+			(word_t) size);
+	} while ((ret == -EAGAIN) && (ntrials-- > 0));
 
 	return (ret);
 }
@@ -237,6 +247,8 @@ int kportal_wait(int portalid)
 /**
  * @details The kportal_write() synchronously write @p size bytes of
  * data pointed to by @p buffer to the output portal @p portalid.
+ *
+ * @bug FIXME: Call kportal_wait() when the kernel properly supports it.
  */
 ssize_t kportal_write(int portalid, const void *buffer, size_t size)
 {
@@ -245,8 +257,10 @@ ssize_t kportal_write(int portalid, const void *buffer, size_t size)
 	if ((ret = kportal_awrite(portalid, buffer, size)) < 0)
 		return (ret);
 
+#if 0
 	if ((ret = kportal_wait(portalid)) < 0)
 		return (ret);
+#endif
 
 	return (size);
 }
@@ -258,6 +272,8 @@ ssize_t kportal_write(int portalid, const void *buffer, size_t size)
 /**
  * @details The kportal_read() synchronously read @p size bytes of
  * data pointed to by @p buffer from the input portal @p portalid.
+ *
+ * @bug FIXME: Call kportal_wait() when the kernel properly supports it.
  */
 ssize_t kportal_read(int portalid, void *buffer, size_t size)
 {
@@ -266,8 +282,10 @@ ssize_t kportal_read(int portalid, void *buffer, size_t size)
 	if ((ret = kportal_aread(portalid, buffer, size)) < 0)
 		return (ret);
 
+#if 0
 	if ((ret = kportal_wait(portalid)) < 0)
 		return (ret);
+#endif
 
 	return (size);
 }

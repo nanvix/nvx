@@ -88,3 +88,19 @@ int page_unmap(vaddr_t vaddr)
 
 	return (ret);
 }
+
+/**
+ * TODO: provide a detailed description for this function.
+ */
+int page_link(vaddr_t vaddr1, vaddr_t vaddr2)
+{
+	int ret;
+
+	ret = kcall2(
+		NR_upage_link,
+		(word_t) vaddr1,
+		(word_t) vaddr2
+	);
+
+	return (ret);
+}

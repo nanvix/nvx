@@ -82,4 +82,15 @@
 	 */
 	extern int page_unmap(vaddr_t vaddr);
 
+	/**
+	 * @brief Links two pages.
+	 *
+	 * @param vaddr Virtual address of source page.
+	 * @param vaddr Virtual address of target page.
+	 *
+	 * @returns Upon successful completion, zero is returned. Upon
+	 * failure, a negative error code is returned instead.
+	 */
+	extern int page_link(vaddr_t vaddr1, vaddr_t vaddr2);
+
 #endif /* NANVIX_SYS_PAGE_H_ */

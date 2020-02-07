@@ -48,7 +48,7 @@ int __stdportal_setup(void)
 	tid = kthread_self();
 	local = knode_get_num();
 
-	return (((__stdinportal[tid] = kportal_create(local)) < 0) ? -1 : 0);
+	return (((__stdinportal[tid] = kportal_create(local, kthread_self())) < 0) ? -1 : 0);
 }
 
 /**

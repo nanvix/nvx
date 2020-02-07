@@ -165,7 +165,6 @@ int kportal_close(int portalid)
 int kportal_aread(int portalid, void * buffer, size_t size)
 {
 	int ret;
-	int ntrials = 100;
 
 	/* Invalid buffer. */
 	if (buffer == NULL)
@@ -182,7 +181,7 @@ int kportal_aread(int portalid, void * buffer, size_t size)
 			(word_t) portalid,
 			(word_t) buffer,
 			(word_t) size);
-	} while ((ret == -EBUSY) && (ntrials-- > 0));
+	} while (ret == -EBUSY);
 
 	return (ret);
 }
@@ -198,7 +197,6 @@ int kportal_aread(int portalid, void * buffer, size_t size)
 int kportal_awrite(int portalid, const void * buffer, size_t size)
 {
 	int ret;
-	int ntrials = 100;
 
 	/* Invalid buffer. */
 	if (buffer == NULL)
@@ -215,7 +213,7 @@ int kportal_awrite(int portalid, const void * buffer, size_t size)
 			(word_t) portalid,
 			(word_t) buffer,
 			(word_t) size);
-	} while ((ret == -EAGAIN) && (ntrials-- > 0));
+	} while (ret == -EAGAIN);
 
 	return (ret);
 }

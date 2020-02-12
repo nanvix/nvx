@@ -37,23 +37,25 @@
 	 * @brief Creates an input mailbox.
 	 *
 	 * @param local Target local NoC node.
+	 * @param port  Target port in @p local NoC node.
 	 *
 	 * @return Upon successful completion, the ID of the created input
 	 * mailbox is returned. Upon failure, a negative error code is
 	 * returned instead.
 	 */
-	extern int kmailbox_create(int local);
+	extern int kmailbox_create(int local, int port);
 
 	/**
 	 * @brief Opens an output mailbox
 	 *
-	 * @param local Target remote NoC node.
+	 * @param remote      Target remote NoC node.
+	 * @param remote_port Target port in @p remote NoC node.
 	 *
 	 * @return Upon successful completion, the ID of the opened output
 	 * mailbox is returned. Upon failure, a negative error code is
 	 * returned instead.
 	 */
-	extern int kmailbox_open(int remote);
+	extern int kmailbox_open(int remote, int remote_port);
 
 	/**
 	 * @brief Removes an input mailbox.

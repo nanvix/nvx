@@ -34,15 +34,16 @@
 
 /**
  * @details The kmailbox_create() function creates an input mailbox
- * and attaches it to the local NoC node @p local.
+ * and attaches it to the local NoC node @p local in the port @p port.
  */
-int kmailbox_create(int local)
+int kmailbox_create(int local, int port)
 {
 	int ret;
 
-	ret = kcall1(
+	ret = kcall2(
 		NR_mailbox_create,
-		(word_t) local
+		(word_t) local,
+		(word_t) port
 	);
 
 	return (ret);
@@ -54,15 +55,16 @@ int kmailbox_create(int local)
 
 /**
  * @details The kmailbox_open() function opens an output mailbox to
- * the remote NoC node @p remote.
+ * the remote NoC node @p remote in the port @p port.
  */
-int kmailbox_open(int remote)
+int kmailbox_open(int remote, int remote_port)
 {
 	int ret;
 
-	ret = kcall1(
+	ret = kcall2(
 		NR_mailbox_open,
-		(word_t) remote
+		(word_t) remote,
+		(word_t) remote_port
 	);
 
 	return (ret);
@@ -142,12 +144,15 @@ ssize_t kmailbox_aread(int mbxid, void *buffer, size_t size)
 {
 	int ret;
 
-	ret = kcall3(
-		NR_mailbox_aread,
-		(word_t) mbxid,
-		(word_t) buffer,
-		(word_t) size
-	);
+	do
+	{
+		ret = kcall3(
+			NR_mailbox_aread,
+			(word_t) mbxid,
+			(word_t) buffer,
+			(word_t) size
+		);
+	} while (ret == -ETIMEDOUT);
 
 	return (ret);
 }
@@ -179,6 +184,8 @@ int kmailbox_wait(int mbxid)
 /**
  * @details The kmailbox_write() synchronously write @p size bytes of
  * data pointed to by @p buffer to the output mailbox @p mbxid.
+ *
+ * @todo Uncomment kmailbox_wait() call when microkernel properly supports it.
  */
 ssize_t kmailbox_write(int mbxid, const void *buffer, size_t size)
 {
@@ -194,8 +201,10 @@ ssize_t kmailbox_write(int mbxid, const void *buffer, size_t size)
 	if ((ret = kmailbox_awrite(mbxid, buffer2, MAILBOX_MSG_SIZE)) < 0)
 		return (ret);
 
+#if 0
 	if ((ret = kmailbox_wait(mbxid)) < 0)
 		return (ret);
+#endif
 
 	return (size);
 }
@@ -207,6 +216,8 @@ ssize_t kmailbox_write(int mbxid, const void *buffer, size_t size)
 /**
  * @details The kmailbox_read() synchronously read @p size bytes of
  * data pointed to by @p buffer from the input mailbox @p mbxid.
+ *
+ * @todo Uncomment kmailbox_wait() call when microkernel properly supports it.
  */
 ssize_t kmailbox_read(int mbxid, void *buffer, size_t size)
 {
@@ -224,8 +235,10 @@ ssize_t kmailbox_read(int mbxid, void *buffer, size_t size)
 			return (ret);
 	} while(ret < 0);
 
+#if 0
 	if ((ret = kmailbox_wait(mbxid)) < 0)
 		return (ret);
+#endif
 
 	kmemcpy(buffer, buffer2, size);
 

@@ -826,6 +826,27 @@ static void test_fault_portal_invalid_create(void)
 }
 
 /*============================================================================*
+ * Fault Test: Double Create                                                  *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Double Create
+ */
+static void test_fault_portal_double_create(void)
+{
+	int local;
+	int portal;
+
+	local = knode_get_num();
+
+	test_assert((portal = kportal_create(local, 0)) >= 0);
+
+	test_assert(kportal_create(local, 0) == -EBUSY);
+
+	test_assert(kportal_unlink(portal) == 0);
+}
+
+/*============================================================================*
  * Fault Test: Invalid Unlink                                                 *
  *============================================================================*/
 
@@ -966,24 +987,27 @@ static void test_fault_portal_bad_close(void)
 }
 
 /*============================================================================*
- * Fault Test: Bad allow                                                      *
+ * Fault Test: Invalid allow                                                  *
  *============================================================================*/
 
 /**
- * @brief Fault Test: Bad allow
+ * @brief Fault Test: Invalid allow
  */
-static void test_fault_portal_bad_allow(void)
+static void test_fault_portal_invalid_allow(void)
 {
 	int local;
 	int remote;
-	int portalid;
 
 	local = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	test_assert((portalid = kportal_open(local, remote, 0)) >= 0);
-	test_assert(kportal_allow(portalid, remote, 0) == -EBADF);
-	test_assert(kportal_close(portalid) == 0);
+	test_assert(kportal_allow(-1, remote, 0) == -EINVAL);
+	test_assert(kportal_allow(KPORTAL_MAX, remote, 0) == -EINVAL);
+	test_assert(kportal_allow(0, -1, 0) == -EINVAL);
+	test_assert(kportal_allow(0, local, 0) == -EINVAL);
+	test_assert(kportal_allow(0, PROCESSOR_NOC_NODES_NUM, 0) == -EINVAL);
+	test_assert(kportal_allow(0, remote, -1) == -EINVAL);
+	test_assert(kportal_allow(0, remote, PORTAL_PORT_NR) == -EINVAL);
 }
 
 /*============================================================================*
@@ -1009,6 +1033,27 @@ static void test_fault_portal_double_allow(void)
 }
 
 /*============================================================================*
+ * Fault Test: Bad allow                                                      *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Bad allow
+ */
+static void test_fault_portal_bad_allow(void)
+{
+	int local;
+	int remote;
+	int portalid;
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((portalid = kportal_open(local, remote, 0)) >= 0);
+	test_assert(kportal_allow(portalid, remote, 0) == -EBADF);
+	test_assert(kportal_close(portalid) == 0);
+}
+
+/*============================================================================*
  * Fault Test: Invalid Read                                                   *
  *============================================================================*/
 
@@ -1021,6 +1066,30 @@ static void test_fault_portal_invalid_read(void)
 
 	test_assert(kportal_aread(-1, buffer, MESSAGE_SIZE) == -EINVAL);
 	test_assert(kportal_aread(KPORTAL_MAX, buffer, MESSAGE_SIZE) == -EINVAL);
+}
+
+/*============================================================================*
+ * Fault Test: Bad Read                                                       *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Bad Read
+ */
+static void test_fault_portal_bad_read(void)
+{
+	int local;
+	int remote;
+	int portalid;
+	char buffer[MESSAGE_SIZE];
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((portalid = kportal_open(local, remote, 0)) >= 0);
+
+	test_assert(kportal_aread(portalid, buffer, MESSAGE_SIZE) == -EBADF);
+
+	test_assert(kportal_close(portalid) == 0);
 }
 
 /*============================================================================*
@@ -1103,6 +1172,55 @@ static void test_fault_portal_bad_write(void)
 		test_assert(kportal_awrite(portalid, buffer, MESSAGE_SIZE) == -EBADF);
 
 	test_assert(kportal_unlink(portalid) == 0);
+}
+
+/*============================================================================*
+ * Fault Test: Invalid Write Size                                             *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Invalid Write Size
+ */
+static void test_fault_portal_invalid_write_size(void)
+{
+	int local;
+	int remote;
+	int portalid;
+	char buffer[MESSAGE_SIZE];
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((portalid = kportal_open(local, remote, 0)) >= 0);
+
+		test_assert(kportal_awrite(portalid, buffer, -1) == -EINVAL);
+		test_assert(kportal_awrite(portalid, buffer, 0) == -EINVAL);
+		test_assert(kportal_awrite(portalid, buffer, PORTAL_MAX_SIZE + 1) == -EINVAL);
+
+	test_assert(kportal_close(portalid) == 0);
+}
+
+/*============================================================================*
+ * Fault Test: Null Write                                                     *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Null Write
+ */
+static void test_fault_portal_null_write(void)
+{
+	int local;
+	int remote;
+	int portalid;
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((portalid = kportal_open(local, remote, 0)) >= 0);
+
+		test_assert(kportal_awrite(portalid, NULL, MESSAGE_SIZE) == -EINVAL);
+
+	test_assert(kportal_close(portalid) == 0);
 }
 
 /*============================================================================*
@@ -1207,25 +1325,30 @@ static struct test portal_tests_api[] = {
  * @brief Unit tests.
  */
 static struct test portal_tests_fault[] = {
-	{ test_fault_portal_invalid_create,    "[test][portal][fault] portal invalid create    [passed]" },
-	{ test_fault_portal_invalid_unlink,    "[test][portal][fault] portal invalid unlink    [passed]" },
-	{ test_fault_portal_double_unlink,     "[test][portal][fault] portal double unlink     [passed]" },
-	{ test_fault_portal_bad_unlink,        "[test][portal][fault] portal bad unlink        [passed]" },
-	{ test_fault_portal_invalid_open,      "[test][portal][fault] portal invalid open      [passed]" },
-	{ test_fault_portal_invalid_close,     "[test][portal][fault] portal invalid close     [passed]" },
-	{ test_fault_portal_double_close,      "[test][portal][fault] portal double close      [passed]" },
-	{ test_fault_portal_bad_close,         "[test][portal][fault] portal bad close         [passed]" },
-	{ test_fault_portal_bad_allow,         "[test][portal][fault] portal bad allow         [passed]" },
-	{ test_fault_portal_double_allow,      "[test][portal][fault] portal double allow      [passed]" },
-	{ test_fault_portal_invalid_read,      "[test][portal][fault] portal invalid read      [passed]" },
-	{ test_fault_portal_invalid_read_size, "[test][portal][fault] portal invalid read size [passed]" },
-	{ test_fault_portal_null_read,         "[test][portal][fault] portal null read         [passed]" },
-	{ test_fault_portal_invalid_write,     "[test][portal][fault] portal invalid write     [passed]" },
-	{ test_fault_portal_bad_write,         "[test][portal][fault] portal bad write         [passed]" },
-	{ test_fault_portal_invalid_wait,      "[test][portal][fault] portal invalid wait      [passed]" },
-	{ test_fault_portal_invalid_ioctl,     "[test][portal][fault] portal invalid ioctl     [passed]" },
-	{ test_fault_portal_bad_portalid,      "[test][portal][fault] portal bad portalid      [passed]" },
-	{ NULL,                                 NULL                                                     },
+	{ test_fault_portal_invalid_create,     "[test][portal][fault] portal invalid create     [passed]" },
+	{ test_fault_portal_double_create,      "[test][portal][fault] portal double create      [passed]" },
+	{ test_fault_portal_invalid_unlink,     "[test][portal][fault] portal invalid unlink     [passed]" },
+	{ test_fault_portal_double_unlink,      "[test][portal][fault] portal double unlink      [passed]" },
+	{ test_fault_portal_bad_unlink,         "[test][portal][fault] portal bad unlink         [passed]" },
+	{ test_fault_portal_invalid_open,       "[test][portal][fault] portal invalid open       [passed]" },
+	{ test_fault_portal_invalid_close,      "[test][portal][fault] portal invalid close      [passed]" },
+	{ test_fault_portal_double_close,       "[test][portal][fault] portal double close       [passed]" },
+	{ test_fault_portal_bad_close,          "[test][portal][fault] portal bad close          [passed]" },
+	{ test_fault_portal_invalid_allow,      "[test][portal][fault] portal invalid allow      [passed]" },
+	{ test_fault_portal_double_allow,       "[test][portal][fault] portal double allow       [passed]" },
+	{ test_fault_portal_bad_allow,          "[test][portal][fault] portal bad allow          [passed]" },
+	{ test_fault_portal_invalid_read,       "[test][portal][fault] portal invalid read       [passed]" },
+	{ test_fault_portal_bad_read,           "[test][portal][fault] portal bad read           [passed]" },
+	{ test_fault_portal_invalid_read_size,  "[test][portal][fault] portal invalid read size  [passed]" },
+	{ test_fault_portal_null_read,          "[test][portal][fault] portal null read          [passed]" },
+	{ test_fault_portal_invalid_write,      "[test][portal][fault] portal invalid write      [passed]" },
+	{ test_fault_portal_bad_write,          "[test][portal][fault] portal bad write          [passed]" },
+	{ test_fault_portal_invalid_write_size, "[test][portal][fault] portal invalid write size [passed]" },
+	{ test_fault_portal_null_write,         "[test][portal][fault] portal null write         [passed]" },
+	{ test_fault_portal_invalid_wait,       "[test][portal][fault] portal invalid wait       [passed]" },
+	{ test_fault_portal_invalid_ioctl,      "[test][portal][fault] portal invalid ioctl      [passed]" },
+	{ test_fault_portal_bad_portalid,       "[test][portal][fault] portal bad portalid       [passed]" },
+	{ NULL,                                  NULL                                                      },
 };
 
 /**

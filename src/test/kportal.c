@@ -812,15 +812,17 @@ static void test_api_portal_pending_msg_unlink(void)
  */
 static void test_fault_portal_invalid_create(void)
 {
-	int nodenum;
+	int local;
+	int remote;
 
-	nodenum = (knode_get_num() == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	test_assert(kportal_create(-1, 0) == -EINVAL);
-	test_assert(kportal_create(nodenum, 0) == -EINVAL);
 	test_assert(kportal_create(PROCESSOR_NOC_NODES_NUM, 0) == -EINVAL);
-	test_assert(kportal_create(0, -1) == -EINVAL);
-	test_assert(kportal_create(0, 1000000) == -EINVAL);
+	test_assert(kportal_create(remote, 0) == -EINVAL);
+	test_assert(kportal_create(local, -1) == -EINVAL);
+	test_assert(kportal_create(local, PORTAL_PORT_NR) == -EINVAL);
 }
 
 /*============================================================================*
@@ -833,8 +835,30 @@ static void test_fault_portal_invalid_create(void)
 static void test_fault_portal_invalid_unlink(void)
 {
 	test_assert(kportal_unlink(-1) == -EINVAL);
-	test_assert(kportal_unlink(PORTAL_CREATE_MAX) == -EBADF);
-	test_assert(kportal_unlink(1000000) == -EINVAL);
+	test_assert(kportal_unlink(KPORTAL_MAX) == -EINVAL);
+}
+
+/*============================================================================*
+ * Fault Test: Double Unlink                                                  *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Double Unlink
+ */
+static void test_fault_portal_double_unlink(void)
+{
+	int local;
+	int portalid1;
+	int portalid2;
+
+	local = knode_get_num();
+
+	test_assert((portalid1 = kportal_create(local, 0)) >= 0);
+	test_assert((portalid2 = kportal_create(local, 1)) >= 0);
+
+	test_assert(kportal_unlink(portalid1) == 0);
+	test_assert(kportal_unlink(portalid1) == -EBADF);
+	test_assert(kportal_unlink(portalid2) == 0);
 }
 
 /*============================================================================*
@@ -859,25 +883,6 @@ static void test_fault_portal_bad_unlink(void)
 }
 
 /*============================================================================*
- * Fault Test: Double Unlink                                                  *
- *============================================================================*/
-
-/**
- * @brief Fault Test: Double Unlink
- */
-static void test_fault_portal_double_unlink(void)
-{
-	int local;
-	int portalid;
-
-	local = knode_get_num();
-
-	test_assert((portalid = kportal_create(local, 0)) >= 0);
-	test_assert(kportal_unlink(portalid) == 0);
-	test_assert(kportal_unlink(portalid) == -EBADF);
-}
-
-/*============================================================================*
  * Fault Test: Invalid Open                                                   *
  *============================================================================*/
 
@@ -893,13 +898,14 @@ static void test_fault_portal_invalid_open(void)
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	test_assert(kportal_open(local, -1, 0) == -EINVAL);
-	test_assert(kportal_open(-1, remote, 0) == -EINVAL);
-	test_assert(kportal_open(-1, -1, 0) == -EINVAL);
 	test_assert(kportal_open(local, PROCESSOR_NOC_NODES_NUM, 0) == -EINVAL);
-	test_assert(kportal_open(PROCESSOR_NOC_NODES_NUM, remote, 0) == -EINVAL);
 	test_assert(kportal_open(local, local, 0) == -EINVAL);
+	test_assert(kportal_open(-1, remote, 0) == -EINVAL);
+	test_assert(kportal_open(PROCESSOR_NOC_NODES_NUM, remote, 0) == -EINVAL);
+	test_assert(kportal_open(remote, remote, 0) == -EINVAL);
+	test_assert(kportal_open(-1, -1, 0) == -EINVAL);
 	test_assert(kportal_open(local, remote, -1) == -EINVAL);
-	test_assert(kportal_open(local, remote, 10000000) == -EINVAL);
+	test_assert(kportal_open(local, remote, PORTAL_PORT_NR) == -EINVAL);
 }
 
 /*============================================================================*
@@ -912,8 +918,32 @@ static void test_fault_portal_invalid_open(void)
 static void test_fault_portal_invalid_close(void)
 {
 	test_assert(kportal_close(-1) == -EINVAL);
-	test_assert(kportal_close(PORTAL_OPEN_MAX) == -EBADF);
-	test_assert(kportal_close(1000000) == -EINVAL);
+	test_assert(kportal_close(KPORTAL_MAX) == -EINVAL);
+}
+
+/*============================================================================*
+ * Fault Test: Double Close                                                   *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Double Close
+ */
+static void test_fault_portal_double_close(void)
+{
+	int local;
+	int remote;
+	int portalid1;
+	int portalid2;
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((portalid1 = kportal_open(local, remote, 0)) >= 0);
+	test_assert((portalid2 = kportal_open(local, remote, 1)) >= 0);
+
+	test_assert(kportal_close(portalid1) == 0);
+	test_assert(kportal_close(portalid1) == -EBADF);
+	test_assert(kportal_close(portalid2) == 0);
 }
 
 /*============================================================================*
@@ -933,27 +963,6 @@ static void test_fault_portal_bad_close(void)
 	test_assert((portalid = kportal_create(local, 0)) >= 0);
 	test_assert(kportal_close(portalid) == -EBADF);
 	test_assert(kportal_unlink(portalid) == 0);
-}
-
-/*============================================================================*
- * Fault Test: Double Close                                                   *
- *============================================================================*/
-
-/**
- * @brief Fault Test: Double Close
- */
-static void test_fault_portal_double_close(void)
-{
-	int local;
-	int remote;
-	int portalid;
-
-	local = knode_get_num();
-	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
-
-	test_assert((portalid = kportal_open(local, remote, 0)) >= 0);
-	test_assert(kportal_close(portalid) == 0);
-	test_assert(kportal_close(portalid) == -EBADF);
 }
 
 /*============================================================================*
@@ -1011,9 +1020,7 @@ static void test_fault_portal_invalid_read(void)
 	char buffer[MESSAGE_SIZE];
 
 	test_assert(kportal_aread(-1, buffer, MESSAGE_SIZE) == -EINVAL);
-	test_assert(kportal_aread(0, buffer, MESSAGE_SIZE) == -EBADF);
-	test_assert(kportal_aread(PORTAL_CREATE_MAX, buffer, MESSAGE_SIZE) == -EBADF);
-	test_assert(kportal_aread(1000000, buffer, MESSAGE_SIZE) == -EINVAL);
+	test_assert(kportal_aread(KPORTAL_MAX, buffer, MESSAGE_SIZE) == -EINVAL);
 }
 
 /*============================================================================*
@@ -1073,9 +1080,7 @@ static void test_fault_portal_invalid_write(void)
 	char buffer[MESSAGE_SIZE];
 
 	test_assert(kportal_awrite(-1, buffer, MESSAGE_SIZE) == -EINVAL);
-	test_assert(kportal_awrite(0, buffer, MESSAGE_SIZE) == -EBADF);
-	test_assert(kportal_awrite(PORTAL_OPEN_MAX, buffer, MESSAGE_SIZE) == -EBADF);
-	test_assert(kportal_awrite(1000000, buffer, MESSAGE_SIZE) == -EINVAL);
+	test_assert(kportal_awrite(KPORTAL_MAX, buffer, MESSAGE_SIZE) == -EINVAL);
 }
 
 /*============================================================================*
@@ -1101,20 +1106,16 @@ static void test_fault_portal_bad_write(void)
 }
 
 /*============================================================================*
- * Fault Test: Bad Wait                                                       *
+ * Fault Test: Invalid Wait                                                   *
  *============================================================================*/
 
 /**
- * @brief Fault Test: Bad Wait
+ * @brief Fault Test: Invalid Wait
  */
-static void test_fault_portal_bad_wait(void)
+static void test_fault_portal_invalid_wait(void)
 {
 	test_assert(kportal_wait(-1) == -EINVAL);
-#ifndef __unix64__
-	test_assert(kportal_wait(PORTAL_CREATE_MAX) == -EBADF);
-	test_assert(kportal_wait(PORTAL_OPEN_MAX) == -EBADF);
-#endif
-	test_assert(kportal_wait(1000000) == -EINVAL);
+	test_assert(kportal_wait(KPORTAL_MAX) == -EINVAL);
 }
 
 /*============================================================================*
@@ -1133,8 +1134,8 @@ static void test_fault_portal_invalid_ioctl(void)
 
 	test_assert(kportal_ioctl(-1, PORTAL_IOCTL_GET_VOLUME, &volume) == -EINVAL);
 	test_assert(kportal_ioctl(-1, PORTAL_IOCTL_GET_LATENCY, &latency) == -EINVAL);
-	test_assert(kportal_ioctl(1000000, PORTAL_IOCTL_GET_VOLUME, &volume) == -EINVAL);
-	test_assert(kportal_ioctl(1000000, PORTAL_IOCTL_GET_LATENCY, &latency) == -EINVAL);
+	test_assert(kportal_ioctl(KPORTAL_MAX, PORTAL_IOCTL_GET_VOLUME, &volume) == -EINVAL);
+	test_assert(kportal_ioctl(KPORTAL_MAX, PORTAL_IOCTL_GET_LATENCY, &latency) == -EINVAL);
 
 	local = knode_get_num();
 
@@ -1146,17 +1147,37 @@ static void test_fault_portal_invalid_ioctl(void)
 }
 
 /*============================================================================*
- * Fault Test: Bad ioctl                                                      *
+ * Fault Test: Bad portalid                                                   *
  *============================================================================*/
 
 /**
- * @brief Fault Test: Bad ioctl
+ * @brief Fault Test: Bad portalid
  */
-static void test_fault_portal_bad_ioctl(void)
+static void test_fault_portal_bad_portalid(void)
 {
+	int portal_in;
+	int portal_out;
+	int remote;
+	int local;
 	size_t volume;
+	char buffer[MESSAGE_SIZE];
 
-	test_assert(kportal_ioctl(0, PORTAL_IOCTL_GET_VOLUME, &volume) == -EBADF);
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((portal_in = kportal_create(local, 0)) >= 0);
+	test_assert((portal_out = kportal_open(local, remote, 0)) >= 0);
+
+	test_assert(kportal_close(portal_out + 1) == -EBADF);
+	test_assert(kportal_unlink(portal_in + 1) == -EBADF);
+	test_assert(kportal_allow(portal_in + 1, remote, 0) == -EBADF)
+	test_assert(kportal_aread(portal_in + 1, buffer, MESSAGE_SIZE) == -EBADF);
+	test_assert(kportal_awrite(portal_in + 1, buffer, MESSAGE_SIZE) == -EBADF);
+	test_assert(kportal_wait(portal_in + 1) == -EBADF);
+	test_assert(kportal_ioctl(portal_in + 1, PORTAL_IOCTL_GET_VOLUME, &volume) == -EBADF);
+
+	test_assert(kportal_close(portal_out) == 0);
+	test_assert(kportal_unlink(portal_in) == 0);
 }
 
 /*============================================================================*
@@ -1188,12 +1209,12 @@ static struct test portal_tests_api[] = {
 static struct test portal_tests_fault[] = {
 	{ test_fault_portal_invalid_create,    "[test][portal][fault] portal invalid create    [passed]" },
 	{ test_fault_portal_invalid_unlink,    "[test][portal][fault] portal invalid unlink    [passed]" },
-	{ test_fault_portal_bad_unlink,        "[test][portal][fault] portal bad unlink        [passed]" },
 	{ test_fault_portal_double_unlink,     "[test][portal][fault] portal double unlink     [passed]" },
+	{ test_fault_portal_bad_unlink,        "[test][portal][fault] portal bad unlink        [passed]" },
 	{ test_fault_portal_invalid_open,      "[test][portal][fault] portal invalid open      [passed]" },
 	{ test_fault_portal_invalid_close,     "[test][portal][fault] portal invalid close     [passed]" },
-	{ test_fault_portal_bad_close,         "[test][portal][fault] portal bad close         [passed]" },
 	{ test_fault_portal_double_close,      "[test][portal][fault] portal double close      [passed]" },
+	{ test_fault_portal_bad_close,         "[test][portal][fault] portal bad close         [passed]" },
 	{ test_fault_portal_bad_allow,         "[test][portal][fault] portal bad allow         [passed]" },
 	{ test_fault_portal_double_allow,      "[test][portal][fault] portal double allow      [passed]" },
 	{ test_fault_portal_invalid_read,      "[test][portal][fault] portal invalid read      [passed]" },
@@ -1201,9 +1222,9 @@ static struct test portal_tests_fault[] = {
 	{ test_fault_portal_null_read,         "[test][portal][fault] portal null read         [passed]" },
 	{ test_fault_portal_invalid_write,     "[test][portal][fault] portal invalid write     [passed]" },
 	{ test_fault_portal_bad_write,         "[test][portal][fault] portal bad write         [passed]" },
-	{ test_fault_portal_bad_wait,          "[test][portal][fault] portal bad wait          [passed]" },
+	{ test_fault_portal_invalid_wait,      "[test][portal][fault] portal invalid wait      [passed]" },
 	{ test_fault_portal_invalid_ioctl,     "[test][portal][fault] portal invalid ioctl     [passed]" },
-	{ test_fault_portal_bad_ioctl,         "[test][portal][fault] portal bad ioctl         [passed]" },
+	{ test_fault_portal_bad_portalid,      "[test][portal][fault] portal bad portalid      [passed]" },
 	{ NULL,                                 NULL                                                     },
 };
 
@@ -1214,33 +1235,46 @@ static struct test portal_tests_fault[] = {
  */
 void test_portal(void)
 {
-	int nodenum;
+	int local;
+	int remote;
+	int portal_in;
+	int portal_out;
 
-	nodenum = knode_get_num();
+	local = knode_get_num();
 
-	if (nodenum == MASTER_NODENUM || nodenum == SLAVE_NODENUM)
+	if (local == MASTER_NODENUM || local == SLAVE_NODENUM)
 	{
 		/* API Tests */
-		if (nodenum == MASTER_NODENUM)
+		if (local == MASTER_NODENUM)
 			nanvix_puts("--------------------------------------------------------------------------------");
 		for (unsigned i = 0; portal_tests_api[i].test_fn != NULL; i++)
 		{
 			portal_tests_api[i].test_fn();
 
-			if (nodenum == MASTER_NODENUM)
+			if (local == MASTER_NODENUM)
 				nanvix_puts(portal_tests_api[i].name);
 		}
 
+		remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+		/* Create dummy vportals to help on fault assertions. */
+		test_assert((portal_in = kportal_create(local, PORTAL_PORT_NR - 1)) >= 0);
+		test_assert((portal_out = kportal_open(local, remote, PORTAL_PORT_NR - 1)) >= 0);
+
 		/* Fault Tests */
-		if (nodenum == MASTER_NODENUM)
+		if (local == MASTER_NODENUM)
 			nanvix_puts("--------------------------------------------------------------------------------");
 		for (unsigned i = 0; portal_tests_fault[i].test_fn != NULL; i++)
 		{
 			portal_tests_fault[i].test_fn();
 
-			if (nodenum == MASTER_NODENUM)
+			if (local == MASTER_NODENUM)
 				nanvix_puts(portal_tests_fault[i].name);
 		}
+
+		/* Destroy the dummy vportals. */
+		test_assert(kportal_close(portal_out) == 0);
+		test_assert(kportal_unlink(portal_in) == 0);
 	}
 }
 

@@ -48,7 +48,7 @@ int __stdmailbox_setup(void)
 	tid = kthread_self();
 	local = knode_get_num();
 
-	return (((__stdinbox[tid] = kmailbox_create(local, 0)) < 0) ? -1 : 0);
+	return (((__stdinbox[tid] = kmailbox_create(local, kthread_self())) < 0) ? -1 : 0);
 }
 
 /**

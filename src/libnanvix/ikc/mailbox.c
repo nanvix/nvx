@@ -190,15 +190,15 @@ int kmailbox_wait(int mbxid)
 ssize_t kmailbox_write(int mbxid, const void *buffer, size_t size)
 {
 	int ret;
-	char buffer2[MAILBOX_MSG_SIZE];
+	char buffer2[KMAILBOX_MESSAGE_SIZE];
 
 	/* Invalid buffer size. */
-	if (size > MAILBOX_MSG_SIZE)
+	if (size > KMAILBOX_MESSAGE_SIZE)
 		return (-EINVAL);
 
 	kmemcpy(buffer2, buffer, size);
 
-	if ((ret = kmailbox_awrite(mbxid, buffer2, MAILBOX_MSG_SIZE)) < 0)
+	if ((ret = kmailbox_awrite(mbxid, buffer2, KMAILBOX_MESSAGE_SIZE)) < 0)
 		return (ret);
 
 #if 0
@@ -222,15 +222,15 @@ ssize_t kmailbox_write(int mbxid, const void *buffer, size_t size)
 ssize_t kmailbox_read(int mbxid, void *buffer, size_t size)
 {
 	int ret;
-	char buffer2[MAILBOX_MSG_SIZE];
+	char buffer2[KMAILBOX_MESSAGE_SIZE];
 
 	/* Invalid buffer size. */
-	if (size > MAILBOX_MSG_SIZE)
+	if (size > KMAILBOX_MESSAGE_SIZE)
 		return (-EINVAL);
 
 	do
 	{
-		ret = kmailbox_aread(mbxid, buffer2, MAILBOX_MSG_SIZE);
+		ret = kmailbox_aread(mbxid, buffer2, KMAILBOX_MESSAGE_SIZE);
 		if ((ret < 0) && (ret != -ETIMEDOUT))
 			return (ret);
 	} while(ret < 0);

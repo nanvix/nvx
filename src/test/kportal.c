@@ -109,10 +109,10 @@ static void test_api_portal_get_volume(void)
 	test_assert((portal_in = kportal_create(local, 0)) >= 0);
 	test_assert((portal_out = kportal_open(local, remote, 0)) >= 0);
 
-		test_assert(kportal_ioctl(portal_in, PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+		test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 		test_assert(volume == 0);
 
-		test_assert(kportal_ioctl(portal_out, PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+		test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 		test_assert(volume == 0);
 
 	test_assert(kportal_close(portal_out) == 0);
@@ -140,10 +140,10 @@ static void test_api_portal_get_latency(void)
 	test_assert((portal_in = kportal_create(local, 0)) >= 0);
 	test_assert((portal_out = kportal_open(local, remote, 0)) >= 0);
 
-		test_assert(kportal_ioctl(portal_in, PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
 		test_assert(latency == 0);
 
-		test_assert(kportal_ioctl(portal_out, PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
 		test_assert(latency == 0);
 
 	test_assert(kportal_close(portal_out) == 0);
@@ -175,14 +175,14 @@ static void test_api_portal_read_write(void)
 	test_assert((portal_in = kportal_create(local, 0)) >= 0);
 	test_assert((portal_out = kportal_open(local, remote, 0)) >= 0);
 
-	test_assert(kportal_ioctl(portal_in, PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == 0);
-	test_assert(kportal_ioctl(portal_in, PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
 	test_assert(latency == 0);
 
-	test_assert(kportal_ioctl(portal_out, PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == 0);
-	test_assert(kportal_ioctl(portal_out, PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
 	test_assert(latency == 0);
 
 	if (local == MASTER_NODENUM)
@@ -232,14 +232,14 @@ static void test_api_portal_read_write(void)
 		}
 	}
 
-	test_assert(kportal_ioctl(portal_in, PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == (NITERATIONS * MESSAGE_SIZE));
-	test_assert(kportal_ioctl(portal_in, PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
 	test_assert(latency > 0);
 
-	test_assert(kportal_ioctl(portal_out, PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == (NITERATIONS * MESSAGE_SIZE));
-	test_assert(kportal_ioctl(portal_out, PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
 	test_assert(latency > 0);
 
 	test_assert(kportal_close(portal_out) == 0);
@@ -365,14 +365,14 @@ static void test_api_portal_multiplexation(void)
 	/* Checks the data volume transferred by each vportal. */
 	for (unsigned i = 0; i < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++i)
 	{
-		test_assert(kportal_ioctl(portal_in[i], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+		test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 		test_assert(volume == MESSAGE_SIZE);
-		test_assert(kportal_ioctl(portal_in[i], PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
 		test_assert(latency > 0);
 
-		test_assert(kportal_ioctl(portal_out[i], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+		test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 		test_assert(volume == MESSAGE_SIZE);
-		test_assert(kportal_ioctl(portal_out[i], PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
 		test_assert(latency > 0);
 
 		/* Deletion of the created virtual portals. */
@@ -492,9 +492,9 @@ static void test_api_portal_multiplexation_2(void)
 				test_assert((message[j] - i) == 0);
 
 			/* Checks the data transfered by each vportal. */
-			test_assert(kportal_ioctl(portal_in[i], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == MESSAGE_SIZE);
-			test_assert(kportal_ioctl(portal_in[i], PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
 			test_assert(latency > 0);
 		}
 	}
@@ -509,9 +509,9 @@ static void test_api_portal_multiplexation_2(void)
 			test_assert(kportal_wait(portal_out[i]) == 0);
 		#endif
 
-			test_assert(kportal_ioctl(portal_out[i], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == MESSAGE_SIZE);
-			test_assert(kportal_ioctl(portal_out[i], PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+			test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
 			test_assert(latency > 0);
 		}
 	}
@@ -575,7 +575,7 @@ static void test_api_portal_multiplexation_3(void)
 		/* Closes the opened vportals. */
 		for (unsigned int i = 0; i < TEST_MULTIPLEXATION3_PORTAL_MSGS_NR; ++i)
 		{
-			test_assert(kportal_ioctl(portal_out[i], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == MESSAGE_SIZE);
 
 			test_assert(kportal_close(portal_out[i]) == 0);
@@ -589,7 +589,7 @@ static void test_api_portal_multiplexation_3(void)
 
 		for (unsigned i = 0; i < TEST_MULTIPLEXATION3_PORTAL_SELECT_NR; ++i)
 		{
-			port = portal_in[i] % PORTAL_PORT_NR;
+			port = portal_in[i] % KPORTAL_PORT_NR;
 
 			kmemset(message, -1, MESSAGE_SIZE);
 
@@ -606,9 +606,9 @@ static void test_api_portal_multiplexation_3(void)
 		/* Checks the data volume transferred by each vportal. */
 		for (unsigned i = 0; i < TEST_MULTIPLEXATION3_PORTAL_SELECT_NR; ++i)
 		{
-			test_assert(kportal_ioctl(portal_in[i], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == MESSAGE_SIZE);
-			test_assert(kportal_ioctl(portal_in[i], PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
 			test_assert(latency > 0);
 
 			/* Unlinks each vportal. */
@@ -681,9 +681,9 @@ static void test_api_portal_multiplexation_4(void)
 		/* Checks the data volume transferred by each vportal. */
 		for (unsigned i = 0; i < TEST_MLTPX4_PORTAL_SELECT_NR; ++i)
 		{
-			test_assert(kportal_ioctl(portal_in[i], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == (MESSAGE_SIZE * TEST_MLTPX4_PORTAL_SELECT_MSG));
-			test_assert(kportal_ioctl(portal_in[i], PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
 			test_assert(latency > 0);
 
 			/* Unlinks the created vportals. */
@@ -710,7 +710,7 @@ static void test_api_portal_multiplexation_4(void)
 		/* Checks the data volume transferred by each vportal. */
 		for (unsigned i = 0; i < TEST_MLTPX4_PORTAL_SEND_NR; ++i)
 		{
-			test_assert(kportal_ioctl(portal_out[i], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == MESSAGE_SIZE);
 
 			/* Closes the output vportals. */
@@ -760,9 +760,9 @@ static void test_api_portal_pending_msg_unlink(void)
 		/* Checks the data volume transfered by each vportal. */
 		for (unsigned i = 0; i < TEST_PENDING_UNLINK_PORTAL_PAIRS; ++i)
 		{
-			test_assert(kportal_ioctl(portal_out[i], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == MESSAGE_SIZE);
-			test_assert(kportal_ioctl(portal_out[i], PORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+			test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
 			test_assert(latency > 0);
 
 			/* Closes the opened vportals. */
@@ -782,7 +782,7 @@ static void test_api_portal_pending_msg_unlink(void)
 		test_assert(kportal_wait(portal_in[1]) == 0);
 	#endif
 
-		test_assert(kportal_ioctl(portal_in[1], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+		test_assert(kportal_ioctl(portal_in[1], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 		test_assert(volume == MESSAGE_SIZE);
 
 		test_assert(kportal_unlink(portal_in[1]) == 0);
@@ -796,7 +796,7 @@ static void test_api_portal_pending_msg_unlink(void)
 		test_assert(kportal_wait(portal_in[0]) == 0);
 	#endif
 
-		test_assert(kportal_ioctl(portal_in[0], PORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+		test_assert(kportal_ioctl(portal_in[0], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 		test_assert(volume == MESSAGE_SIZE);
 
 		test_assert(kportal_unlink(portal_in[0]) == 0);
@@ -822,7 +822,7 @@ static void test_fault_portal_invalid_create(void)
 	test_assert(kportal_create(PROCESSOR_NOC_NODES_NUM, 0) == -EINVAL);
 	test_assert(kportal_create(remote, 0) == -EINVAL);
 	test_assert(kportal_create(local, -1) == -EINVAL);
-	test_assert(kportal_create(local, PORTAL_PORT_NR) == -EINVAL);
+	test_assert(kportal_create(local, KPORTAL_PORT_NR) == -EINVAL);
 }
 
 /*============================================================================*
@@ -926,7 +926,7 @@ static void test_fault_portal_invalid_open(void)
 	test_assert(kportal_open(remote, remote, 0) == -EINVAL);
 	test_assert(kportal_open(-1, -1, 0) == -EINVAL);
 	test_assert(kportal_open(local, remote, -1) == -EINVAL);
-	test_assert(kportal_open(local, remote, PORTAL_PORT_NR) == -EINVAL);
+	test_assert(kportal_open(local, remote, KPORTAL_PORT_NR) == -EINVAL);
 }
 
 /*============================================================================*
@@ -1007,7 +1007,7 @@ static void test_fault_portal_invalid_allow(void)
 	test_assert(kportal_allow(0, local, 0) == -EINVAL);
 	test_assert(kportal_allow(0, PROCESSOR_NOC_NODES_NUM, 0) == -EINVAL);
 	test_assert(kportal_allow(0, remote, -1) == -EINVAL);
-	test_assert(kportal_allow(0, remote, PORTAL_PORT_NR) == -EINVAL);
+	test_assert(kportal_allow(0, remote, KPORTAL_PORT_NR) == -EINVAL);
 }
 
 /*============================================================================*
@@ -1111,7 +1111,7 @@ static void test_fault_portal_invalid_read_size(void)
 
 		test_assert(kportal_aread(portalid, buffer, -1) == -EINVAL);
 		test_assert(kportal_aread(portalid, buffer, 0) == -EINVAL);
-		test_assert(kportal_aread(portalid, buffer, PORTAL_MAX_SIZE + 1) == -EINVAL);
+		test_assert(kportal_aread(portalid, buffer, HAL_PORTAL_MAX_SIZE + 1) == -EINVAL);
 
 	test_assert(kportal_unlink(portalid) == 0);
 }
@@ -1195,7 +1195,7 @@ static void test_fault_portal_invalid_write_size(void)
 
 		test_assert(kportal_awrite(portalid, buffer, -1) == -EINVAL);
 		test_assert(kportal_awrite(portalid, buffer, 0) == -EINVAL);
-		test_assert(kportal_awrite(portalid, buffer, PORTAL_MAX_SIZE + 1) == -EINVAL);
+		test_assert(kportal_awrite(portalid, buffer, HAL_PORTAL_MAX_SIZE + 1) == -EINVAL);
 
 	test_assert(kportal_close(portalid) == 0);
 }
@@ -1250,10 +1250,10 @@ static void test_fault_portal_invalid_ioctl(void)
 	size_t volume;
 	uint64_t latency;
 
-	test_assert(kportal_ioctl(-1, PORTAL_IOCTL_GET_VOLUME, &volume) == -EINVAL);
-	test_assert(kportal_ioctl(-1, PORTAL_IOCTL_GET_LATENCY, &latency) == -EINVAL);
-	test_assert(kportal_ioctl(KPORTAL_MAX, PORTAL_IOCTL_GET_VOLUME, &volume) == -EINVAL);
-	test_assert(kportal_ioctl(KPORTAL_MAX, PORTAL_IOCTL_GET_LATENCY, &latency) == -EINVAL);
+	test_assert(kportal_ioctl(-1, KPORTAL_IOCTL_GET_VOLUME, &volume) == -EINVAL);
+	test_assert(kportal_ioctl(-1, KPORTAL_IOCTL_GET_LATENCY, &latency) == -EINVAL);
+	test_assert(kportal_ioctl(KPORTAL_MAX, KPORTAL_IOCTL_GET_VOLUME, &volume) == -EINVAL);
+	test_assert(kportal_ioctl(KPORTAL_MAX, KPORTAL_IOCTL_GET_LATENCY, &latency) == -EINVAL);
 
 	local = knode_get_num();
 
@@ -1292,7 +1292,7 @@ static void test_fault_portal_bad_portalid(void)
 	test_assert(kportal_aread(portal_in + 1, buffer, MESSAGE_SIZE) == -EBADF);
 	test_assert(kportal_awrite(portal_in + 1, buffer, MESSAGE_SIZE) == -EBADF);
 	test_assert(kportal_wait(portal_in + 1) == -EBADF);
-	test_assert(kportal_ioctl(portal_in + 1, PORTAL_IOCTL_GET_VOLUME, &volume) == -EBADF);
+	test_assert(kportal_ioctl(portal_in + 1, KPORTAL_IOCTL_GET_VOLUME, &volume) == -EBADF);
 
 	test_assert(kportal_close(portal_out) == 0);
 	test_assert(kportal_unlink(portal_in) == 0);
@@ -1381,8 +1381,8 @@ void test_portal(void)
 		remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
 		/* Create dummy vportals to help on fault assertions. */
-		test_assert((portal_in = kportal_create(local, PORTAL_PORT_NR - 1)) >= 0);
-		test_assert((portal_out = kportal_open(local, remote, PORTAL_PORT_NR - 1)) >= 0);
+		test_assert((portal_in = kportal_create(local, KPORTAL_PORT_NR - 1)) >= 0);
+		test_assert((portal_out = kportal_open(local, remote, KPORTAL_PORT_NR - 1)) >= 0);
 
 		/* Fault Tests */
 		if (local == MASTER_NODENUM)

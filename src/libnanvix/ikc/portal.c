@@ -171,7 +171,7 @@ int kportal_aread(int portalid, void * buffer, size_t size)
 		return (-EINVAL);
 
 	/* Invalid size. */
-	if (size == 0 || size > PORTAL_MAX_SIZE)
+	if (size == 0 || size > HAL_PORTAL_MAX_SIZE)
 		return (-EINVAL);
 
 	do
@@ -203,7 +203,7 @@ int kportal_awrite(int portalid, const void * buffer, size_t size)
 		return (-EINVAL);
 
 	/* Invalid size. */
-	if (size == 0 || size > PORTAL_MAX_SIZE)
+	if (size == 0 || size > HAL_PORTAL_MAX_SIZE)
 		return (-EINVAL);
 
 	do

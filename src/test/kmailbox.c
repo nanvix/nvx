@@ -195,7 +195,7 @@ static void test_api_mailbox_read_write(void)
 				test_assert(message[j] == 2);
 		}
 	}
-	else if (local == SLAVE_NODENUM)
+	else
 	{
 		for (unsigned i = 0; i < NITERATIONS; i++)
 		{
@@ -233,7 +233,7 @@ static void test_api_mailbox_read_write(void)
  * API Test: Virtualization                                                   *
  *============================================================================*/
 
-#define TEST_VIRTUALIZATION_MBX_NR 10
+#define TEST_VIRTUALIZATION_MBX_NR MAILBOX_PORT_NR
 
 /**
  * @brief API Test: Virtualization.
@@ -249,14 +249,14 @@ static void test_api_mailbox_virtualization(void)
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	/* Creates multiple virtual mailboxes. */
-	for (unsigned i = 0; i < TEST_VIRTUALIZATION_MBX_NR; ++i)
+	for (unsigned int i = 0; i < TEST_VIRTUALIZATION_MBX_NR; ++i)
 	{
 		test_assert((mbx_in[i] = kmailbox_create(local, i)) >= 0);
 		test_assert((mbx_out[i] = kmailbox_open(remote, i)) >= 0);
 	}
 
 	/* Deletion of the created virtual mailboxes. */
-	for (unsigned i = 0; i < TEST_VIRTUALIZATION_MBX_NR; ++i)
+	for (unsigned int i = 0; i < TEST_VIRTUALIZATION_MBX_NR; ++i)
 	{
 		test_assert(kmailbox_unlink(mbx_in[i]) == 0);
 		test_assert(kmailbox_close(mbx_out[i]) == 0);
@@ -267,7 +267,7 @@ static void test_api_mailbox_virtualization(void)
  * API Test: Multiplexation                                                   *
  *============================================================================*/
 
-#define TEST_MULTIPLEXATION_MBX_PAIRS 5
+#define TEST_MULTIPLEXATION_MBX_PAIRS MAILBOX_PORT_NR
 
 /**
  * @brief API Test: Multiplex of virtual to hardware mailboxes.
@@ -632,6 +632,70 @@ static void test_api_mailbox_pending_msg_unlink(void)
 }
 
 /*============================================================================*
+ * API Test: Message Forwarding                                               *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Message forwarding
+ *
+ * @todo Uncomment kmailbox_wait() call when microkernel properly supports it.
+ */
+static void test_api_mailbox_msg_forwarding(void)
+{
+	int local;
+	int mbx_in;
+	int mbx_out;
+	size_t volume;
+	uint64_t latency;
+	char message[KMAILBOX_MESSAGE_SIZE];
+
+	local = knode_get_num();
+
+	test_assert((mbx_in = kmailbox_create(local, 0)) >= 0);
+	test_assert((mbx_out = kmailbox_open(local, 0)) >= 0);
+
+	test_assert(kmailbox_ioctl(mbx_in, MAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == 0);
+	test_assert(kmailbox_ioctl(mbx_in, MAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency == 0);
+
+	test_assert(kmailbox_ioctl(mbx_out, MAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == 0);
+	test_assert(kmailbox_ioctl(mbx_out, MAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency == 0);
+
+	for (unsigned i = 0; i < NITERATIONS; i++)
+	{
+		kmemset(message, local, KMAILBOX_MESSAGE_SIZE);
+
+		test_assert(kmailbox_awrite(mbx_out, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+
+		kmemset(message, 0, KMAILBOX_MESSAGE_SIZE);
+
+		test_assert(kmailbox_aread(mbx_in, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+	#if 0
+		test_assert(kmailbox_wait(mbx_in) == 0);
+	#endif
+
+		for (unsigned j = 0; j < KMAILBOX_MESSAGE_SIZE; ++j)
+			test_assert(message[j] == local);
+	}
+
+	test_assert(kmailbox_ioctl(mbx_in, MAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == (NITERATIONS * KMAILBOX_MESSAGE_SIZE));
+	test_assert(kmailbox_ioctl(mbx_in, MAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency > 0);
+
+	test_assert(kmailbox_ioctl(mbx_out, MAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == (NITERATIONS * KMAILBOX_MESSAGE_SIZE));
+	test_assert(kmailbox_ioctl(mbx_out, MAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency > 0);
+
+	test_assert(kmailbox_close(mbx_out) == 0);
+	test_assert(kmailbox_unlink(mbx_in) == 0);
+}
+
+/*============================================================================*
  * Fault Test: Invalid Create                                                 *
  *============================================================================*/
 
@@ -757,25 +821,6 @@ static void test_fault_mailbox_invalid_open(void)
 	test_assert(kmailbox_open(PROCESSOR_NOC_NODES_NUM, 0) == -EINVAL);
 	test_assert(kmailbox_open(nodenum, -1) == -EINVAL);
 	test_assert(kmailbox_open(nodenum, MAILBOX_PORT_NR) == -EINVAL);
-}
-
-/*============================================================================*
- * Fault Test: Bad Open                                                       *
- *============================================================================*/
-
-/**
- * @brief Fault Test: Bad Open
- */
-static void test_fault_mailbox_bad_open(void)
-{
-	int nodenum;
-
-	nodenum = knode_get_num();
-
-#ifdef __mppa256__
-	if (processor_noc_is_cnode(nodenum))
-#endif
-		test_assert(kmailbox_open(nodenum, 0) == -EINVAL);
 }
 
 /*============================================================================*
@@ -1093,6 +1138,7 @@ static struct test mailbox_tests_api[] = {
 	{ test_api_mailbox_multiplexation_2,   "[test][mailbox][api] mailbox multiplexation 2   [passed]" },
 	{ test_api_mailbox_multiplexation_3,   "[test][mailbox][api] mailbox multiplexation 3   [passed]" },
 	{ test_api_mailbox_pending_msg_unlink, "[test][mailbox][api] mailbox pending msg unlink [passed]" },
+	{ test_api_mailbox_msg_forwarding,     "[test][mailbox][api] mailbox message forwarding [passed]" },
 	{ NULL,                                 NULL                                                      },
 };
 
@@ -1107,7 +1153,6 @@ static struct test mailbox_tests_fault[] = {
 	{ test_fault_mailbox_double_unlink,      "[test][mailbox][fault] mailbox double unlink      [passed]" },
 	{ test_fault_mailbox_bad_unlink,         "[test][mailbox][fault] mailbox bad unlink         [passed]" },
 	{ test_fault_mailbox_invalid_open,       "[test][mailbox][fault] mailbox invalid open       [passed]" },
-	{ test_fault_mailbox_bad_open,           "[test][mailbox][fault] mailbox bad open           [passed]" },
 	{ test_fault_mailbox_invalid_close,      "[test][mailbox][fault] mailbox invalid close      [passed]" },
 	{ test_fault_mailbox_double_close,       "[test][mailbox][fault] mailbox double close       [passed]" },
 	{ test_fault_mailbox_bad_close,          "[test][mailbox][fault] mailbox bad close          [passed]" },
@@ -1133,20 +1178,11 @@ static struct test mailbox_tests_fault[] = {
 void test_mailbox(void)
 {
 	int nodenum;
-	int mbx_in;
-	int mbx_out;
-	int remote;
 
 	nodenum = knode_get_num();
 
 	if (nodenum == MASTER_NODENUM || nodenum == SLAVE_NODENUM)
 	{
-		remote = (nodenum == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
-
-		/* Create dummy mailboxes to assure signals reception. */
-		test_assert((mbx_in = kmailbox_create(nodenum, (MAILBOX_PORT_NR - 1))) >= 0);
-		test_assert((mbx_out = kmailbox_open(remote, (MAILBOX_PORT_NR - 1))) >= 0);
-
 		/* API Tests */
 		if (nodenum == MASTER_NODENUM)
 			nanvix_puts("--------------------------------------------------------------------------------");
@@ -1168,10 +1204,6 @@ void test_mailbox(void)
 			if (nodenum == MASTER_NODENUM)
 				nanvix_puts(mailbox_tests_fault[i].name);
 		}
-
-		/* Destroy dummy mailboxes. */
-		test_assert(kmailbox_unlink(mbx_in) == 0);
-		test_assert(kmailbox_close(mbx_out) == 0);
 	}
 }
 

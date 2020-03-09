@@ -1427,9 +1427,6 @@ static struct test portal_tests_fault[] = {
 void test_portal(void)
 {
 	int local;
-	int remote;
-	int portal_in;
-	int portal_out;
 
 	local = knode_get_num();
 
@@ -1446,12 +1443,6 @@ void test_portal(void)
 				nanvix_puts(portal_tests_api[i].name);
 		}
 
-		remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
-
-		/* Create dummy vportals to help on fault assertions. */
-		test_assert((portal_in = kportal_create(local, KPORTAL_PORT_NR - 1)) >= 0);
-		test_assert((portal_out = kportal_open(local, remote, KPORTAL_PORT_NR - 1)) >= 0);
-
 		/* Fault Tests */
 		if (local == MASTER_NODENUM)
 			nanvix_puts("--------------------------------------------------------------------------------");
@@ -1462,10 +1453,6 @@ void test_portal(void)
 			if (local == MASTER_NODENUM)
 				nanvix_puts(portal_tests_fault[i].name);
 		}
-
-		/* Destroy the dummy vportals. */
-		test_assert(kportal_close(portal_out) == 0);
-		test_assert(kportal_unlink(portal_in) == 0);
 	}
 }
 

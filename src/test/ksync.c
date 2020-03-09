@@ -44,12 +44,6 @@
 #endif
 
 /**
- * @brief Multiple open / create test parameters.
- */
-#define TEST_NR_INPUT_SYNCS  3
-#define TEST_NR_OUTPUT_SYNCS 7
-
-/**
  * @brief Auxiliar array
  */
 int nodenums[NR_NODES] = {
@@ -126,17 +120,19 @@ void test_api_sync_open_close(void)
 }
 
 /*============================================================================*
- * API Test: Multiple Create Open                                                       *
+ * API Test: Virtualization                                                   *
  *============================================================================*/
 
+#define TEST_VIRTUALIZATION_SYNCS_NR 5
+
 /**
- * @brief API Test: Synchronization Point Multiple Create Open
+ * @brief API Test: Synchronization Point virtualization
  */
-void test_api_sync_multiple_create_open(void)
+void test_api_sync_virtualization(void)
 {
 	int tmp;
-	int sync_in[TEST_NR_INPUT_SYNCS];
-	int sync_out[TEST_NR_OUTPUT_SYNCS];
+	int sync_in[TEST_VIRTUALIZATION_SYNCS_NR*2];
+	int sync_out[TEST_VIRTUALIZATION_SYNCS_NR*2];
 	int nodes[NR_NODES];
 
 	nodes[0] = knode_get_num();
@@ -150,39 +146,32 @@ void test_api_sync_multiple_create_open(void)
 	}
 
 	/* Creates multiple virtual synchronization points. */
-	for (unsigned i = 0; i < TEST_NR_INPUT_SYNCS; ++i)
+	for (unsigned i = 0; i < TEST_VIRTUALIZATION_SYNCS_NR; ++i)
 		test_assert((sync_in[i] = ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
 
-	for (unsigned i = 0; i < TEST_NR_INPUT_SYNCS; ++i)
-		test_assert(ksync_unlink(sync_in[i]) == 0);
-
 	tmp = nodes[0];
 	nodes[0] = nodes[1];
 	nodes[1] = tmp;
 
-	for (unsigned i = 0; i < TEST_NR_INPUT_SYNCS; ++i)
+	for (unsigned i = TEST_VIRTUALIZATION_SYNCS_NR; i < TEST_VIRTUALIZATION_SYNCS_NR*2; ++i)
+	{
 		test_assert((sync_in[i] = ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
-
-	/* Opens multiple virtual synchronization points. */
-	for (unsigned i = 0; i < TEST_NR_OUTPUT_SYNCS; ++i)
 		test_assert((sync_out[i] = ksync_open(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
-
-	for (unsigned i = 0; i < TEST_NR_OUTPUT_SYNCS; ++i)
-		test_assert(ksync_close(sync_out[i]) == 0);
+	}
 
 	tmp = nodes[0];
 	nodes[0] = nodes[1];
 	nodes[1] = tmp;
 
-	for (unsigned i = 0; i < TEST_NR_OUTPUT_SYNCS; ++i)
+	for (unsigned i = 0; i < TEST_VIRTUALIZATION_SYNCS_NR; ++i)
 		test_assert((sync_out[i] = ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
 
 	/* Deletion of the created virtual synchronization points. */
-	for (unsigned i = 0; i < TEST_NR_INPUT_SYNCS; ++i)
+	for (unsigned i = 0; i < TEST_VIRTUALIZATION_SYNCS_NR*2; ++i)
+	{
 		test_assert(ksync_unlink(sync_in[i]) == 0);
-
-	for (unsigned i = 0; i < TEST_NR_OUTPUT_SYNCS; ++i)
 		test_assert(ksync_close(sync_out[i]) == 0);
+	}
 }
 
 /*============================================================================*
@@ -238,6 +227,79 @@ void test_api_sync_signal_wait(void)
 }
 
 /*============================================================================*
+ * API Test: Multiplexation                                                   *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Synchronization Point multiplexation
+ */
+void test_api_sync_multiplexation(void)
+{
+	int syncin[2];
+	int syncout[2];
+	int nodenum;
+	int nodes[NR_NODES];
+
+	nodenum = knode_get_num();
+	nodes[0] = (nodenum == MASTER_NODENUM) ? MASTER_NODENUM : SLAVE_NODENUM;
+
+	for (int i = 0, j = 1; i < NR_NODES; i++)
+	{
+		if (nodenums[i] == nodenum)
+			continue;
+
+		nodes[j++] = nodenums[i];
+	}
+
+	/* Initialize the synchronization points. */
+	test_assert((syncin[1] = ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
+	test_assert((syncout[0] = ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
+
+	nodes[NR_NODES - 1] = (nodenum == MASTER_NODENUM) ? MASTER_NODENUM : SLAVE_NODENUM;
+
+	for (int i = 0, j = 0; i < NR_NODES; i++)
+	{
+		if (nodenums[i] == nodenum)
+			continue;
+
+		nodes[j++] = nodenums[i];
+	}
+
+	test_assert((syncin[0] = ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
+	test_assert((syncout[1] = ksync_open(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
+
+	if (nodenum != MASTER_NODENUM)
+	{
+		for (int i = 1; i < NITERATIONS; i++)
+		{
+			test_assert(ksync_wait(syncin[0]) == 0);
+			test_assert(ksync_wait(syncin[1]) == 0);
+
+			test_assert(ksync_signal(syncout[0]) == 0);
+			test_assert(ksync_signal(syncout[1]) == 0);
+		}
+	}
+	else
+	{
+		for (int i = 1; i < NITERATIONS; i++)
+		{
+			test_assert(ksync_signal(syncout[0]) == 0);
+			test_assert(ksync_signal(syncout[1]) == 0);
+
+			test_assert(ksync_wait(syncin[0]) == 0);
+			test_assert(ksync_wait(syncin[1]) == 0);
+		}
+	}
+
+	/* Destroy the used synchronization points. */
+	for (int i = 0; i < 2; ++i)
+	{
+		test_assert(ksync_close(syncout[i]) == 0);
+		test_assert(ksync_unlink(syncin[i]) == 0);
+	}
+}
+
+/*============================================================================*
  * Fault Test: Invalid Create                                                 *
  *============================================================================*/
 
@@ -247,10 +309,12 @@ void test_api_sync_signal_wait(void)
 void test_fault_sync_invalid_create(void)
 {
 	int nodenum;
+	int remote;
 	int nodes[NR_NODES];
 
 	nodenum = knode_get_num();
-	nodes[0] = (nodenum == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+	remote = (nodenum == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+	nodes[0] = remote;
 
 	for (int i = 0, j = 1; i < NR_NODES; i++)
 	{
@@ -266,9 +330,14 @@ void test_fault_sync_invalid_create(void)
 	test_assert((ksync_create(nodes, 1, SYNC_ONE_TO_ALL)) == -EINVAL);
 	test_assert((ksync_create(nodes, NR_NODES_MAX + 1, SYNC_ONE_TO_ALL)) == -EINVAL);
 	test_assert((ksync_create(nodes, NR_NODES, -1)) == -EINVAL);
+	nodes[1] = nodes[0];
+	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
 	nodes[0] = -1;
 	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
-	nodes[0] = 1000000;
+	nodes[0] = PROCESSOR_NOC_NODES_NUM;
+	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
+	nodes[0] = remote;
+	nodes[1] = remote;
 	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
 }
 
@@ -285,11 +354,6 @@ void test_fault_sync_bad_create1(void)
 	int nodes[NR_NODES];
 
 	nodenum = knode_get_num();
-
-	/* Invalid list of NoC nodes. */
-	for (int i = NR_NODES - 1; i >= 0; i--)
-		nodes[i] = -1;
-	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
 
 	/* Underlying NoC node is the sender. */
 	nodes[0] = nodenum;
@@ -329,11 +393,6 @@ void test_fault_sync_bad_create2(void)
 	int nodes[NR_NODES];
 
 	nodenum = knode_get_num();
-
-	/* Invalid list of NoC nodes. */
-	for (int i = NR_NODES - 1; i >= 0; i--)
-		nodes[i] = -1;
-	test_assert((ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) == -EINVAL);
 
 	/* Underlying NoC node is not the receiver. */
 	nodes[0] = (nodenum == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
@@ -402,9 +461,14 @@ void test_fault_sync_invalid_open(void)
 	test_assert((ksync_open(nodes, 1, SYNC_ONE_TO_ALL)) == -EINVAL);
 	test_assert((ksync_open(nodes, NR_NODES_MAX + 1, SYNC_ONE_TO_ALL)) == -EINVAL);
 	test_assert((ksync_open(nodes, NR_NODES, -1)) == -EINVAL);
+	nodes[1] = nodes[0];
+	test_assert((ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
 	nodes[0] = -1;
 	test_assert((ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
-	nodes[0] = 1000000;
+	nodes[0] = PROCESSOR_NOC_NODES_NUM;
+	test_assert((ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
+	nodes[0] = nodenum;
+	nodes[1] = nodenum;
 	test_assert((ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
 }
 
@@ -421,16 +485,10 @@ void test_fault_sync_bad_open1(void)
 	int nodes[NR_NODES];
 
 	nodenum = knode_get_num();
-	nodes[0] = nodenum;
-
-	/* Invalid list of NoC nodes. */
-	for (int i = NR_NODES - 1; i >= 0; i--)
-		nodes[i] = -1;
-	test_assert((ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
 
 	/* Underlying NoC node is not the sender. */
 	nodes[NR_NODES - 1] = nodenum;
-	for (int i = 0, j = 1; i < NR_NODES; i++)
+	for (int i = 0, j = 0; i < NR_NODES; i++)
 	{
 		if (nodenums[i] == nodenum)
 			continue;
@@ -457,11 +515,6 @@ void test_fault_sync_bad_open2(void)
 	int nodes[NR_NODES];
 
 	nodenum = knode_get_num();
-
-	/* Invalid list of NoC nodes. */
-	for (int i = NR_NODES - 1; i >= 0; i--)
-		nodes[i] = -1;
-	test_assert((ksync_open(nodes, NR_NODES, SYNC_ALL_TO_ONE)) == -EINVAL);
 
 	/* Underlying NoC node is not the sender. */
 	nodes[0] = nodenum;
@@ -502,8 +555,7 @@ void test_fault_sync_bad_open(void)
 void test_fault_sync_invalid_unlink(void)
 {
 	test_assert(ksync_unlink(-1) == -EINVAL);
-	test_assert(ksync_unlink(1) == -EBADF);
-	test_assert(ksync_unlink(1000000) == -EINVAL);
+	test_assert(ksync_unlink(KSYNC_MAX) == -EINVAL);
 }
 
 /*============================================================================*
@@ -578,8 +630,7 @@ void test_fault_sync_double_unlink(void)
 void test_fault_sync_invalid_close(void)
 {
 	test_assert(ksync_close(-1) == -EINVAL);
-	test_assert(ksync_close(1) == -EBADF);
-	test_assert(ksync_close(1000000) == -EINVAL);
+	test_assert(ksync_close(KSYNC_MAX) == -EINVAL);
 }
 
 /*============================================================================*
@@ -654,8 +705,7 @@ void test_fault_sync_double_close(void)
 void test_fault_sync_invalid_signal(void)
 {
 	test_assert(ksync_signal(-1) == -EINVAL);
-	test_assert(ksync_signal(1) == -EBADF);
-	test_assert(ksync_signal(1000000) == -EINVAL);
+	test_assert(ksync_signal(KSYNC_MAX) == -EINVAL);
 }
 
 /*============================================================================*
@@ -700,8 +750,7 @@ void test_fault_sync_bad_signal(void)
 void test_fault_sync_invalid_wait(void)
 {
 	test_assert(ksync_wait(-1) == -EINVAL);
-	test_assert(ksync_wait(1) == -EBADF);
-	test_assert(ksync_wait(1000000) == -EINVAL);
+	test_assert(ksync_wait(KSYNC_MAX) == -EINVAL);
 }
 
 /*============================================================================*
@@ -737,6 +786,44 @@ void test_fault_sync_bad_wait(void)
 }
 
 /*============================================================================*
+ * Fault Test: Bad Syncid                                                     *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Unused Synchronization Point operations
+ */
+void test_fault_sync_bad_syncid(void)
+{
+	int nodenum;
+	int syncin;
+	int syncout;
+	int nodes[NR_NODES];
+
+	nodenum = knode_get_num();
+	nodes[0] = nodenum;
+
+	/* Build nodes list. */
+	for (int i = 0, j = 1; i < NR_NODES; i++)
+	{
+		if (nodenums[i] == nodenum)
+			continue;
+
+		nodes[j++] = nodenums[i];
+	}
+
+	test_assert((syncin = ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
+	test_assert((syncout = ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
+
+	test_assert(ksync_close(syncout + 2) == -EBADF);
+	test_assert(ksync_unlink(syncin + 2) == -EBADF);
+	test_assert(ksync_signal(syncout + 2) == -EBADF);
+	test_assert(ksync_wait(syncin + 2) == -EBADF);
+
+	test_assert(ksync_close(syncout) == 0);
+	test_assert(ksync_unlink(syncin) == 0);
+}
+
+/*============================================================================*
  * Test Driver                                                                *
  *============================================================================*/
 
@@ -744,11 +831,12 @@ void test_fault_sync_bad_wait(void)
  * @brief API tests.
  */
 static struct test sync_tests_api[] = {
-	{ test_api_sync_create_unlink,        "[test][sync][api] sync create/unlink        [passed]" },
-	{ test_api_sync_open_close,           "[test][sync][api] sync open/close           [passed]" },
-	{ test_api_sync_multiple_create_open, "[test][sync][api] sync multiple create open [passed]" },
-	{ test_api_sync_signal_wait,          "[test][sync][api] sync wait                 [passed]" },
-	{ NULL,                                NULL                                                  },
+	{ test_api_sync_create_unlink,  "[test][sync][api] sync create/unlink  [passed]" },
+	{ test_api_sync_open_close,     "[test][sync][api] sync open/close     [passed]" },
+	{ test_api_sync_virtualization, "[test][sync][api] sync virtualization [passed]" },
+	{ test_api_sync_signal_wait,    "[test][sync][api] sync wait           [passed]" },
+	{ test_api_sync_multiplexation, "[test][sync][api] sync multiplexation [passed]" },
+	{ NULL,                          NULL                                            },
 };
 
 /**
@@ -769,6 +857,7 @@ static struct test sync_tests_fault[] = {
 	{ test_fault_sync_bad_signal,     "[test][sync][api] sync bad signal     [passed]" },
 	{ test_fault_sync_invalid_wait,   "[test][sync][api] sync invalid wait   [passed]" },
 	{ test_fault_sync_bad_wait,       "[test][sync][api] sync bad wait       [passed]" },
+	{ test_fault_sync_bad_syncid,     "[test][sync][api] sync bad syncid     [passed]" },
 	{ NULL,                            NULL                                            },
 };
 

@@ -195,7 +195,7 @@ static void test_api_mailbox_read_write(void)
 				test_assert(message[j] == 2);
 		}
 	}
-	else if (local == SLAVE_NODENUM)
+	else
 	{
 		for (unsigned i = 0; i < NITERATIONS; i++)
 		{
@@ -1178,20 +1178,11 @@ static struct test mailbox_tests_fault[] = {
 void test_mailbox(void)
 {
 	int nodenum;
-	int remote;
-	int mbx_in;
-	int mbx_out;
 
 	nodenum = knode_get_num();
 
 	if (nodenum == MASTER_NODENUM || nodenum == SLAVE_NODENUM)
 	{
-		remote = (nodenum == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
-
-		/* Create dummy mailboxes to assure signals reception. */
-		test_assert((mbx_in = kmailbox_create(nodenum, (MAILBOX_PORT_NR - 1))) >= 0);
-		test_assert((mbx_out = kmailbox_open(remote, (MAILBOX_PORT_NR - 1))) >= 0);
-
 		/* API Tests */
 		if (nodenum == MASTER_NODENUM)
 			nanvix_puts("--------------------------------------------------------------------------------");
@@ -1213,10 +1204,6 @@ void test_mailbox(void)
 			if (nodenum == MASTER_NODENUM)
 				nanvix_puts(mailbox_tests_fault[i].name);
 		}
-
-		/* Destroy dummy mailboxes. */
-		test_assert(kmailbox_unlink(mbx_in) == 0);
-		test_assert(kmailbox_close(mbx_out) == 0);
 	}
 }
 

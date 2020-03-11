@@ -67,10 +67,6 @@ int kportal_allow(int portalid, int remote, int remote_port)
 {
 	int ret;
 
-	/* Invalid remote number for the requesting core ID. */
-	if (remote == knode_get_num())
-		return (-EINVAL);
-
 	ret = kcall3(
 		NR_portal_allow,
 		(word_t) portalid,
@@ -92,16 +88,9 @@ int kportal_allow(int portalid, int remote, int remote_port)
 int kportal_open(int local, int remote, int remote_port)
 {
 	int ret;
-	int nodenum;
-
-	nodenum = knode_get_num();
 
 	/* Invalid local number for the requesting core ID. */
-	if (local != nodenum)
-		return (-EINVAL);
-
-	/* Invalid remote number for the requesting core ID. */
-	if (remote == nodenum)
+	if (local != knode_get_num())
 		return (-EINVAL);
 
 	ret = kcall3(

@@ -250,7 +250,7 @@ static void test_api_portal_read_write(void)
  * API Test: Virtualization                                                   *
  *============================================================================*/
 
-#define TEST_VIRTUALIZATION_PORTALS_NR 10
+#define TEST_VIRTUALIZATION_PORTALS_NR KPORTAL_PORT_NR
 
 /**
  * @brief API Test: Virtualization of HW portals.
@@ -287,7 +287,7 @@ static void test_api_portal_virtualization(void)
 /**
  * @brief Multiplex test parameters.
  */
-#define TEST_MULTIPLEXATION_PORTAL_PAIRS 5
+#define TEST_MULTIPLEXATION_PORTAL_PAIRS KPORTAL_PORT_NR
 
 /**
  * @brief API Test: Multiplexation of virtual to hardware portals.

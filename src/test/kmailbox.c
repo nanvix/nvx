@@ -233,7 +233,7 @@ static void test_api_mailbox_read_write(void)
  * API Test: Virtualization                                                   *
  *============================================================================*/
 
-#define TEST_VIRTUALIZATION_MBX_NR (MAILBOX_PORT_NR - 1)
+#define TEST_VIRTUALIZATION_MBX_NR MAILBOX_PORT_NR
 
 /**
  * @brief API Test: Virtualization.
@@ -267,7 +267,7 @@ static void test_api_mailbox_virtualization(void)
  * API Test: Multiplexation                                                   *
  *============================================================================*/
 
-#define TEST_MULTIPLEXATION_MBX_PAIRS 5
+#define TEST_MULTIPLEXATION_MBX_PAIRS MAILBOX_PORT_NR
 
 /**
  * @brief API Test: Multiplex of virtual to hardware mailboxes.

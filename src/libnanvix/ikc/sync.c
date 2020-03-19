@@ -40,6 +40,7 @@
 int ksync_create(const int *nodes, int nnodes, int type)
 {
 	int ret;
+	int nodenum;
 
 	/* Invalid nodes list. */
 	if (nodes == NULL)
@@ -53,11 +54,15 @@ int ksync_create(const int *nodes, int nnodes, int type)
 	if ((type != SYNC_ONE_TO_ALL) && (type != SYNC_ALL_TO_ONE))
 		return (-EINVAL);
 
-	ret = kcall3(
+	/* Gets the local node number. */
+	nodenum = processor_node_get_num(core_get_id());
+
+	ret = kcall4(
 		NR_sync_create,
 		(word_t) nodes,
 		(word_t) nnodes,
-		(word_t) type
+		(word_t) type,
+		(word_t) nodenum
 	);
 
 	return (ret);
@@ -74,6 +79,7 @@ int ksync_create(const int *nodes, int nnodes, int type)
 int ksync_open(const int *nodes, int nnodes, int type)
 {
 	int ret;
+	int nodenum;
 
 	/* Invalid list of nodes. */
 	if (nodes == NULL)
@@ -87,11 +93,15 @@ int ksync_open(const int *nodes, int nnodes, int type)
 	if ((type != SYNC_ONE_TO_ALL) && (type != SYNC_ALL_TO_ONE))
 		return (-EINVAL);
 
-	ret = kcall3(
+	/* Gets the local node number. */
+	nodenum = processor_node_get_num(core_get_id());
+
+	ret = kcall4(
 		NR_sync_open,
 		(word_t) nodes,
 		(word_t) nnodes,
-		(word_t) type
+		(word_t) type,
+		(word_t) nodenum
 	);
 
 	return (ret);

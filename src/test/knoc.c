@@ -54,91 +54,6 @@ PRIVATE void test_node_get_num(void)
 	KASSERT(nodenum == 0);
 }
 
-/*----------------------------------------------------------------------------*
- * Exchange Logical NoC Node Number                                           *
- *----------------------------------------------------------------------------*/
-
-#if (PROCESSOR_HAS_NOC)
-
-/**
- * @brief API Test: Exchange Logical NoC Node Number
- */
-PRIVATE void test_node_set_num(void)
-{
-	int nodenum;
-
-	nodenum = knode_get_num();
-	KASSERT(nodenum == 0);
-
-#if (TEST_NOC_VERBOSE)
-    kprintf("[test][processor][node][api] noc node %d online", nodenum);
-#endif
-
-        /* New nodenum (1 % (Interfaces available in only one IO Cluster)) */
-        nodenum += (1 % (PROCESSOR_NOC_IONODES_NUM / PROCESSOR_IOCLUSTERS_NUM));
-
-        #if (TEST_NOC_VERBOSE)
-            kprintf("[test][processor][node][api] exchange noc node number to %d", nodenum);
-        #endif
-
-        KASSERT(knode_set_num(nodenum) == 0);
-        KASSERT(knode_get_num() == nodenum);
-
-        /* Restoure old nodenum. */
-        nodenum -= (1 % (PROCESSOR_NOC_IONODES_NUM / PROCESSOR_IOCLUSTERS_NUM));
-
-        KASSERT(knode_set_num(nodenum) == 0);
-
-	nodenum = knode_get_num();
-	KASSERT(nodenum == 0);
-}
-
-#endif
-
-/*============================================================================*
- * Fault Tests                                                                *
- *============================================================================*/
-
-/*----------------------------------------------------------------------------*
- * Exchange Logical NoC Node Number with invalid arguments                    *
- *----------------------------------------------------------------------------*/
-
-#if (PROCESSOR_HAS_NOC)
-
-/**
- * @brief FAULT Test: Invalid Set Logical NoC Node Number
- */
-PRIVATE void test_node_invalid_set_num(void)
-{
-	/* Invalid nodenum. */
-	KASSERT(knode_set_num(-1) == -EINVAL);
-	KASSERT(knode_set_num(PROCESSOR_NOC_NODES_NUM) == -EINVAL);
-}
-
-#endif
-
-/*----------------------------------------------------------------------------*
- * Exchange Logical NoC Node Number with bad arguments                        *
- *----------------------------------------------------------------------------*/
-
-#if (PROCESSOR_HAS_NOC)
-
-/**
- * @brief FAULT Test: Bad Set Logical NoC Node Number
- */
-PRIVATE void test_node_bad_set_num(void)
-{
-	int nodenum;
-
-	/* nodenum + (Interfaces available in only one IO Cluster). */
-	nodenum = 0 + (PROCESSOR_NOC_IONODES_NUM / PROCESSOR_IOCLUSTERS_NUM);
-
-	/* Bad nodenum. */
-	KASSERT(knode_set_num(nodenum) == -EINVAL);
-}
-
-#endif
-
 /*============================================================================*
  * Test Driver                                                                *
  *============================================================================*/
@@ -148,21 +63,7 @@ PRIVATE void test_node_bad_set_num(void)
  */
 PRIVATE struct test test_api_noc[] = {
 	{ test_node_get_num,  "[test][processor][node][api] get logical noc node num [passed]" },
-#if (PROCESSOR_HAS_NOC)
-	{ test_node_set_num,  "[test][processor][node][api] set logical noc node num [passed]" },
-#endif
 	{ NULL,                NULL                                                            },
-};
-
-/**
- * @brief FAULT Tests.
- */
-PRIVATE struct test test_fault_noc[] = {
-#if (PROCESSOR_HAS_NOC)
-	{ test_node_invalid_set_num, "[test][processor][node][fault] invalid set logical noc node num [passed]" },
-	{ test_node_bad_set_num,     "[test][processor][node][fault] bad set logical noc node num     [passed]" },
-#endif
-	{ NULL,                       NULL                                                                      },
 };
 
 /**
@@ -180,13 +81,5 @@ PUBLIC void test_noc(void)
 	{
 		test_api_noc[i].test_fn();
         nanvix_puts(test_api_noc[i].name);
-	}
-
-	/* FAULT Tests */
-	nanvix_puts("--------------------------------------------------------------------------------");
-	for (int i = 0; test_fault_noc[i].test_fn != NULL; i++)
-	{
-		test_fault_noc[i].test_fn();
-        nanvix_puts(test_fault_noc[i].name);
 	}
 }

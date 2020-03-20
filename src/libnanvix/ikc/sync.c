@@ -55,7 +55,7 @@ int ksync_create(const int *nodes, int nnodes, int type)
 		return (-EINVAL);
 
 	/* Gets the local node number. */
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = processor_node_get_num();
 
 	ret = kcall4(
 		NR_sync_create,
@@ -94,7 +94,7 @@ int ksync_open(const int *nodes, int nnodes, int type)
 		return (-EINVAL);
 
 	/* Gets the local node number. */
-	nodenum = processor_node_get_num(core_get_id());
+	nodenum = processor_node_get_num();
 
 	ret = kcall4(
 		NR_sync_open,

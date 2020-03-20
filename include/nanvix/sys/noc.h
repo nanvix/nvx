@@ -37,7 +37,6 @@
 	 */
 	/**@{*/
 	extern int knode_get_num(void);
-	extern int knode_set_num(int nodenum);
 	/**@}*/
 
 #endif /* NANVIX_SYS_NOC_H_ */

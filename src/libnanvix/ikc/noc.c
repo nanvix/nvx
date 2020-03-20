@@ -35,50 +35,10 @@
 int knode_get_num(void)
 {
 	int ret;
-    int coreid;
 
-    coreid = core_get_id();
-
-	ret = kcall1(
-		NR_node_get_num,
-		(word_t) coreid
+	ret = kcall0(
+		NR_node_get_num
 	);
 
 	return (ret);
-}
-
-/*============================================================================*
- * knode_set_num()                                                            *
- *============================================================================*/
-
-/*
- * @see kernel_node_set_num()
- */
-int knode_set_num(int nodenum)
-{
-#if (PROCESSOR_HAS_NOC)
-
-	int ret;
-    int coreid;
-
-    if (!WITHIN(nodenum, 0, PROCESSOR_NOC_NODES_NUM))
-        return (-EINVAL);
-
-    coreid = core_get_id();
-
-	ret = kcall2(
-		NR_node_set_num,
-		(word_t) coreid,
-		(word_t) nodenum
-	);
-
-	return (ret);
-
-#else
-
-	UNUSED(nodenum);
-
-	return (-ENOSYS);
-
-#endif
 }

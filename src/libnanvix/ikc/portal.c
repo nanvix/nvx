@@ -241,6 +241,14 @@ ssize_t kportal_write(int portalid, const void *buffer, size_t size)
 {
 	int ret;
 
+	/* Invalid buffer. */
+	if (buffer == NULL)
+		return (-EINVAL);
+
+	/* Invalid size. */
+	if (size == 0 || size > HAL_PORTAL_MAX_SIZE)
+		return (-EINVAL);
+
 	if ((ret = kportal_awrite(portalid, buffer, size)) < 0)
 		return (ret);
 
@@ -265,6 +273,14 @@ ssize_t kportal_write(int portalid, const void *buffer, size_t size)
 ssize_t kportal_read(int portalid, void *buffer, size_t size)
 {
 	int ret;
+
+	/* Invalid buffer. */
+	if (buffer == NULL)
+		return (-EINVAL);
+
+	/* Invalid size. */
+	if (size == 0 || size > HAL_PORTAL_MAX_SIZE)
+		return (-EINVAL);
 
 	if ((ret = kportal_aread(portalid, buffer, size)) < 0)
 		return (ret);

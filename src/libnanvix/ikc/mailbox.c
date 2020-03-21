@@ -122,12 +122,19 @@ ssize_t kmailbox_awrite(int mbxid, const void *buffer, size_t size)
 {
 	int ret;
 
-	ret = kcall3(
-		NR_mailbox_awrite,
-		(word_t) mbxid,
-		(word_t) buffer,
-		(word_t) size
-	);
+	/* Invalid buffer size. */
+	if ((size == 0) || (size > KMAILBOX_MESSAGE_SIZE))
+		return (-EINVAL);
+
+	do
+	{
+		ret = kcall3(
+			NR_mailbox_awrite,
+			(word_t) mbxid,
+			(word_t) buffer,
+			(word_t) KMAILBOX_MESSAGE_SIZE
+		);
+	} while (ret == -EBUSY);
 
 	return (ret);
 }
@@ -144,15 +151,19 @@ ssize_t kmailbox_aread(int mbxid, void *buffer, size_t size)
 {
 	int ret;
 
+	/* Invalid buffer size. */
+	if ((size == 0) || (size > KMAILBOX_MESSAGE_SIZE))
+		return (-EINVAL);
+
 	do
 	{
 		ret = kcall3(
 			NR_mailbox_aread,
 			(word_t) mbxid,
 			(word_t) buffer,
-			(word_t) size
+			(word_t) KMAILBOX_MESSAGE_SIZE
 		);
-	} while (ret == -ETIMEDOUT);
+	} while ((ret == -ETIMEDOUT) || (ret == -EBUSY));
 
 	return (ret);
 }
@@ -192,8 +203,12 @@ ssize_t kmailbox_write(int mbxid, const void *buffer, size_t size)
 	int ret;
 	char buffer2[KMAILBOX_MESSAGE_SIZE];
 
+	/* Invalid buffer. */
+	if (buffer == NULL)
+		return (-EINVAL);
+
 	/* Invalid buffer size. */
-	if (size > KMAILBOX_MESSAGE_SIZE)
+	if ((size == 0) || (size > KMAILBOX_MESSAGE_SIZE))
 		return (-EINVAL);
 
 	kmemcpy(buffer2, buffer, size);
@@ -201,10 +216,8 @@ ssize_t kmailbox_write(int mbxid, const void *buffer, size_t size)
 	if ((ret = kmailbox_awrite(mbxid, buffer2, KMAILBOX_MESSAGE_SIZE)) < 0)
 		return (ret);
 
-#if 0
 	if ((ret = kmailbox_wait(mbxid)) < 0)
 		return (ret);
-#endif
 
 	return (size);
 }
@@ -216,29 +229,30 @@ ssize_t kmailbox_write(int mbxid, const void *buffer, size_t size)
 /**
  * @details The kmailbox_read() synchronously read @p size bytes of
  * data pointed to by @p buffer from the input mailbox @p mbxid.
- *
- * @todo Uncomment kmailbox_wait() call when microkernel properly supports it.
  */
 ssize_t kmailbox_read(int mbxid, void *buffer, size_t size)
 {
 	int ret;
 	char buffer2[KMAILBOX_MESSAGE_SIZE];
 
-	/* Invalid buffer size. */
-	if (size > KMAILBOX_MESSAGE_SIZE)
+	/* Invalid buffer. */
+	if (buffer == NULL)
 		return (-EINVAL);
 
+	/* Invalid buffer size. */
+	if ((size == 0) || (size > KMAILBOX_MESSAGE_SIZE))
+		return (-EINVAL);
+
+	/* Repeat while reading valid messages for another ports. */
 	do
 	{
-		ret = kmailbox_aread(mbxid, buffer2, KMAILBOX_MESSAGE_SIZE);
-		if ((ret < 0) && (ret != -ETIMEDOUT))
+		if ((ret = kmailbox_aread(mbxid, buffer2, KMAILBOX_MESSAGE_SIZE)) < 0)
 			return (ret);
-	} while(ret < 0);
+	} while ((ret = kmailbox_wait(mbxid)) > 0);
 
-#if 0
-	if ((ret = kmailbox_wait(mbxid)) < 0)
+	/* Wait failed. */
+	if (ret < 0)
 		return (ret);
-#endif
 
 	kmemcpy(buffer, buffer2, size);
 

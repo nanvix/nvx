@@ -156,8 +156,6 @@ static void test_api_portal_get_latency(void)
 
 /**
  * @brief API Test: Read Write 2 CC
- *
- * @bug FIXME: Call kportal_wait() when the kernel properly supports it.
  */
 static void test_api_portal_read_write(void)
 {
@@ -192,20 +190,14 @@ static void test_api_portal_read_write(void)
 			kmemset(message, 0, MESSAGE_SIZE);
 
 			test_assert(kportal_allow(portal_in, remote, 0) == 0);
-			test_assert(kportal_aread(portal_in, message, MESSAGE_SIZE) == MESSAGE_SIZE);
-		#if 0
-			test_assert(kportal_wait(portal_in) == 0);
-		#endif
+			test_assert(kportal_read(portal_in, message, MESSAGE_SIZE) == MESSAGE_SIZE);
 
 			for (unsigned j = 0; j < MESSAGE_SIZE; ++j)
 				test_assert(message[j] == 1);
 
 			kmemset(message, 2, MESSAGE_SIZE);
 
-			test_assert(kportal_awrite(portal_out, message, MESSAGE_SIZE) == MESSAGE_SIZE);
-		#if 0
-			test_assert(kportal_wait(portal_out) == 0);
-		#endif
+			test_assert(kportal_write(portal_out, message, MESSAGE_SIZE) == MESSAGE_SIZE);
 		}
 	}
 	else
@@ -214,18 +206,12 @@ static void test_api_portal_read_write(void)
 		{
 			kmemset(message, 1, MESSAGE_SIZE);
 
-			test_assert(kportal_awrite(portal_out, message, MESSAGE_SIZE) == MESSAGE_SIZE);
-		#if 0
-			test_assert(kportal_wait(portal_out) == 0);
-		#endif
+			test_assert(kportal_write(portal_out, message, MESSAGE_SIZE) == MESSAGE_SIZE);
 
 			kmemset(message, 0, MESSAGE_SIZE);
 
 			test_assert(kportal_allow(portal_in, remote, 0) == 0);
-			test_assert(kportal_aread(portal_in, message, MESSAGE_SIZE) == MESSAGE_SIZE);
-		#if 0
-			test_assert(kportal_wait(portal_in) == 0);
-		#endif
+			test_assert(kportal_read(portal_in, message, MESSAGE_SIZE) == MESSAGE_SIZE);
 
 			for (unsigned j = 0; j < MESSAGE_SIZE; ++j)
 				test_assert(message[j] == 2);
@@ -291,8 +277,6 @@ static void test_api_portal_virtualization(void)
 
 /**
  * @brief API Test: Multiplexation of virtual to hardware portals.
- *
- * @bug FIXME: Call kportal_wait() when the kernel properly supports it.
  */
 static void test_api_portal_multiplexation(void)
 {
@@ -322,20 +306,14 @@ static void test_api_portal_multiplexation(void)
 			kmemset(message, (i - 1), MESSAGE_SIZE);
 
 			test_assert(kportal_allow(portal_in[i], remote, i) == 0);
-			test_assert(kportal_aread(portal_in[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
-		#if 0
-			test_assert(kportal_wait(portal_in[i]) == 0);
-		#endif
+			test_assert(kportal_read(portal_in[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
 
 			for (unsigned j = 0; j < MESSAGE_SIZE; ++j)
 				test_assert((message[j] - i) == 0);
 
 			kmemset(message, (i + 1), MESSAGE_SIZE);
 
-			test_assert(kportal_awrite(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
-		#if 0
-			test_assert(kportal_wait(portal_out[i]) == 0);
-		#endif
+			test_assert(kportal_write(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
 		}
 	}
 	else
@@ -344,18 +322,12 @@ static void test_api_portal_multiplexation(void)
 		{
 			kmemset(message, i, MESSAGE_SIZE);
 
-			test_assert(kportal_awrite(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
-		#if 0
-			test_assert(kportal_wait(portal_out[i]) == 0);
-		#endif
+			test_assert(kportal_write(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
 
 			kmemset(message, i, MESSAGE_SIZE);
 
 			test_assert(kportal_allow(portal_in[i], remote, i) == 0);
-			test_assert(kportal_aread(portal_in[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
-		#if 0
-			test_assert(kportal_wait(portal_in[i]) == 0);
-		#endif
+			test_assert(kportal_read(portal_in[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
 
 			for (unsigned j = 0; j < MESSAGE_SIZE; ++j)
 				test_assert((message[j] - i - 1) == 0);
@@ -387,8 +359,6 @@ static void test_api_portal_multiplexation(void)
 
 /**
  * @brief API Test: Virtual portals allowing.
- *
- * @bug FIXME: Call kportal_wait() when the kernel properly supports it.
  */
 static void test_api_portal_allow(void)
 {
@@ -408,10 +378,7 @@ static void test_api_portal_allow(void)
 
 		for (unsigned i = 0; i < 2; ++i)
 		{
-			test_assert(kportal_awrite(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
-		#if 0
-			test_assert(kportal_wait(portal_out[i]) == 0);
-		#endif
+			test_assert(kportal_write(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
 
 			test_assert(kportal_close(portal_out[i]) == 0);
 		}
@@ -424,18 +391,12 @@ static void test_api_portal_allow(void)
 
 		/* Allowing tests. */
 		test_assert(kportal_allow(portal_in[0], remote, 0) == 0);
-		test_assert(kportal_aread(portal_in[1], message, MESSAGE_SIZE) == -EACCES);
-		test_assert(kportal_aread(portal_in[0], message, MESSAGE_SIZE) == MESSAGE_SIZE);
-	#if 0
-		test_assert(kportal_wait(portal_in[0]) == 0);
-	#endif
-		test_assert(kportal_aread(portal_in[0], message, MESSAGE_SIZE) == -EACCES);
+		test_assert(kportal_read(portal_in[1], message, MESSAGE_SIZE) == -EACCES);
+		test_assert(kportal_read(portal_in[0], message, MESSAGE_SIZE) == MESSAGE_SIZE);
+		test_assert(kportal_read(portal_in[0], message, MESSAGE_SIZE) == -EACCES);
 		test_assert(kportal_allow(portal_in[1], remote, 1) == 0);
-		test_assert(kportal_aread(portal_in[0], message, MESSAGE_SIZE) == -EACCES);
-		test_assert(kportal_aread(portal_in[1], message, MESSAGE_SIZE) == MESSAGE_SIZE);
-	#if 0
-		test_assert(kportal_wait(portal_in[1]) == 0);
-	#endif
+		test_assert(kportal_read(portal_in[0], message, MESSAGE_SIZE) == -EACCES);
+		test_assert(kportal_read(portal_in[1], message, MESSAGE_SIZE) == MESSAGE_SIZE);
 
 		/* Unlinks the created vportals. */
 		for (unsigned i = 0; i < 2; ++i)
@@ -452,8 +413,6 @@ static void test_api_portal_allow(void)
 /**
  * @brief API Test: Multiplexation test to assert the correct working when
  * messages flow occur in diferent order than the expected.
- *
- * @bug FIXME: Call kportal_wait() when the kernel properly supports it.
  */
 static void test_api_portal_multiplexation_2(void)
 {
@@ -483,10 +442,7 @@ static void test_api_portal_multiplexation_2(void)
 			kmemset(message, i, MESSAGE_SIZE);
 
 			test_assert(kportal_allow(portal_in[i], remote, i) == 0);
-			test_assert(kportal_aread(portal_in[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
-		#if 0
-			test_assert(kportal_wait(portal_in[i]) == 0);
-		#endif
+			test_assert(kportal_read(portal_in[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
 
 			for (unsigned j = 0; j < MESSAGE_SIZE; ++j)
 				test_assert((message[j] - i) == 0);
@@ -504,10 +460,7 @@ static void test_api_portal_multiplexation_2(void)
 		{
 			kmemset(message, i, MESSAGE_SIZE);
 
-			test_assert(kportal_awrite(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
-		#if 0
-			test_assert(kportal_wait(portal_out[i]) == 0);
-		#endif
+			test_assert(kportal_write(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
 
 			test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == MESSAGE_SIZE);
@@ -538,8 +491,6 @@ static void test_api_portal_multiplexation_2(void)
  *
  * @details In this test, the MASTER node sends 4 messages but only 2 for open ports
  * on the SLAVE which need to select them correctly.
- *
- * @bug FIXME: Call kportal_wait() when the kernel properly supports it.
  */
 static void test_api_portal_multiplexation_3(void)
 {
@@ -566,10 +517,7 @@ static void test_api_portal_multiplexation_3(void)
 		{
 			kmemset(message, i, MESSAGE_SIZE);
 
-			test_assert(kportal_awrite(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
-		#if 0
-			test_assert(kportal_wait(portal_out[i]) == 0);
-		#endif
+			test_assert(kportal_write(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
 		}
 
 		/* Closes the opened vportals. */
@@ -594,10 +542,7 @@ static void test_api_portal_multiplexation_3(void)
 			kmemset(message, -1, MESSAGE_SIZE);
 
 			test_assert(kportal_allow(portal_in[i], remote, port) == 0);
-			test_assert(kportal_aread(portal_in[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
-		#if 0
-			test_assert(kportal_wait(portal_in[i]) == 0);
-		#endif
+			test_assert(kportal_read(portal_in[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
 
 			for (unsigned j = 0; j < MESSAGE_SIZE; ++j)
 				test_assert((message[j] - port) == 0);
@@ -633,8 +578,6 @@ static void test_api_portal_multiplexation_3(void)
  * @details In this test, the SLAVE sends 4 messages to 2 ports of the SLAVE.
  * The reads in the master are also made out of order to assure that there are
  * 2 messages queued for each vportal on MASTER.
- *
- * @bug FIXME: Call kportal_wait() when the kernel properly supports it.
  */
 static void test_api_portal_multiplexation_4(void)
 {
@@ -667,10 +610,7 @@ static void test_api_portal_multiplexation_4(void)
 				kmemset(message, -1, MESSAGE_SIZE);
 
 				test_assert(kportal_allow(portal_in[i], remote, port) == 0);
-				test_assert(kportal_aread(portal_in[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
-			#if 0
-				test_assert(kportal_wait(portal_in[i]) == 0);
-			#endif
+				test_assert(kportal_read(portal_in[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
 
 				/* Asserts the message data. */
 				for (unsigned k = 0; k < MESSAGE_SIZE; ++k)
@@ -701,10 +641,7 @@ static void test_api_portal_multiplexation_4(void)
 		{
 			kmemset(message, i, MESSAGE_SIZE);
 
-			test_assert(kportal_awrite(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
-		#if 0
-			test_assert(kportal_wait(portal_out[i]) == 0);
-		#endif
+			test_assert(kportal_write(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
 		}
 
 		/* Checks the data volume transferred by each vportal. */
@@ -752,10 +689,7 @@ static void test_api_portal_pending_msg_unlink(void)
 			test_assert((portal_out[i] = kportal_open(local, remote, i)) >= 0);
 
 		for (int i = 0; i < TEST_PENDING_UNLINK_PORTAL_PAIRS; ++i)
-			test_assert(kportal_awrite(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
-		#if 0
-			test_assert(kportal_wait(portal_out[i]) == 0);
-		#endif
+			test_assert(kportal_write(portal_out[i], message, MESSAGE_SIZE) == MESSAGE_SIZE);
 
 		/* Checks the data volume transfered by each vportal. */
 		for (unsigned i = 0; i < TEST_PENDING_UNLINK_PORTAL_PAIRS; ++i)
@@ -777,10 +711,7 @@ static void test_api_portal_pending_msg_unlink(void)
 
 		/* Unlink tests. */
 		test_assert(kportal_allow(portal_in[1], remote, 1) == 0);
-		test_assert(kportal_aread(portal_in[1], message, MESSAGE_SIZE) == MESSAGE_SIZE);
-	#if 0
-		test_assert(kportal_wait(portal_in[1]) == 0);
-	#endif
+		test_assert(kportal_read(portal_in[1], message, MESSAGE_SIZE) == MESSAGE_SIZE);
 
 		test_assert(kportal_ioctl(portal_in[1], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 		test_assert(volume == MESSAGE_SIZE);
@@ -791,10 +722,7 @@ static void test_api_portal_pending_msg_unlink(void)
 		test_assert(kportal_unlink(portal_in[0]) == -EBUSY);
 
 		test_assert(kportal_allow(portal_in[0], remote, 0) == 0);
-		test_assert(kportal_aread(portal_in[0], message, MESSAGE_SIZE) == MESSAGE_SIZE);
-	#if 0
-		test_assert(kportal_wait(portal_in[0]) == 0);
-	#endif
+		test_assert(kportal_read(portal_in[0], message, MESSAGE_SIZE) == MESSAGE_SIZE);
 
 		test_assert(kportal_ioctl(portal_in[0], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 		test_assert(volume == MESSAGE_SIZE);
@@ -809,8 +737,6 @@ static void test_api_portal_pending_msg_unlink(void)
 
 /**
  * @brief API Test: Message forwarding
- *
- * @bug FIXME: Call kportal_wait() when the kernel properly supports it.
  */
 static void test_api_portal_msg_forwarding(void)
 {
@@ -842,17 +768,11 @@ static void test_api_portal_msg_forwarding(void)
 
 		kmemset(message, local, MESSAGE_SIZE);
 
-		test_assert(kportal_awrite(portal_out, message, MESSAGE_SIZE) == MESSAGE_SIZE);
-	#if 0
-		test_assert(kportal_wait(portal_out) == 0);
-	#endif
+		test_assert(kportal_write(portal_out, message, MESSAGE_SIZE) == MESSAGE_SIZE);
 
 		kmemset(message, -1, MESSAGE_SIZE);
 
-		test_assert(kportal_aread(portal_in, message, MESSAGE_SIZE) == MESSAGE_SIZE);
-	#if 0
-		test_assert(kportal_wait(portal_in) == 0);
-	#endif
+		test_assert(kportal_read(portal_in, message, MESSAGE_SIZE) == MESSAGE_SIZE);
 
 		for (unsigned j = 0; j < MESSAGE_SIZE; ++j)
 			test_assert(message[j] == local);
@@ -1131,8 +1051,8 @@ static void test_fault_portal_invalid_read(void)
 {
 	char buffer[MESSAGE_SIZE];
 
-	test_assert(kportal_aread(-1, buffer, MESSAGE_SIZE) == -EINVAL);
-	test_assert(kportal_aread(KPORTAL_MAX, buffer, MESSAGE_SIZE) == -EINVAL);
+	test_assert(kportal_read(-1, buffer, MESSAGE_SIZE) == -EINVAL);
+	test_assert(kportal_read(KPORTAL_MAX, buffer, MESSAGE_SIZE) == -EINVAL);
 }
 
 /*============================================================================*
@@ -1154,7 +1074,7 @@ static void test_fault_portal_bad_read(void)
 
 	test_assert((portalid = kportal_open(local, remote, 0)) >= 0);
 
-	test_assert(kportal_aread(portalid, buffer, MESSAGE_SIZE) == -EBADF);
+	test_assert(kportal_read(portalid, buffer, MESSAGE_SIZE) == -EBADF);
 
 	test_assert(kportal_close(portalid) == 0);
 }
@@ -1176,9 +1096,9 @@ static void test_fault_portal_invalid_read_size(void)
 
 	test_assert((portalid = kportal_create(local, 0)) >= 0);
 
-		test_assert(kportal_aread(portalid, buffer, -1) == -EINVAL);
-		test_assert(kportal_aread(portalid, buffer, 0) == -EINVAL);
-		test_assert(kportal_aread(portalid, buffer, HAL_PORTAL_MAX_SIZE + 1) == -EINVAL);
+		test_assert(kportal_read(portalid, buffer, -1) == -EINVAL);
+		test_assert(kportal_read(portalid, buffer, 0) == -EINVAL);
+		test_assert(kportal_read(portalid, buffer, HAL_PORTAL_MAX_SIZE + 1) == -EINVAL);
 
 	test_assert(kportal_unlink(portalid) == 0);
 }
@@ -1199,7 +1119,7 @@ static void test_fault_portal_null_read(void)
 
 	test_assert((portalid = kportal_create(local, 0)) >= 0);
 
-		test_assert(kportal_aread(portalid, NULL, MESSAGE_SIZE) == -EINVAL);
+		test_assert(kportal_read(portalid, NULL, MESSAGE_SIZE) == -EINVAL);
 
 	test_assert(kportal_unlink(portalid) == 0);
 }
@@ -1215,8 +1135,8 @@ static void test_fault_portal_invalid_write(void)
 {
 	char buffer[MESSAGE_SIZE];
 
-	test_assert(kportal_awrite(-1, buffer, MESSAGE_SIZE) == -EINVAL);
-	test_assert(kportal_awrite(KPORTAL_MAX, buffer, MESSAGE_SIZE) == -EINVAL);
+	test_assert(kportal_write(-1, buffer, MESSAGE_SIZE) == -EINVAL);
+	test_assert(kportal_write(KPORTAL_MAX, buffer, MESSAGE_SIZE) == -EINVAL);
 }
 
 /*============================================================================*
@@ -1236,7 +1156,7 @@ static void test_fault_portal_bad_write(void)
 
 	test_assert((portalid = kportal_create(local, 0)) >= 0);
 
-		test_assert(kportal_awrite(portalid, buffer, MESSAGE_SIZE) == -EBADF);
+		test_assert(kportal_write(portalid, buffer, MESSAGE_SIZE) == -EBADF);
 
 	test_assert(kportal_unlink(portalid) == 0);
 }
@@ -1260,9 +1180,9 @@ static void test_fault_portal_invalid_write_size(void)
 
 	test_assert((portalid = kportal_open(local, remote, 0)) >= 0);
 
-		test_assert(kportal_awrite(portalid, buffer, -1) == -EINVAL);
-		test_assert(kportal_awrite(portalid, buffer, 0) == -EINVAL);
-		test_assert(kportal_awrite(portalid, buffer, HAL_PORTAL_MAX_SIZE + 1) == -EINVAL);
+		test_assert(kportal_write(portalid, buffer, -1) == -EINVAL);
+		test_assert(kportal_write(portalid, buffer, 0) == -EINVAL);
+		test_assert(kportal_write(portalid, buffer, HAL_PORTAL_MAX_SIZE + 1) == -EINVAL);
 
 	test_assert(kportal_close(portalid) == 0);
 }
@@ -1285,7 +1205,7 @@ static void test_fault_portal_null_write(void)
 
 	test_assert((portalid = kportal_open(local, remote, 0)) >= 0);
 
-		test_assert(kportal_awrite(portalid, NULL, MESSAGE_SIZE) == -EINVAL);
+		test_assert(kportal_write(portalid, NULL, MESSAGE_SIZE) == -EINVAL);
 
 	test_assert(kportal_close(portalid) == 0);
 }
@@ -1356,8 +1276,8 @@ static void test_fault_portal_bad_portalid(void)
 	test_assert(kportal_close(portal_out + 1) == -EBADF);
 	test_assert(kportal_unlink(portal_in + 1) == -EBADF);
 	test_assert(kportal_allow(portal_in + 1, remote, 0) == -EBADF)
-	test_assert(kportal_aread(portal_in + 1, buffer, MESSAGE_SIZE) == -EBADF);
-	test_assert(kportal_awrite(portal_in + 1, buffer, MESSAGE_SIZE) == -EBADF);
+	test_assert(kportal_read(portal_in + 1, buffer, MESSAGE_SIZE) == -EBADF);
+	test_assert(kportal_write(portal_in + 1, buffer, MESSAGE_SIZE) == -EBADF);
 	test_assert(kportal_wait(portal_in + 1) == -EBADF);
 	test_assert(kportal_ioctl(portal_in + 1, KPORTAL_IOCTL_GET_VOLUME, &volume) == -EBADF);
 

@@ -147,8 +147,6 @@ static void test_api_mailbox_get_latency(void)
 
 /**
  * @brief API Test: Read Write 2 CC
- *
- * @todo Uncomment kmailbox_wait() call when microkernel properly supports it.
  */
 static void test_api_mailbox_read_write(void)
 {
@@ -182,14 +180,11 @@ static void test_api_mailbox_read_write(void)
 		{
 			kmemset(message, 1, KMAILBOX_MESSAGE_SIZE);
 
-			test_assert(kmailbox_awrite(mbx_out, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+			test_assert(kmailbox_write(mbx_out, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
 			kmemset(message, 0, KMAILBOX_MESSAGE_SIZE);
 
-			test_assert(kmailbox_aread(mbx_in, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
-		#if 0
-			test_assert(kmailbox_wait(mbx_in) == 0);
-		#endif
+			test_assert(kmailbox_read(mbx_in, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
 			for (unsigned j = 0; j < KMAILBOX_MESSAGE_SIZE; ++j)
 				test_assert(message[j] == 2);
@@ -201,17 +196,14 @@ static void test_api_mailbox_read_write(void)
 		{
 			kmemset(message, 0, KMAILBOX_MESSAGE_SIZE);
 
-			test_assert(kmailbox_aread(mbx_in, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
-		#if 0
-			test_assert(kmailbox_wait(mbx_in) == 0);
-		#endif
+			test_assert(kmailbox_read(mbx_in, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
 			for (unsigned j = 0; j < KMAILBOX_MESSAGE_SIZE; ++j)
 				test_assert(message[j] == 1);
 
 			kmemset(message, 2, KMAILBOX_MESSAGE_SIZE);
 
-			test_assert(kmailbox_awrite(mbx_out, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+			test_assert(kmailbox_write(mbx_out, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 		}
 	}
 
@@ -271,8 +263,6 @@ static void test_api_mailbox_virtualization(void)
 
 /**
  * @brief API Test: Multiplex of virtual to hardware mailboxes.
- *
- * @todo Uncomment kmailbox_wait() call when microkernel properly supports it.
  */
 static void test_api_mailbox_multiplexation(void)
 {
@@ -301,14 +291,11 @@ static void test_api_mailbox_multiplexation(void)
 		{
 			kmemset(message, i, KMAILBOX_MESSAGE_SIZE);
 
-			test_assert(kmailbox_awrite(mbx_out[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+			test_assert(kmailbox_write(mbx_out[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
 			kmemset(message, 0, KMAILBOX_MESSAGE_SIZE);
 
-			test_assert(kmailbox_aread(mbx_in[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
-		#if 0
-			test_assert(kmailbox_wait(mbx_in[i]) == 0);
-		#endif
+			test_assert(kmailbox_read(mbx_in[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
 			for (unsigned j = 0; j < KMAILBOX_MESSAGE_SIZE; ++j)
 				test_assert(message[j] - (i + 1) == 0);
@@ -320,17 +307,14 @@ static void test_api_mailbox_multiplexation(void)
 		{
 			kmemset(message, 0, KMAILBOX_MESSAGE_SIZE);
 
-			test_assert(kmailbox_aread(mbx_in[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
-		#if 0
-			test_assert(kmailbox_wait(mbx_in[i]) == 0);
-		#endif
+			test_assert(kmailbox_read(mbx_in[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
 			for (unsigned j = 0; j < KMAILBOX_MESSAGE_SIZE; ++j)
 				test_assert(message[j] - i == 0);
 
 			kmemset(message, i + 1, KMAILBOX_MESSAGE_SIZE);
 
-			test_assert(kmailbox_awrite(mbx_out[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+			test_assert(kmailbox_write(mbx_out[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 		}
 	}
 
@@ -365,8 +349,6 @@ static void test_api_mailbox_multiplexation(void)
 /**
  * @brief API Test: Multiplexation test to assert the correct working when
  * messages flow occur in diferent order than the expected.
- *
- * @todo Uncomment kmailbox_wait() call when microkernel properly supports it.
  */
 static void test_api_mailbox_multiplexation_2(void)
 {
@@ -394,7 +376,7 @@ static void test_api_mailbox_multiplexation_2(void)
 		{
 			kmemset(message, i, KMAILBOX_MESSAGE_SIZE);
 
-			test_assert(kmailbox_awrite(mbx_out[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+			test_assert(kmailbox_write(mbx_out[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 		}
 
 		for (unsigned i = 0; i < TEST_MULTIPLEXATION2_MBX_PAIRS; ++i)
@@ -411,10 +393,7 @@ static void test_api_mailbox_multiplexation_2(void)
 		{
 			kmemset(message, -1, KMAILBOX_MESSAGE_SIZE);
 
-			test_assert(kmailbox_aread(mbx_in[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
-		#if 0
-			test_assert(kmailbox_wait(mbx_in[i]) == 0);
-		#endif
+			test_assert(kmailbox_read(mbx_in[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
 			for (unsigned j = 0; j < KMAILBOX_MESSAGE_SIZE; ++j)
 				test_assert((message[j] - i) == 0);
@@ -430,10 +409,10 @@ static void test_api_mailbox_multiplexation_2(void)
 	/* Synchronization message. */
 	if (local == MASTER_NODENUM)
 	{
-		test_assert(kmailbox_aread(mbx_in[0], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+		test_assert(kmailbox_read(mbx_in[0], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 	}
 	else
-		test_assert(kmailbox_awrite(mbx_out[0], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+		test_assert(kmailbox_write(mbx_out[0], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
 	/* Closes the used vmailboxes. */
 	for (unsigned i = 0; i < TEST_MULTIPLEXATION2_MBX_PAIRS; ++i)
@@ -456,8 +435,6 @@ static void test_api_mailbox_multiplexation_2(void)
  * @details In this test, the MASTER sends 4 messages to 2 ports of the SLAVE.
  * The reads in the master are also made out of order to assure that there are
  * 2 messages queued for each vmailbox on SLAVE.
- *
- * @todo Uncomment kmailbox_wait() call when microkernel properly supports it.
  */
 static void test_api_mailbox_multiplexation_3(void)
 {
@@ -485,7 +462,7 @@ static void test_api_mailbox_multiplexation_3(void)
 		{
 			kmemset(message, (int) (i/2), KMAILBOX_MESSAGE_SIZE);
 
-			test_assert(kmailbox_awrite(mbx_out[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+			test_assert(kmailbox_write(mbx_out[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 		}
 
 		/* Checks the data volume transfered by each mailbox. */
@@ -507,10 +484,7 @@ static void test_api_mailbox_multiplexation_3(void)
 			{
 				kmemset(message, -1, KMAILBOX_MESSAGE_SIZE);
 
-				test_assert(kmailbox_aread(mbx_in[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
-			#if 0
-				test_assert(kmailbox_wait(mbx_in[i]) == 0);
-			#endif
+				test_assert(kmailbox_read(mbx_in[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
 				for (unsigned k = 0; k < KMAILBOX_MESSAGE_SIZE; ++k)
 					test_assert((message[k] - i) == 0);
@@ -528,10 +502,10 @@ static void test_api_mailbox_multiplexation_3(void)
 	/* Synchronization message. */
 	if (local == MASTER_NODENUM)
 	{
-		test_assert(kmailbox_aread(mbx_in[0], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+		test_assert(kmailbox_read(mbx_in[0], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 	}
 	else
-		test_assert(kmailbox_awrite(mbx_out[0], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+		test_assert(kmailbox_write(mbx_out[0], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
 	/* Closes the used vmailboxes. */
 	for (unsigned i = 0; i < TEST_MULTIPLEXATION3_MBX_PAIRS; ++i)
@@ -551,8 +525,6 @@ static void test_api_mailbox_multiplexation_3(void)
  * @brief API Test: Test to assert if the kernel correctly avoids an unlink
  * call when there still messages addressed to the target vportal on message
  * buffers tab.
- *
- * @todo Uncomment kmailbox_wait() call when microkernel properly supports it.
  */
 static void test_api_mailbox_pending_msg_unlink(void)
 {
@@ -577,7 +549,7 @@ static void test_api_mailbox_pending_msg_unlink(void)
 	if (local == MASTER_NODENUM)
 	{
 		for (int i = 0; i < TEST_PENDING_UNLINK_MBX_PAIRS; ++i)
-			test_assert(kmailbox_awrite(mbx_out[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+			test_assert(kmailbox_write(mbx_out[i], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
 		/* Checks the data volume transfered by each mailbox. */
 		for (unsigned i = 0; i < TEST_PENDING_UNLINK_MBX_PAIRS; ++i)
@@ -592,10 +564,7 @@ static void test_api_mailbox_pending_msg_unlink(void)
 	}
 	else if (local == SLAVE_NODENUM)
 	{
-		test_assert(kmailbox_aread(mbx_in[1], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
-	#if 0
-		test_assert(kmailbox_wait(mbx_in[1]) == 0);
-	#endif
+		test_assert(kmailbox_read(mbx_in[1], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
 		test_assert(kmailbox_ioctl(mbx_in[1], MAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
 		test_assert(volume == KMAILBOX_MESSAGE_SIZE);
@@ -605,10 +574,7 @@ static void test_api_mailbox_pending_msg_unlink(void)
 
 		test_assert(kmailbox_unlink(mbx_in[0]) == -EBUSY);
 
-		test_assert(kmailbox_aread(mbx_in[0], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
-	#if 0
-		test_assert(kmailbox_wait(mbx_in[0]) == 0);
-	#endif
+		test_assert(kmailbox_read(mbx_in[0], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
 		test_assert(kmailbox_ioctl(mbx_in[0], MAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
 		test_assert(volume == KMAILBOX_MESSAGE_SIZE);
@@ -619,13 +585,13 @@ static void test_api_mailbox_pending_msg_unlink(void)
 	/* Synchronization message + closes the used vmailboxes. */
 	if (local == MASTER_NODENUM)
 	{
-		test_assert(kmailbox_aread(mbx_in[0], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+		test_assert(kmailbox_read(mbx_in[0], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 		for (unsigned i = 0; i < TEST_PENDING_UNLINK_MBX_PAIRS; ++i)
 			test_assert(kmailbox_unlink(mbx_in[i]) == 0);
 	}
 	else
 	{
-		test_assert(kmailbox_awrite(mbx_out[0], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+		test_assert(kmailbox_write(mbx_out[0], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 		for (unsigned i = 0; i < TEST_PENDING_UNLINK_MBX_PAIRS; ++i)
 			test_assert(kmailbox_close(mbx_out[i]) == 0);
 	}
@@ -637,8 +603,6 @@ static void test_api_mailbox_pending_msg_unlink(void)
 
 /**
  * @brief API Test: Message forwarding
- *
- * @todo Uncomment kmailbox_wait() call when microkernel properly supports it.
  */
 static void test_api_mailbox_msg_forwarding(void)
 {
@@ -668,14 +632,11 @@ static void test_api_mailbox_msg_forwarding(void)
 	{
 		kmemset(message, local, KMAILBOX_MESSAGE_SIZE);
 
-		test_assert(kmailbox_awrite(mbx_out, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+		test_assert(kmailbox_write(mbx_out, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
 		kmemset(message, 0, KMAILBOX_MESSAGE_SIZE);
 
-		test_assert(kmailbox_aread(mbx_in, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
-	#if 0
-		test_assert(kmailbox_wait(mbx_in) == 0);
-	#endif
+		test_assert(kmailbox_read(mbx_in, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
 		for (unsigned j = 0; j < KMAILBOX_MESSAGE_SIZE; ++j)
 			test_assert(message[j] == local);
@@ -891,8 +852,8 @@ static void test_fault_mailbox_invalid_read(void)
 {
 	char buffer[KMAILBOX_MESSAGE_SIZE];
 
-	test_assert(kmailbox_aread(-1, buffer, KMAILBOX_MESSAGE_SIZE) == -EINVAL);
-	test_assert(kmailbox_aread(KMAILBOX_MAX, buffer, KMAILBOX_MESSAGE_SIZE) == -EINVAL);
+	test_assert(kmailbox_read(-1, buffer, KMAILBOX_MESSAGE_SIZE) == -EINVAL);
+	test_assert(kmailbox_read(KMAILBOX_MAX, buffer, KMAILBOX_MESSAGE_SIZE) == -EINVAL);
 }
 
 /*============================================================================*
@@ -912,7 +873,7 @@ static void test_fault_mailbox_bad_read(void)
 
 	test_assert((mbxid = kmailbox_open(nodenum, 0)) >= 0);
 
-	test_assert(kmailbox_aread(mbxid, buffer, KMAILBOX_MESSAGE_SIZE) == -EBADF);
+	test_assert(kmailbox_read(mbxid, buffer, KMAILBOX_MESSAGE_SIZE) == -EBADF);
 
 	test_assert(kmailbox_close(mbxid) == 0);
 }
@@ -934,10 +895,9 @@ static void test_fault_mailbox_invalid_read_size(void)
 
 	test_assert((mbxid = kmailbox_create(local, 0)) >= 0);
 
-		test_assert(kmailbox_aread(mbxid, buffer, -1) == -EINVAL);
-		test_assert(kmailbox_aread(mbxid, buffer, 0) == -EINVAL);
-		test_assert(kmailbox_aread(mbxid, buffer, KMAILBOX_MESSAGE_SIZE - 1) == -EINVAL);
-		test_assert(kmailbox_aread(mbxid, buffer, KMAILBOX_MESSAGE_SIZE + 1) == -EINVAL);
+		test_assert(kmailbox_read(mbxid, buffer, -1) == -EINVAL);
+		test_assert(kmailbox_read(mbxid, buffer, 0) == -EINVAL);
+		test_assert(kmailbox_read(mbxid, buffer, KMAILBOX_MESSAGE_SIZE + 1) == -EINVAL);
 
 	test_assert(kmailbox_unlink(mbxid) == 0);
 }
@@ -958,7 +918,7 @@ static void test_fault_mailbox_null_read(void)
 
 	test_assert((mbxid = kmailbox_create(local, 0)) >= 0);
 
-		test_assert(kmailbox_aread(mbxid, NULL, KMAILBOX_MESSAGE_SIZE) == -EINVAL);
+		test_assert(kmailbox_read(mbxid, NULL, KMAILBOX_MESSAGE_SIZE) == -EINVAL);
 
 	test_assert(kmailbox_unlink(mbxid) == 0);
 }
@@ -974,8 +934,8 @@ static void test_fault_mailbox_invalid_write(void)
 {
 	char buffer[KMAILBOX_MESSAGE_SIZE];
 
-	test_assert(kmailbox_awrite(-1, buffer, KMAILBOX_MESSAGE_SIZE) == -EINVAL);
-	test_assert(kmailbox_awrite(KMAILBOX_MAX, buffer, KMAILBOX_MESSAGE_SIZE) == -EINVAL);
+	test_assert(kmailbox_write(-1, buffer, KMAILBOX_MESSAGE_SIZE) == -EINVAL);
+	test_assert(kmailbox_write(KMAILBOX_MAX, buffer, KMAILBOX_MESSAGE_SIZE) == -EINVAL);
 }
 
 /*============================================================================*
@@ -995,7 +955,7 @@ static void test_fault_mailbox_bad_write(void)
 
 	test_assert((mbxid = kmailbox_create(local, 0)) >= 0);
 
-		test_assert(kmailbox_awrite(mbxid, buffer, KMAILBOX_MESSAGE_SIZE) == -EBADF);
+		test_assert(kmailbox_write(mbxid, buffer, KMAILBOX_MESSAGE_SIZE) == -EBADF);
 
 	test_assert(kmailbox_unlink(mbxid) == 0);
 }
@@ -1017,10 +977,9 @@ static void test_fault_mailbox_invalid_write_size(void)
 
 	test_assert((mbxid = kmailbox_open(remote, 0)) >= 0);
 
-		test_assert(kmailbox_awrite(mbxid, buffer, -1) == -EINVAL);
-		test_assert(kmailbox_awrite(mbxid, buffer, 0) == -EINVAL);
-		test_assert(kmailbox_awrite(mbxid, buffer, KMAILBOX_MESSAGE_SIZE - 1) == -EINVAL);
-		test_assert(kmailbox_awrite(mbxid, buffer, KMAILBOX_MESSAGE_SIZE + 1) == -EINVAL);
+		test_assert(kmailbox_write(mbxid, buffer, -1) == -EINVAL);
+		test_assert(kmailbox_write(mbxid, buffer, 0) == -EINVAL);
+		test_assert(kmailbox_write(mbxid, buffer, KMAILBOX_MESSAGE_SIZE + 1) == -EINVAL);
 
 	test_assert(kmailbox_close(mbxid) == 0);
 }
@@ -1041,7 +1000,7 @@ static void test_fault_mailbox_null_write(void)
 
 	test_assert((mbxid = kmailbox_open(remote, 0)) >= 0);
 
-		test_assert(kmailbox_awrite(mbxid, NULL, KMAILBOX_MESSAGE_SIZE) == -EINVAL);
+		test_assert(kmailbox_write(mbxid, NULL, KMAILBOX_MESSAGE_SIZE) == -EINVAL);
 
 	test_assert(kmailbox_close(mbxid) == 0);
 }
@@ -1111,8 +1070,8 @@ static void test_fault_mailbox_bad_mbxid(void)
 
 	test_assert(kmailbox_close(mbx_out + 1) == -EBADF);
 	test_assert(kmailbox_unlink(mbx_in + 1) == -EBADF);
-	test_assert(kmailbox_aread(mbx_in + 1, buffer, KMAILBOX_MESSAGE_SIZE) == -EBADF);
-	test_assert(kmailbox_awrite(mbx_in + 1, buffer, KMAILBOX_MESSAGE_SIZE) == -EBADF);
+	test_assert(kmailbox_read(mbx_in + 1, buffer, KMAILBOX_MESSAGE_SIZE) == -EBADF);
+	test_assert(kmailbox_write(mbx_in + 1, buffer, KMAILBOX_MESSAGE_SIZE) == -EBADF);
 	test_assert(kmailbox_wait(mbx_in + 1) == -EBADF);
 	test_assert(kmailbox_ioctl(mbx_in + 1, MAILBOX_IOCTL_GET_VOLUME, &volume) == -EBADF);
 

@@ -202,7 +202,7 @@ int kportal_awrite(int portalid, const void * buffer, size_t size)
 			(word_t) portalid,
 			(word_t) buffer,
 			(word_t) size);
-	} while (ret == -EAGAIN);
+	} while ((ret == -EACCES) || (ret == -EBUSY));
 
 	return (ret);
 }
@@ -282,8 +282,12 @@ ssize_t kportal_read(int portalid, void *buffer, size_t size)
 	if (size == 0 || size > HAL_PORTAL_MAX_SIZE)
 		return (-EINVAL);
 
-	if ((ret = kportal_aread(portalid, buffer, size)) < 0)
-		return (ret);
+	/* Repeat while reading valid messages for another ports. */
+	do
+	{
+		if ((ret = kportal_aread(portalid, buffer, size)) < 0)
+			return (ret);
+	} while ((ret = kportal_wait(portalid)) > 0);
 
 #if 0
 	if ((ret = kportal_wait(portalid)) < 0)

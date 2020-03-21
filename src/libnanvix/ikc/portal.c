@@ -234,8 +234,6 @@ int kportal_wait(int portalid)
 /**
  * @details The kportal_write() synchronously write @p size bytes of
  * data pointed to by @p buffer to the output portal @p portalid.
- *
- * @bug FIXME: Call kportal_wait() when the kernel properly supports it.
  */
 ssize_t kportal_write(int portalid, const void *buffer, size_t size)
 {
@@ -252,10 +250,8 @@ ssize_t kportal_write(int portalid, const void *buffer, size_t size)
 	if ((ret = kportal_awrite(portalid, buffer, size)) < 0)
 		return (ret);
 
-#if 0
 	if ((ret = kportal_wait(portalid)) < 0)
 		return (ret);
-#endif
 
 	return (size);
 }
@@ -267,8 +263,6 @@ ssize_t kportal_write(int portalid, const void *buffer, size_t size)
 /**
  * @details The kportal_read() synchronously read @p size bytes of
  * data pointed to by @p buffer from the input portal @p portalid.
- *
- * @bug FIXME: Call kportal_wait() when the kernel properly supports it.
  */
 ssize_t kportal_read(int portalid, void *buffer, size_t size)
 {
@@ -289,10 +283,9 @@ ssize_t kportal_read(int portalid, void *buffer, size_t size)
 			return (ret);
 	} while ((ret = kportal_wait(portalid)) > 0);
 
-#if 0
-	if ((ret = kportal_wait(portalid)) < 0)
+	/* Wait failed. */
+	if (ret < 0)
 		return (ret);
-#endif
 
 	return (size);
 }

@@ -216,10 +216,8 @@ ssize_t kmailbox_write(int mbxid, const void *buffer, size_t size)
 	if ((ret = kmailbox_awrite(mbxid, buffer2, KMAILBOX_MESSAGE_SIZE)) < 0)
 		return (ret);
 
-#if 0
 	if ((ret = kmailbox_wait(mbxid)) < 0)
 		return (ret);
-#endif
 
 	return (size);
 }
@@ -231,8 +229,6 @@ ssize_t kmailbox_write(int mbxid, const void *buffer, size_t size)
 /**
  * @details The kmailbox_read() synchronously read @p size bytes of
  * data pointed to by @p buffer from the input mailbox @p mbxid.
- *
- * @todo Uncomment kmailbox_wait() call when microkernel properly supports it.
  */
 ssize_t kmailbox_read(int mbxid, void *buffer, size_t size)
 {
@@ -254,10 +250,9 @@ ssize_t kmailbox_read(int mbxid, void *buffer, size_t size)
 			return (ret);
 	} while ((ret = kmailbox_wait(mbxid)) > 0);
 
-#if 0
-	if ((ret = kmailbox_wait(mbxid)) < 0)
+	/* Wait failed. */
+	if (ret < 0)
 		return (ret);
-#endif
 
 	kmemcpy(buffer, buffer2, size);
 

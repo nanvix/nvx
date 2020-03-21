@@ -126,12 +126,15 @@ ssize_t kmailbox_awrite(int mbxid, const void *buffer, size_t size)
 	if ((size == 0) || (size > KMAILBOX_MESSAGE_SIZE))
 		return (-EINVAL);
 
-	ret = kcall3(
-		NR_mailbox_awrite,
-		(word_t) mbxid,
-		(word_t) buffer,
-		(word_t) size
-	);
+	do
+	{
+		ret = kcall3(
+			NR_mailbox_awrite,
+			(word_t) mbxid,
+			(word_t) buffer,
+			(word_t) KMAILBOX_MESSAGE_SIZE
+		);
+	} while (ret == -EBUSY);
 
 	return (ret);
 }
@@ -158,9 +161,9 @@ ssize_t kmailbox_aread(int mbxid, void *buffer, size_t size)
 			NR_mailbox_aread,
 			(word_t) mbxid,
 			(word_t) buffer,
-			(word_t) size
+			(word_t) KMAILBOX_MESSAGE_SIZE
 		);
-	} while (ret == -ETIMEDOUT);
+	} while ((ret == -ETIMEDOUT) || (ret == -EBUSY));
 
 	return (ret);
 }
@@ -244,12 +247,12 @@ ssize_t kmailbox_read(int mbxid, void *buffer, size_t size)
 	if ((size == 0) || (size > KMAILBOX_MESSAGE_SIZE))
 		return (-EINVAL);
 
+	/* Repeat while reading valid messages for another ports. */
 	do
 	{
-		ret = kmailbox_aread(mbxid, buffer2, KMAILBOX_MESSAGE_SIZE);
-		if ((ret < 0) && (ret != -ETIMEDOUT))
+		if ((ret = kmailbox_aread(mbxid, buffer2, KMAILBOX_MESSAGE_SIZE)) < 0)
 			return (ret);
-	} while(ret < 0);
+	} while ((ret = kmailbox_wait(mbxid)) > 0);
 
 #if 0
 	if ((ret = kmailbox_wait(mbxid)) < 0)

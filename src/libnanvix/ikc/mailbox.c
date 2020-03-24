@@ -134,7 +134,7 @@ ssize_t kmailbox_awrite(int mbxid, const void *buffer, size_t size)
 			(word_t) buffer,
 			(word_t) KMAILBOX_MESSAGE_SIZE
 		);
-	} while (ret == -EBUSY);
+	} while ((ret == -EBUSY));
 
 	return (ret);
 }
@@ -246,6 +246,7 @@ ssize_t kmailbox_read(int mbxid, void *buffer, size_t size)
 	/* Repeat while reading valid messages for another ports. */
 	do
 	{
+		/* Read a message. */
 		if ((ret = kmailbox_aread(mbxid, buffer2, KMAILBOX_MESSAGE_SIZE)) < 0)
 			return (ret);
 	} while ((ret = kmailbox_wait(mbxid)) > 0);

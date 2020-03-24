@@ -170,7 +170,7 @@ int kportal_aread(int portalid, void * buffer, size_t size)
 			(word_t) portalid,
 			(word_t) buffer,
 			(word_t) size);
-	} while (ret == -EBUSY);
+	} while ((ret == -EBUSY) || (ret == -ENOMSG));
 
 	return (ret);
 }
@@ -279,6 +279,7 @@ ssize_t kportal_read(int portalid, void *buffer, size_t size)
 	/* Repeat while reading valid messages for another ports. */
 	do
 	{
+		/* Read a message. */
 		if ((ret = kportal_aread(portalid, buffer, size)) < 0)
 			return (ret);
 	} while ((ret = kportal_wait(portalid)) > 0);

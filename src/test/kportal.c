@@ -1015,7 +1015,7 @@ static void test_fault_portal_double_allow(void)
 
 	test_assert((portalid = kportal_create(local, 0)) >= 0);
 	test_assert(kportal_allow(portalid, remote, 0) == 0);
-	test_assert(kportal_allow(portalid, remote, 0) == -EBUSY);
+	test_assert(kportal_allow(portalid, remote, 0) == -EBADF);
 	test_assert(kportal_unlink(portalid) == 0);
 }
 

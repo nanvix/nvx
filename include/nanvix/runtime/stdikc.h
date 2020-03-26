@@ -26,7 +26,7 @@
 #define NANVIX_RUNTIME_STDIKC_H_
 
 /*============================================================================*
- * Kernel Standard Mailbox                                                    *
+ * Kernel Standard Synchronization Point                                      *
  *============================================================================*/
 
 	/**

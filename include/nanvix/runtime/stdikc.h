@@ -67,6 +67,14 @@
  *============================================================================*/
 
 	/**
+	 * @brief Gets the port number of the standard input mailbox.
+	 *
+	 * @returns The port number where the standard input mailbox is
+	 * hooked up.
+	 */
+	extern int stdinbox_get_port(void);
+
+	/**
 	 * @brief Gets the kernel standard input mailbox.
 	 *
 	 * @return The kernel standard input mailbox.

@@ -40,6 +40,14 @@ static int __stdinbox[THREAD_MAX] = {
 /**
  * @todo TODO: provide a detailed description for this function.
  */
+int stdinbox_get_port(void)
+{
+	return (kthread_self());
+}
+
+/**
+ * @todo TODO: provide a detailed description for this function.
+ */
 int __stdmailbox_setup(void)
 {
 	int tid;
@@ -48,7 +56,7 @@ int __stdmailbox_setup(void)
 	tid = kthread_self();
 	local = knode_get_num();
 
-	return (((__stdinbox[tid] = kmailbox_create(local, kthread_self())) < 0) ? -1 : 0);
+	return (((__stdinbox[tid] = kmailbox_create(local, stdinbox_get_port())) < 0) ? -1 : 0);
 }
 
 /**

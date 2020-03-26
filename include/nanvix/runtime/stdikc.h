@@ -104,6 +104,14 @@
  *============================================================================*/
 
 	/**
+	 * @brief Gets the port number of the standard input portal.
+	 *
+	 * @returns The port number where the standard input portal is
+	 * hooked up.
+	 */
+	extern int stdinportal_get_port(void);
+
+	/**
 	 * @brief Returns the kernel standard input portal.
 	 *
 	 * @return The kernel standard input portal.

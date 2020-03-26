@@ -40,6 +40,14 @@ static int __stdinportal[THREAD_MAX] = {
 /**
  * @todo TODO: provide a detailed description for this function.
  */
+int stdinportal_get_port(void)
+{
+	return (kthread_self());
+}
+
+/**
+ * @todo TODO: provide a detailed description for this function.
+ */
 int __stdportal_setup(void)
 {
 	int tid;
@@ -48,7 +56,7 @@ int __stdportal_setup(void)
 	tid = kthread_self();
 	local = knode_get_num();
 
-	return (((__stdinportal[tid] = kportal_create(local, kthread_self())) < 0) ? -1 : 0);
+	return (((__stdinportal[tid] = kportal_create(local, stdinportal_get_port())) < 0) ? -1 : 0);
 }
 
 /**

@@ -26,7 +26,7 @@
 #define NANVIX_RUNTIME_STDIKC_H_
 
 /*============================================================================*
- * Kernel Standard Mailbox                                                    *
+ * Kernel Standard Synchronization Point                                      *
  *============================================================================*/
 
 	/**
@@ -67,6 +67,14 @@
  *============================================================================*/
 
 	/**
+	 * @brief Gets the port number of the standard input mailbox.
+	 *
+	 * @returns The port number where the standard input mailbox is
+	 * hooked up.
+	 */
+	extern int stdinbox_get_port(void);
+
+	/**
 	 * @brief Gets the kernel standard input mailbox.
 	 *
 	 * @return The kernel standard input mailbox.
@@ -94,6 +102,14 @@
 /*============================================================================*
  * Kernel Standard Portal                                                     *
  *============================================================================*/
+
+	/**
+	 * @brief Gets the port number of the standard input portal.
+	 *
+	 * @returns The port number where the standard input portal is
+	 * hooked up.
+	 */
+	extern int stdinportal_get_port(void);
 
 	/**
 	 * @brief Returns the kernel standard input portal.

@@ -23,6 +23,7 @@
  * SOFTWARE.
  */
 
+#include <nanvix/sys/thread.h>
 #include <nanvix/sys/mailbox.h>
 #include <nanvix/sys/noc.h>
 #include <posix/errno.h>
@@ -241,14 +242,14 @@ static void test_api_mailbox_virtualization(void)
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	/* Creates multiple virtual mailboxes. */
-	for (unsigned int i = 0; i < TEST_VIRTUALIZATION_MBX_NR; ++i)
+	for (int i = 0; i < TEST_VIRTUALIZATION_MBX_NR; ++i)
 	{
 		test_assert((mbx_in[i] = kmailbox_create(local, i)) >= 0);
 		test_assert((mbx_out[i] = kmailbox_open(remote, i)) >= 0);
 	}
 
 	/* Deletion of the created virtual mailboxes. */
-	for (unsigned int i = 0; i < TEST_VIRTUALIZATION_MBX_NR; ++i)
+	for (int i = 0; i < TEST_VIRTUALIZATION_MBX_NR; ++i)
 	{
 		test_assert(kmailbox_unlink(mbx_in[i]) == 0);
 		test_assert(kmailbox_close(mbx_out[i]) == 0);
@@ -655,6 +656,10 @@ static void test_api_mailbox_msg_forwarding(void)
 	test_assert(kmailbox_close(mbx_out) == 0);
 	test_assert(kmailbox_unlink(mbx_in) == 0);
 }
+
+/*============================================================================*
+ * Fault Tests                                                                *
+ *============================================================================*/
 
 /*============================================================================*
  * Fault Test: Invalid Create                                                 *
@@ -1080,11 +1085,780 @@ static void test_fault_mailbox_bad_mbxid(void)
 }
 
 /*============================================================================*
+ * Stress Tests                                                               *
+ *============================================================================*/
+
+/**
+ * @name Number of setups and communications.
+ */
+/**@{*/
+#define NSETUPS 1
+#define NCOMMUNICATIONS 1
+#define TEST_MAILBOX_NPORTS TEST_MULTIPLEXATION_MBX_PAIRS
+/**@}*/
+
+/*============================================================================*
+ * Stress Test: Mailbox Create Unlink                                         *
+ *============================================================================*/
+
+/**
+ * @brief Stress Test: Mailbox Create Unlink
+ */
+PRIVATE void test_stress_mailbox_create_unlink(void)
+{
+	int mbxid;
+	int local;
+
+	local = knode_get_num();
+
+	for (int i = 0; i < NSETUPS; ++i)
+	{
+		test_assert((mbxid = kmailbox_create(local, 0)) >= 0);
+		test_assert(kmailbox_unlink(mbxid) == 0);
+	}
+}
+
+/*============================================================================*
+ * Stress Test: Mailbox Open Close                                            *
+ *============================================================================*/
+
+/**
+ * @brief Stress Test: Mailbox Open Close
+ */
+PRIVATE void test_stress_mailbox_open_close(void)
+{
+	int mbxid;
+	int remote;
+
+	remote = knode_get_num() == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	for (int i = 0; i < NSETUPS; ++i)
+	{
+		test_assert((mbxid = kmailbox_open(remote, 0)) >= 0);
+		test_assert(kmailbox_close(mbxid) == 0);
+	}
+}
+
+/*============================================================================*
+ * Stress Test: Mailbox Broadcast                                             *
+ *============================================================================*/
+
+/**
+ * @brief Stress Test: Mailbox Broadcast
+ */
+PRIVATE void test_stress_mailbox_broadcast(void)
+{
+	int local;
+	int remote;
+	int mbxid;
+	char message[KMAILBOX_MESSAGE_SIZE];
+
+	local = knode_get_num();
+	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	if (local == MASTER_NODENUM)
+	{
+		message[0] = local;
+
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			test_assert((mbxid = kmailbox_open(remote, 0)) >= 0);
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+				test_assert(kmailbox_write(mbxid, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+
+			test_assert(kmailbox_close(mbxid) == 0);
+		}
+	}
+	else
+	{
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			test_assert((mbxid = kmailbox_create(local, 0)) >= 0);
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				message[0] = local;
+				test_assert(kmailbox_read(mbxid, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+				test_assert(message[0] == remote);
+			}
+
+			test_assert(kmailbox_unlink(mbxid) == 0);
+		}
+	}
+}
+
+/*============================================================================*
+ * Stress Test: Mailbox Gather                                                *
+ *============================================================================*/
+
+/**
+ * @brief Stress Test: Mailbox Gather
+ */
+PRIVATE void test_stress_mailbox_gather(void)
+{
+	int local;
+	int remote;
+	int mbxid;
+	char message[KMAILBOX_MESSAGE_SIZE];
+
+	local = knode_get_num();
+	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	if (local == SLAVE_NODENUM)
+	{
+		message[0] = local;
+
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			test_assert((mbxid = kmailbox_open(remote, 0)) >= 0);
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+				test_assert(kmailbox_write(mbxid, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+
+			test_assert(kmailbox_close(mbxid) == 0);
+		}
+	}
+	else
+	{
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			test_assert((mbxid = kmailbox_create(local, 0)) >= 0);
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				message[0] = local;
+				test_assert(kmailbox_read(mbxid, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+				test_assert(message[0] == remote);
+			}
+
+			test_assert(kmailbox_unlink(mbxid) == 0);
+		}
+	}
+}
+
+/*============================================================================*
+ * Stress Test: Mailbox Ping-Pong                                             *
+ *============================================================================*/
+
+/**
+ * @brief Stress Test: Mailbox Ping-Pong
+ */
+PRIVATE void test_stress_mailbox_pingpong(void)
+{
+	int local;
+	int remote;
+	int inbox;
+	int outbox;
+	char msg_in[KMAILBOX_MESSAGE_SIZE];
+	char msg_out[KMAILBOX_MESSAGE_SIZE];
+
+	local = knode_get_num();
+	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	msg_out[0] = local;
+
+	for (int i = 0; i < NSETUPS; ++i)
+	{
+		test_assert((inbox = kmailbox_create(local, 0)) >= 0);
+		test_assert((outbox = kmailbox_open(remote, 0)) >= 0);
+
+		if (local == SLAVE_NODENUM)
+		{
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				msg_in[0] = local;
+				test_assert(kmailbox_read(inbox, msg_in, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+				test_assert(msg_in[0] == remote);
+
+				test_assert(kmailbox_write(outbox, msg_out, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+			}
+		}
+		else
+		{
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				test_assert(kmailbox_write(outbox, msg_out, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+
+				msg_in[0] = local;
+				test_assert(kmailbox_read(inbox, msg_in, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+				test_assert(msg_in[0] == remote);
+			}
+		}
+
+		test_assert(kmailbox_close(outbox) == 0);
+		test_assert(kmailbox_unlink(inbox) == 0);
+	}
+}
+
+/*============================================================================*
+ * Stress Test: Mailbox Multiplexing Broadcast                                *
+ *============================================================================*/
+
+/**
+ * @brief Stress Test: Mailbox Multiplexing Broadcast
+ */
+PRIVATE void test_stress_mailbox_multiplexing_broadcast(void)
+{
+	int local;
+	int remote;
+	int mbxids[TEST_MAILBOX_NPORTS];
+	char message[KMAILBOX_MESSAGE_SIZE];
+
+	local = knode_get_num();
+	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	if (local == MASTER_NODENUM)
+	{
+		message[0] = local;
+
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+				test_assert((mbxids[j] = kmailbox_open(remote, j)) >= 0);
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+				for (int k = 0; k < TEST_MAILBOX_NPORTS; ++k)
+					test_assert(kmailbox_write(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+
+			for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+				test_assert(kmailbox_close(mbxids[j]) == 0);
+		}
+	}
+	else
+	{
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+				test_assert((mbxids[j] = kmailbox_create(local, j)) >= 0);
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < TEST_MAILBOX_NPORTS; ++k)
+				{
+					message[0] = local;
+					test_assert(kmailbox_read(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+					test_assert(message[0] == remote);
+				}
+			}
+
+			for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+				test_assert(kmailbox_unlink(mbxids[j]) == 0);
+		}
+	}
+}
+
+/*============================================================================*
+ * Stress Test: Mailbox Multiplexing Gather                                   *
+ *============================================================================*/
+
+/**
+ * @brief Stress Test: Mailbox Multiplexing Gather
+ */
+PRIVATE void test_stress_mailbox_multiplexing_gather(void)
+{
+	int local;
+	int remote;
+	int mbxids[TEST_MAILBOX_NPORTS];
+	char message[KMAILBOX_MESSAGE_SIZE];
+
+	local = knode_get_num();
+	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	if (local == SLAVE_NODENUM)
+	{
+		message[0] = local;
+
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+				test_assert((mbxids[j] = kmailbox_open(remote, j)) >= 0);
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+				for (int k = 0; k < TEST_MAILBOX_NPORTS; ++k)
+					test_assert(kmailbox_write(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+
+			for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+				test_assert(kmailbox_close(mbxids[j]) == 0);
+		}
+	}
+	else
+	{
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+				test_assert((mbxids[j] = kmailbox_create(local, j)) >= 0);
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < TEST_MAILBOX_NPORTS; ++k)
+				{
+					message[0] = local;
+					test_assert(kmailbox_read(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+					test_assert(message[0] == remote);
+				}
+			}
+
+			for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+				test_assert(kmailbox_unlink(mbxids[j]) == 0);
+		}
+	}
+}
+
+/*============================================================================*
+ * Stress Test: Mailbox Multiplexing Ping-Pong                                *
+ *============================================================================*/
+
+/**
+ * @brief Stress Test: Mailbox Multiplexing Ping-Pong
+ */
+PRIVATE void test_stress_mailbox_multiplexing_pingpong(void)
+{
+	int local;
+	int remote;
+	int inboxes[TEST_MAILBOX_NPORTS];
+	int outboxes[TEST_MAILBOX_NPORTS];
+	char msg_in[KMAILBOX_MESSAGE_SIZE];
+	char msg_out[KMAILBOX_MESSAGE_SIZE];
+
+	local = knode_get_num();
+	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	msg_out[0] = local;
+
+	for (int i = 0; i < NSETUPS; ++i)
+	{
+		for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+		{
+			test_assert((inboxes[j] = kmailbox_create(local, j)) >= 0);
+			test_assert((outboxes[j] = kmailbox_open(remote, j)) >= 0);
+		}
+
+		if (local == SLAVE_NODENUM)
+		{
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < TEST_MAILBOX_NPORTS; ++k)
+				{
+					msg_in[0] = local;
+					test_assert(kmailbox_read(inboxes[k], msg_in, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+					test_assert(msg_in[0] == remote);
+
+					test_assert(kmailbox_write(outboxes[k], msg_out, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+				}
+			}
+		}
+		else
+		{
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < TEST_MAILBOX_NPORTS; ++k)
+				{
+					test_assert(kmailbox_write(outboxes[k], msg_out, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+
+					msg_in[0] = local;
+					test_assert(kmailbox_read(inboxes[k], msg_in, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+					test_assert(msg_in[0] == remote);
+				}
+			}
+		}
+
+		for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+		{
+			test_assert(kmailbox_close(outboxes[j]) == 0);
+			test_assert(kmailbox_unlink(inboxes[j]) == 0);
+		}
+	}
+}
+
+/*============================================================================*
+ * Stress Test: Thread synchronization                                        *
+ *============================================================================*/
+
+/**
+ * @brief A simple fence.
+ */
+static struct fence
+{
+	int ncores;      /**< Number of cores in the fence.            */
+	int nreached;    /**< Number of cores that reached the fence.  */
+	int release;     /**< Wait condition.                          */
+	spinlock_t lock; /**< Lock.                                    */
+} _fence = {
+	0, 0, 0, SPINLOCK_UNLOCKED
+};
+
+/**
+ * @brief Initializes a fence.
+ *
+ * @param b      Target fence.
+ * @param ncores Number of cores in the fence.
+ */
+PRIVATE void fence_init(struct fence *b, int ncores)
+{
+	b->ncores   = ncores;
+	b->nreached = 0;
+}
+
+/**
+ * @brief Waits in a fence.
+ */
+PRIVATE void fence(struct fence *b)
+{
+	int exit;
+	int local_release;
+
+	/* Notifies thread reach. */
+	spinlock_lock(&b->lock);
+
+		local_release = !b->release;
+
+		b->nreached++;
+
+		if (b->nreached == b->ncores)
+		{
+			b->nreached = 0;
+			b->release  = local_release;
+		}
+
+	spinlock_unlock(&b->lock);
+
+	exit = 0;
+	while (!exit)
+	{
+		exit = 100;
+		while (exit--);
+
+		spinlock_lock(&b->lock);
+			exit = (local_release == b->release);
+		spinlock_unlock(&b->lock);
+	}
+}
+
+#ifdef __mppa256__
+	#define TEST_THREAD_NPORTS (K1BDP_CORES_NUM - 1)
+#else
+	#define TEST_THREAD_NPORTS (THREAD_MAX)
+#endif
+
+/*============================================================================*
+ * Stress Test: Mailbox Thread Multiplexing Broadcast                         *
+ *============================================================================*/
+
+PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
+{
+	int tid;
+	int nports;
+	int local;
+	int remote;
+	int mbxids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
+	char message[KMAILBOX_MESSAGE_SIZE];
+
+	tid = ((int)(intptr_t) arg);
+
+	local = knode_get_num();
+	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	if (local == MASTER_NODENUM)
+	{
+		message[0] = local;
+
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			nports = 0;
+			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
+			{
+				if (j == (tid + nports * THREAD_MAX))
+					test_assert((mbxids[nports++] = kmailbox_open(remote, j)) >= 0);
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+					test_assert(kmailbox_write(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+				
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < nports; ++j)
+				test_assert(kmailbox_close(mbxids[j]) == 0);
+
+			fence(&_fence);
+		}
+	}
+	else
+	{
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			nports = 0;
+			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
+			{
+				if (j == (tid + nports * THREAD_MAX))
+					test_assert((mbxids[nports++] = kmailbox_create(local, j)) >= 0);
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+				{
+					message[0] = local;
+					test_assert(kmailbox_read(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+					test_assert(message[0] == remote);
+				}
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < nports; ++j)
+				test_assert(kmailbox_unlink(mbxids[j]) == 0);
+
+			fence(&_fence);
+		}
+	}
+
+	return (NULL);
+}
+
+/**
+ * @brief Stress Test: Mailbox Thread Multiplexing Broadcast
+ */
+PRIVATE void test_stress_mailbox_thread_multiplexing_broadcast(void)
+{
+	kthread_t tid[THREAD_MAX - 1];
+
+	fence_init(&_fence, THREAD_MAX);
+
+	/* Create threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_broadcast, ((void *)(intptr_t) i)) == 0);
+
+	do_thread_multiplexing_broadcast(0);
+
+	/* Join threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_join(tid[i - 1], NULL) == 0);
+}
+
+/*============================================================================*
+ * Stress Test: Mailbox Thread Multiplexing Gather                            *
+ *============================================================================*/
+
+/**
+ * @brief Stress Test: Mailbox Thread Multiplexing Gather
+ */
+PRIVATE void * do_thread_multiplexing_gather(void * arg)
+{
+	int tid;
+	int nports;
+	int local;
+	int remote;
+	int mbxids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
+	char message[KMAILBOX_MESSAGE_SIZE];
+
+	tid = ((int)(intptr_t) arg);
+
+	local = knode_get_num();
+	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	if (local == SLAVE_NODENUM)
+	{
+		message[0] = local;
+
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			nports = 0;
+			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
+			{
+				if (j == (tid + nports * THREAD_MAX))
+					test_assert((mbxids[nports++] = kmailbox_open(remote, j)) >= 0);
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+					test_assert(kmailbox_write(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < nports; ++j)
+				test_assert(kmailbox_close(mbxids[j]) == 0);
+
+			fence(&_fence);
+		}
+	}
+	else
+	{
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			nports = 0;
+			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
+			{
+				if (j == (tid + nports * THREAD_MAX))
+					test_assert((mbxids[nports++] = kmailbox_create(local, j)) >= 0);
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+				{
+					message[0] = local;
+					test_assert(kmailbox_read(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+					test_assert(message[0] == remote);
+				}
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < nports; ++j)
+				test_assert(kmailbox_unlink(mbxids[j]) == 0);
+
+			fence(&_fence);
+		}
+	}
+
+	return (NULL);
+}
+
+/**
+ * @brief Stress Test: Mailbox Thread Multiplexing Gather
+ */
+PRIVATE void test_stress_mailbox_thread_multiplexing_gather(void)
+{
+	kthread_t tid[THREAD_MAX - 1];
+
+	fence_init(&_fence, THREAD_MAX);
+
+	/* Create threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_gather, ((void *)(intptr_t) i)) == 0);
+
+	do_thread_multiplexing_gather(0);
+
+	/* Join threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_join(tid[i - 1], NULL) == 0);
+}
+
+/*============================================================================*
+ * Stress Test: Mailbox Thread Multiplexing Ping-Pong                         *
+ *============================================================================*/
+
+/**
+ * @brief Stress Test: Mailbox Thread Multiplexing Ping-Pong
+ */
+PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
+{
+	int tid;
+	int local;
+	int remote;
+	int nports;
+	int inboxes[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
+	int outboxes[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
+	char msg_in[KMAILBOX_MESSAGE_SIZE];
+	char msg_out[KMAILBOX_MESSAGE_SIZE];
+
+	tid = ((int)(intptr_t) arg);
+
+	local = knode_get_num();
+	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	msg_out[0] = local;
+
+	for (int i = 0; i < NSETUPS; ++i)
+	{
+		nports = 0;
+		for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
+		{
+			if (j == (tid + nports * THREAD_MAX))
+			{
+				test_assert((inboxes[nports] = kmailbox_create(local, j)) >= 0);
+				test_assert((outboxes[nports] = kmailbox_open(remote, j)) >= 0);
+				nports++;
+			}
+
+			fence(&_fence);
+		}
+
+		if (local == MASTER_NODENUM)
+		{
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+				{
+					msg_in[0] = local;
+					test_assert(kmailbox_read(inboxes[k], msg_in, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+					test_assert(msg_in[0] == remote);
+
+					test_assert(kmailbox_write(outboxes[k], msg_out, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+				}
+
+				fence(&_fence);
+			}
+		}
+		else
+		{
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+				{
+					test_assert(kmailbox_write(outboxes[k], msg_out, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+
+					msg_in[0] = local;
+					test_assert(kmailbox_read(inboxes[k], msg_in, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+					test_assert(msg_in[0] == remote);
+				}
+
+				fence(&_fence);
+			}
+		}
+
+		for (int j = 0; j < nports; ++j)
+		{
+			test_assert(kmailbox_close(outboxes[j]) == 0);
+			test_assert(kmailbox_unlink(inboxes[j]) == 0);
+		}
+
+		fence(&_fence);
+	}
+
+	return (NULL);
+}
+
+/**
+ * @brief Stress Test: Mailbox Thread Multiplexing Ping-Pong
+ */
+PRIVATE void test_stress_mailbox_thread_multiplexing_pingpong(void)
+{
+	kthread_t tid[THREAD_MAX - 1];
+
+	fence_init(&_fence, THREAD_MAX);
+
+	/* Create threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_pingpong, ((void *)(intptr_t) i)) == 0);
+
+	do_thread_multiplexing_pingpong(0);
+
+	/* Join threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_join(tid[i - 1], NULL) == 0);
+}
+
+/*============================================================================*
  * Test Driver                                                                *
  *============================================================================*/
 
 /**
- * @brief Unit tests.
+ * @brief API tests.
  */
 static struct test mailbox_tests_api[] = {
 	{ test_api_mailbox_create_unlink,      "[test][mailbox][api] mailbox create unlink      [passed]" },
@@ -1102,7 +1876,7 @@ static struct test mailbox_tests_api[] = {
 };
 
 /**
- * @brief Unit tests.
+ * @brief Fault tests.
  */
 static struct test mailbox_tests_fault[] = {
 	{ test_fault_mailbox_invalid_create,     "[test][mailbox][fault] mailbox invalid create     [passed]" },
@@ -1127,6 +1901,25 @@ static struct test mailbox_tests_fault[] = {
 	{ test_fault_mailbox_invalid_ioctl,      "[test][mailbox][fault] mailbox invalid ioctl      [passed]" },
 	{ test_fault_mailbox_bad_mbxid,          "[test][mailbox][fault] mailbox bad mbxid          [passed]" },
 	{ NULL,                                   NULL                                                        },
+};
+
+/**
+ * @brief Stress tests.
+ */
+PRIVATE struct test mailbox_tests_stress[] = {
+	/* Intra-Cluster API Tests */
+	{ test_stress_mailbox_create_unlink,                 "[test][mailbox][stress] mailbox create unlink                 [passed]" },
+	{ test_stress_mailbox_open_close,                    "[test][mailbox][stress] mailbox open close                    [passed]" },
+	{ test_stress_mailbox_thread_multiplexing_broadcast, "[test][mailbox][stress] mailbox thread multiplexing broadcast [passed]" },
+	{ test_stress_mailbox_thread_multiplexing_gather,    "[test][mailbox][stress] mailbox thread multiplexing gather    [passed]" },
+	{ test_stress_mailbox_thread_multiplexing_pingpong,  "[test][mailbox][stress] mailbox thread multiplexing ping-pong [passed]" },
+	{ test_stress_mailbox_broadcast,                     "[test][mailbox][stress] mailbox broadcast                     [passed]" },
+	{ test_stress_mailbox_gather,                        "[test][mailbox][stress] mailbox gather                        [passed]" },
+	{ test_stress_mailbox_pingpong,                      "[test][mailbox][stress] mailbox ping-pong                     [passed]" },
+	{ test_stress_mailbox_multiplexing_broadcast,        "[test][mailbox][stress] mailbox multiplexing broadcast        [passed]" },
+	{ test_stress_mailbox_multiplexing_gather,           "[test][mailbox][stress] mailbox multiplexing gather           [passed]" },
+	{ test_stress_mailbox_multiplexing_pingpong,         "[test][mailbox][stress] mailbox multiplexing ping-pong        [passed]" },
+	{ NULL,                                               NULL                                                                    },
 };
 
 /**
@@ -1162,6 +1955,17 @@ void test_mailbox(void)
 
 			if (nodenum == MASTER_NODENUM)
 				nanvix_puts(mailbox_tests_fault[i].name);
+		}
+
+		/* Stress Tests */
+		if (nodenum == MASTER_NODENUM)
+			nanvix_puts("--------------------------------------------------------------------------------");
+		for (unsigned i = 0; mailbox_tests_stress[i].test_fn != NULL; i++)
+		{
+			mailbox_tests_stress[i].test_fn();
+
+			if (nodenum == MASTER_NODENUM)
+				nanvix_puts(mailbox_tests_stress[i].name);
 		}
 	}
 }

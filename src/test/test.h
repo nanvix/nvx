@@ -72,6 +72,7 @@
 	extern void test_sync(void);
 	extern void test_mailbox(void);
 	extern void test_portal(void);
+	extern void test_ikc(void);
 
 	/**@}*/
 

@@ -33,8 +33,8 @@
 /**
  * @brief Kernel standard sync.
  */
-static int __stdbarrier[THREAD_MAX][2] = {
-	[0 ... (THREAD_MAX - 1)] = { -1, -1},
+static int __stdbarrier[THREAD_MAX + 1][2] = {
+	[0 ... (THREAD_MAX)] = { -1, -1 },
 };
 
 #ifndef __unix64__

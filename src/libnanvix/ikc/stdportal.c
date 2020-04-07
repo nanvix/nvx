@@ -33,8 +33,8 @@
 /**
  * @brief Kernel standard input portal.
  */
-static int __stdinportal[THREAD_MAX] = {
-	[0 ... (THREAD_MAX - 1)] = -1
+static int __stdinportal[THREAD_MAX + 1] = {
+	[0 ... (THREAD_MAX)] = -1
 };
 
 /**

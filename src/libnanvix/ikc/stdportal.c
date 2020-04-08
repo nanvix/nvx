@@ -53,7 +53,9 @@ int __stdportal_setup(void)
 	int tid;
 	int local;
 
-	tid = kthread_self();
+	if ((tid = kthread_self()) > THREAD_MAX)
+		return (-1);
+
 	local = knode_get_num();
 
 	return (((__stdinportal[tid] = kportal_create(local, stdinportal_get_port())) < 0) ? -1 : 0);
@@ -66,7 +68,8 @@ int __stdportal_cleanup(void)
 {
 	int tid;
 
-	tid = kthread_self();
+	if ((tid = kthread_self()) > THREAD_MAX)
+		return (-1);
 
 	return (kportal_unlink(__stdinportal[tid]));
 }
@@ -78,7 +81,8 @@ int stdinportal_get(void)
 {
 	int tid;
 
-	tid = kthread_self();
+	if ((tid = kthread_self()) > THREAD_MAX)
+		return (-1);
 
 	return (__stdinportal[tid]);
 }

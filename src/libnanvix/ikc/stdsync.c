@@ -155,7 +155,8 @@ int __stdsync_cleanup(void)
 	int tid;
 	int ret;
 
-	tid = kthread_self();
+	if ((tid = kthread_self()) > THREAD_MAX)
+		return (-1);
 
 	/* Master cluster */
 	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
@@ -182,7 +183,9 @@ int stdsync_fence(void)
 	int tid;
 	int ret;
 
-	tid = kthread_self();
+	if ((tid = kthread_self()) > THREAD_MAX)
+		return (-1);
+
 
 	/* Master cluster */
 	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
@@ -213,7 +216,8 @@ int stdsync_get(void)
 {
 	int tid;
 
-	tid = kthread_self();
+	if ((tid = kthread_self()) > THREAD_MAX)
+		return (-1);
 
 	return (__stdbarrier[tid][0]);
 }

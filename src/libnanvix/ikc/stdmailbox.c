@@ -53,7 +53,9 @@ int __stdmailbox_setup(void)
 	int tid;
 	int local;
 
-	tid = kthread_self();
+	if ((tid = kthread_self()) > THREAD_MAX)
+		return (-1);
+
 	local = knode_get_num();
 
 	return (((__stdinbox[tid] = kmailbox_create(local, stdinbox_get_port())) < 0) ? -1 : 0);
@@ -66,7 +68,8 @@ int __stdmailbox_cleanup(void)
 {
 	int tid;
 
-	tid = kthread_self();
+	if ((tid = kthread_self()) > THREAD_MAX)
+		return (-1);
 
 	return (kmailbox_unlink(__stdinbox[tid]));
 }
@@ -78,7 +81,8 @@ int stdinbox_get(void)
 {
 	int tid;
 
-	tid = kthread_self();
+	if ((tid = kthread_self()) > THREAD_MAX)
+		return (-1);
 
 	return (__stdinbox[tid]);
 }

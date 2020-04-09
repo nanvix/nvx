@@ -2071,6 +2071,210 @@ PRIVATE void test_stress_portal_thread_multiplexing_pingpong(void)
 }
 
 /*============================================================================*
+ * Stress Test: Portal Thread Multiplexing Broadcast Local                    *
+ *============================================================================*/
+
+PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
+{
+	int tid;
+	int local;
+	int nports;
+	int portalids[TEST_THREAD_NPORTS];
+	char message[TEST_PORTAL_SIZE];
+
+	tid = ((int)(intptr_t) arg);
+
+	local = knode_get_num();
+
+	if (tid == 0)
+	{
+		message[0] = 1;
+
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			nports = 0;
+			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
+			{
+				test_assert((portalids[nports++] = kportal_open(local, local, j)) >= 0);
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+					test_assert(kportal_write(portalids[k], message, TEST_PORTAL_SIZE) == TEST_PORTAL_SIZE);
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < nports; ++j)
+				test_assert(kportal_close(portalids[j]) == 0);
+
+			fence(&_fence);
+		}
+	}
+	else
+	{
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			nports = 0;
+			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
+			{
+				if (j == ((tid - 1) + nports * (THREAD_MAX - 1)))
+					test_assert((portalids[nports++] = kportal_create(local, j)) >= 0);
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+				{
+					message[0] = 0;
+					test_assert(kportal_allow(portalids[k], local, ((tid - 1) + k * (THREAD_MAX - 1))) >= 0);
+					test_assert(kportal_read(portalids[k], message, TEST_PORTAL_SIZE) == TEST_PORTAL_SIZE);
+					test_assert(message[0] == 1);
+				}
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < nports; ++j)
+				test_assert(kportal_unlink(portalids[j]) == 0);
+
+			fence(&_fence);
+		}
+	}
+
+	return (NULL);
+}
+
+/**
+ * @brief Stress Test: Portal Thread Multiplexing Broadcast Local
+ */
+PRIVATE void test_stress_portal_thread_multiplexing_broadcast_local(void)
+{
+	kthread_t tid[THREAD_MAX - 1];
+
+	fence_init(&_fence, THREAD_MAX);
+
+	/* Create threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_broadcast_local, ((void *)(intptr_t) i)) == 0);
+
+	do_thread_multiplexing_broadcast_local(0);
+
+	/* Join threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_join(tid[i - 1], NULL) == 0);
+}
+
+/*============================================================================*
+ * Stress Test: Portal Thread Multiplexing Gather Local                       *
+ *============================================================================*/
+
+/**
+ * @brief Stress Test: Portal Thread Multiplexing Gather Local
+ */
+PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
+{
+	int tid;
+	int local;
+	int nports;
+	int portalids[TEST_THREAD_NPORTS];
+	char message[TEST_PORTAL_SIZE];
+
+	tid = ((int)(intptr_t) arg);
+
+	local = knode_get_num();
+
+	if (tid != 0)
+	{
+		message[0] = 1;
+
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			nports = 0;
+			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
+			{
+				if (j == ((tid - 1) + nports * (THREAD_MAX - 1)))
+					test_assert((portalids[nports++] = kportal_open(local, local, j)) >= 0);
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+					test_assert(kportal_write(portalids[k], message, TEST_PORTAL_SIZE) == TEST_PORTAL_SIZE);
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < nports; ++j)
+				test_assert(kportal_close(portalids[j]) == 0);
+
+			fence(&_fence);
+		}
+	}
+	else
+	{
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			nports = 0;
+			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
+			{
+				test_assert((portalids[nports++] = kportal_create(local, j)) >= 0);
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+				{
+					message[0] = 0;
+					test_assert(kportal_allow(portalids[k], local, k) >= 0);
+					test_assert(kportal_read(portalids[k], message, TEST_PORTAL_SIZE) == TEST_PORTAL_SIZE);
+					test_assert(message[0] == 1);
+
+				}
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < nports; ++j)
+				test_assert(kportal_unlink(portalids[j]) == 0);
+
+			fence(&_fence);
+		}
+	}
+
+	return (NULL);
+}
+
+/**
+ * @brief Stress Test: Portal Thread Multiplexing Gather
+ */
+PRIVATE void test_stress_portal_thread_multiplexing_gather_local(void)
+{
+	kthread_t tid[THREAD_MAX - 1];
+
+	fence_init(&_fence, THREAD_MAX);
+
+	/* Create threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_gather_local, ((void *)(intptr_t) i)) == 0);
+
+	do_thread_multiplexing_gather_local(0);
+
+	/* Join threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_join(tid[i - 1], NULL) == 0);
+}
+
+/*============================================================================*
  * Test Driver                                                                *
  *============================================================================*/
 
@@ -2129,18 +2333,20 @@ static struct test portal_tests_fault[] = {
  */
 PRIVATE struct test portal_tests_stress[] = {
 	/* Intra-Cluster API Tests */
-	{ test_stress_portal_create_unlink,                 "[test][portal][stress] portal create unlink                 [passed]" },
-	{ test_stress_portal_open_close,                    "[test][portal][stress] portal open close                    [passed]" },
-	{ test_stress_portal_thread_multiplexing_broadcast, "[test][portal][stress] portal thread multiplexing broadcast [passed]" },
-	{ test_stress_portal_thread_multiplexing_gather,    "[test][portal][stress] portal thread multiplexing gather    [passed]" },
-	{ test_stress_portal_thread_multiplexing_pingpong,  "[test][portal][stress] portal thread multiplexing ping-pong [passed]" },
-	{ test_stress_portal_broadcast,                     "[test][portal][stress] portal broadcast                     [passed]" },
-	{ test_stress_portal_gather,                        "[test][portal][stress] portal gather                        [passed]" },
-	{ test_stress_portal_pingpong,                      "[test][portal][stress] portal ping-pong                     [passed]" },
-	{ test_stress_portal_multiplexing_broadcast,        "[test][portal][stress] portal multiplexing broadcast        [passed]" },
-	{ test_stress_portal_multiplexing_gather,           "[test][portal][stress] portal multiplexing gather           [passed]" },
-	{ test_stress_portal_multiplexing_pingpong,         "[test][portal][stress] portal multiplexing ping-pong        [passed]" },
-	{ NULL,                                              NULL                                                                  },
+	{ test_stress_portal_create_unlink,                       "[test][portal][stress] portal create unlink                       [passed]" },
+	{ test_stress_portal_open_close,                          "[test][portal][stress] portal open close                          [passed]" },
+	{ test_stress_portal_thread_multiplexing_broadcast,       "[test][portal][stress] portal thread multiplexing broadcast       [passed]" },
+	{ test_stress_portal_thread_multiplexing_gather,          "[test][portal][stress] portal thread multiplexing gather          [passed]" },
+	{ test_stress_portal_thread_multiplexing_pingpong,        "[test][portal][stress] portal thread multiplexing ping-pong       [passed]" },
+	{ test_stress_portal_thread_multiplexing_broadcast_local, "[test][portal][stress] portal thread multiplexing broadcast local [passed]" },
+	{ test_stress_portal_thread_multiplexing_gather_local,    "[test][portal][stress] portal thread multiplexing gather local    [passed]" },
+	{ test_stress_portal_broadcast,                           "[test][portal][stress] portal broadcast                           [passed]" },
+	{ test_stress_portal_gather,                              "[test][portal][stress] portal gather                              [passed]" },
+	{ test_stress_portal_pingpong,                            "[test][portal][stress] portal ping-pong                           [passed]" },
+	{ test_stress_portal_multiplexing_broadcast,              "[test][portal][stress] portal multiplexing broadcast              [passed]" },
+	{ test_stress_portal_multiplexing_gather,                 "[test][portal][stress] portal multiplexing gather                 [passed]" },
+	{ test_stress_portal_multiplexing_pingpong,               "[test][portal][stress] portal multiplexing ping-pong              [passed]" },
+	{ NULL,                                                    NULL                                                                        },
 };
 
 /**

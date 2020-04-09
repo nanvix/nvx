@@ -1854,6 +1854,211 @@ PRIVATE void test_stress_mailbox_thread_multiplexing_pingpong(void)
 }
 
 /*============================================================================*
+ * Stress Test: Mailbox Thread Multiplexing Broadcast Local                   *
+ *============================================================================*/
+
+/**
+ * @brief Stress Test: Mailbox Thread Multiplexing Broadcast Local
+ */
+PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
+{
+	int tid;
+	int local;
+	int nports;
+	int mbxids[TEST_THREAD_NPORTS];
+	char message[KMAILBOX_MESSAGE_SIZE];
+
+	tid = ((int)(intptr_t) arg);
+
+	local = knode_get_num();
+
+	if (tid == 0)
+	{
+		message[0] = 1;
+
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			nports = 0;
+			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
+			{
+				test_assert((mbxids[nports++] = kmailbox_open(local, j)) >= 0);
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+					test_assert(kmailbox_write(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+				
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < nports; ++j)
+				test_assert(kmailbox_close(mbxids[j]) == 0);
+
+			fence(&_fence);
+		}
+	}
+	else
+	{
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			nports = 0;
+			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
+			{
+				if (j == ((tid - 1) + nports * (THREAD_MAX - 1)))
+					test_assert((mbxids[nports++] = kmailbox_create(local, j)) >= 0);
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+				{
+					message[0] = 0;
+					test_assert(kmailbox_read(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+					test_assert(message[0] == 1);
+				}
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < nports; ++j)
+				test_assert(kmailbox_unlink(mbxids[j]) == 0);
+
+			fence(&_fence);
+		}
+	}
+
+	return (NULL);
+}
+
+/**
+ * @brief Stress Test: Mailbox Thread Multiplexing Broadcast Local
+ */
+PRIVATE void test_stress_mailbox_thread_multiplexing_broadcast_local(void)
+{
+	kthread_t tid[THREAD_MAX - 1];
+
+	fence_init(&_fence, THREAD_MAX);
+
+	/* Create threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_broadcast_local, ((void *)(intptr_t) i)) == 0);
+
+	do_thread_multiplexing_broadcast_local(0);
+
+	/* Join threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_join(tid[i - 1], NULL) == 0);
+}
+
+
+/*============================================================================*
+ * Stress Test: Mailbox Thread Multiplexing Gather Local                      *
+ *============================================================================*/
+
+/**
+ * @brief Stress Test: Mailbox Thread Multiplexing Gather Local
+ */
+PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
+{
+	int tid;
+	int local;
+	int nports;
+	int mbxids[TEST_THREAD_NPORTS];
+	char message[KMAILBOX_MESSAGE_SIZE];
+
+	tid = ((int)(intptr_t) arg);
+
+	local = knode_get_num();
+
+	if (tid != 0)
+	{
+		message[0] = 1;
+
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			nports = 0;
+			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
+			{
+				if (j == ((tid - 1) + nports * (THREAD_MAX - 1)))
+					test_assert((mbxids[nports++] = kmailbox_open(local, j)) >= 0);
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+					test_assert(kmailbox_write(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < nports; ++j)
+				test_assert(kmailbox_close(mbxids[j]) == 0);
+
+			fence(&_fence);
+		}
+	}
+	else
+	{
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			nports = 0;
+			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
+			{
+				test_assert((mbxids[nports++] = kmailbox_create(local, j)) >= 0);
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+				{
+					message[0] = 0;
+					test_assert(kmailbox_read(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+					test_assert(message[0] == 1);
+				}
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < nports; ++j)
+				test_assert(kmailbox_unlink(mbxids[j]) == 0);
+
+			fence(&_fence);
+		}
+	}
+
+	return (NULL);
+}
+
+/**
+ * @brief Stress Test: Mailbox Thread Multiplexing Gather
+ */
+PRIVATE void test_stress_mailbox_thread_multiplexing_gather_local(void)
+{
+	kthread_t tid[THREAD_MAX - 1];
+
+	fence_init(&_fence, THREAD_MAX);
+
+	/* Create threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_gather_local, ((void *)(intptr_t) i)) == 0);
+
+	do_thread_multiplexing_gather_local(0);
+
+	/* Join threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_join(tid[i - 1], NULL) == 0);
+}
+
+/*============================================================================*
  * Test Driver                                                                *
  *============================================================================*/
 
@@ -1908,18 +2113,20 @@ static struct test mailbox_tests_fault[] = {
  */
 PRIVATE struct test mailbox_tests_stress[] = {
 	/* Intra-Cluster API Tests */
-	{ test_stress_mailbox_create_unlink,                 "[test][mailbox][stress] mailbox create unlink                 [passed]" },
-	{ test_stress_mailbox_open_close,                    "[test][mailbox][stress] mailbox open close                    [passed]" },
-	{ test_stress_mailbox_thread_multiplexing_broadcast, "[test][mailbox][stress] mailbox thread multiplexing broadcast [passed]" },
-	{ test_stress_mailbox_thread_multiplexing_gather,    "[test][mailbox][stress] mailbox thread multiplexing gather    [passed]" },
-	{ test_stress_mailbox_thread_multiplexing_pingpong,  "[test][mailbox][stress] mailbox thread multiplexing ping-pong [passed]" },
-	{ test_stress_mailbox_broadcast,                     "[test][mailbox][stress] mailbox broadcast                     [passed]" },
-	{ test_stress_mailbox_gather,                        "[test][mailbox][stress] mailbox gather                        [passed]" },
-	{ test_stress_mailbox_pingpong,                      "[test][mailbox][stress] mailbox ping-pong                     [passed]" },
-	{ test_stress_mailbox_multiplexing_broadcast,        "[test][mailbox][stress] mailbox multiplexing broadcast        [passed]" },
-	{ test_stress_mailbox_multiplexing_gather,           "[test][mailbox][stress] mailbox multiplexing gather           [passed]" },
-	{ test_stress_mailbox_multiplexing_pingpong,         "[test][mailbox][stress] mailbox multiplexing ping-pong        [passed]" },
-	{ NULL,                                               NULL                                                                    },
+	{ test_stress_mailbox_create_unlink,                       "[test][mailbox][stress] mailbox create unlink                       [passed]" },
+	{ test_stress_mailbox_open_close,                          "[test][mailbox][stress] mailbox open close                          [passed]" },
+	{ test_stress_mailbox_thread_multiplexing_broadcast,       "[test][mailbox][stress] mailbox thread multiplexing broadcast       [passed]" },
+	{ test_stress_mailbox_thread_multiplexing_gather,          "[test][mailbox][stress] mailbox thread multiplexing gather          [passed]" },
+	{ test_stress_mailbox_thread_multiplexing_pingpong,        "[test][mailbox][stress] mailbox thread multiplexing ping-pong       [passed]" },
+	{ test_stress_mailbox_thread_multiplexing_broadcast_local, "[test][mailbox][stress] mailbox thread multiplexing broadcast local [passed]" },
+	{ test_stress_mailbox_thread_multiplexing_gather_local,    "[test][mailbox][stress] mailbox thread multiplexing gather local    [passed]" },
+	{ test_stress_mailbox_broadcast,                           "[test][mailbox][stress] mailbox broadcast                           [passed]" },
+	{ test_stress_mailbox_gather,                              "[test][mailbox][stress] mailbox gather                              [passed]" },
+	{ test_stress_mailbox_pingpong,                            "[test][mailbox][stress] mailbox ping-pong                           [passed]" },
+	{ test_stress_mailbox_multiplexing_broadcast,              "[test][mailbox][stress] mailbox multiplexing broadcast              [passed]" },
+	{ test_stress_mailbox_multiplexing_gather,                 "[test][mailbox][stress] mailbox multiplexing gather                 [passed]" },
+	{ test_stress_mailbox_multiplexing_pingpong,               "[test][mailbox][stress] mailbox multiplexing ping-pong              [passed]" },
+	{ NULL,                                                     NULL                                                                          },
 };
 
 /**

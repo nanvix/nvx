@@ -1293,6 +1293,249 @@ PRIVATE void test_stress_ikc_thread_multiplexing_pingpong_reverse(void)
 }
 
 /*============================================================================*
+ * Stress Test: Portal Thread Multiplexing Broadcast Local                    *
+ *============================================================================*/
+
+PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
+{
+	int tid;
+	int local;
+	int nports;
+	int mbxids[TEST_THREAD_NPORTS];
+	int portalids[TEST_THREAD_NPORTS];
+	char message[PORTAL_SIZE];
+
+	tid = ((int)(intptr_t) arg);
+
+	local = knode_get_num();
+
+	if (tid == 0)
+	{
+		message[0] = 1;
+
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			nports = 0;
+			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
+			{
+				test_assert((mbxids[nports] = kmailbox_open(local, j)) >= 0);
+				test_assert((portalids[nports] = kportal_open(local, local, j)) >= 0);
+				nports++;
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+				{
+					test_assert(kmailbox_write(mbxids[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
+					test_assert(kportal_write(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+				}
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < nports; ++j)
+			{
+				test_assert(kportal_close(portalids[j]) == 0);
+				test_assert(kmailbox_close(mbxids[j]) == 0);
+			}
+
+			fence(&_fence);
+		}
+	}
+	else
+	{
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			nports = 0;
+			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
+			{
+				if (j == ((tid - 1) + nports * (THREAD_MAX - 1)))
+				{
+					test_assert((mbxids[nports] = kmailbox_create(local, j)) >= 0);
+					test_assert((portalids[nports] = kportal_create(local, j)) >= 0);
+					nports++;
+				}
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+				{
+					message[0] = 0;
+					test_assert(kmailbox_read(mbxids[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
+					test_assert(message[0] == 1);
+
+					message[0] = 0;
+					test_assert(kportal_allow(portalids[k], local, ((tid - 1) + k * (THREAD_MAX - 1))) >= 0);
+					test_assert(kportal_read(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(message[0] == 1);
+				}
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < nports; ++j)
+			{
+				test_assert(kportal_unlink(portalids[j]) == 0);
+				test_assert(kmailbox_unlink(mbxids[j]) == 0);
+			}
+
+			fence(&_fence);
+		}
+	}
+
+	return (NULL);
+}
+
+/**
+ * @brief Stress Test: Portal Thread Multiplexing Broadcast Local
+ */
+PRIVATE void test_stress_ikc_thread_multiplexing_broadcast_local(void)
+{
+	kthread_t tid[THREAD_MAX - 1];
+
+	fence_init(&_fence, THREAD_MAX);
+
+	/* Create threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_broadcast_local, ((void *)(intptr_t) i)) == 0);
+
+	do_thread_multiplexing_broadcast_local(0);
+
+	/* Join threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_join(tid[i - 1], NULL) == 0);
+}
+
+/*============================================================================*
+ * Stress Test: Portal Thread Multiplexing Gather Local                       *
+ *============================================================================*/
+
+/**
+ * @brief Stress Test: Portal Thread Multiplexing Gather Local
+ */
+PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
+{
+	int tid;
+	int local;
+	int nports;
+	int mbxids[TEST_THREAD_NPORTS];
+	int portalids[TEST_THREAD_NPORTS];
+	char message[PORTAL_SIZE];
+
+	tid = ((int)(intptr_t) arg);
+
+	local = knode_get_num();
+
+	if (tid != 0)
+	{
+		message[0] = 1;
+
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			nports = 0;
+			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
+			{
+				if (j == ((tid - 1) + nports * (THREAD_MAX - 1)))
+				{
+					test_assert((mbxids[nports] = kmailbox_open(local, j)) >= 0);
+					test_assert((portalids[nports] = kportal_open(local, local, j)) >= 0);
+					nports++;
+				}
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+				{
+					test_assert(kmailbox_write(mbxids[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
+					test_assert(kportal_write(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+				}
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < nports; ++j)
+			{
+				test_assert(kportal_close(portalids[j]) == 0);
+				test_assert(kmailbox_close(mbxids[j]) == 0);
+			}
+
+			fence(&_fence);
+		}
+	}
+	else
+	{
+		for (int i = 0; i < NSETUPS; ++i)
+		{
+			nports = 0;
+			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
+			{
+				test_assert((mbxids[nports] = kmailbox_create(local, j)) >= 0);
+				test_assert((portalids[nports] = kportal_create(local, j)) >= 0);
+				nports++;
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+				{
+					message[0] = 0;
+					test_assert(kmailbox_read(mbxids[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
+					test_assert(message[0] == 1);
+
+					message[0] = 0;
+					test_assert(kportal_allow(portalids[k], local, k) >= 0);
+					test_assert(kportal_read(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(message[0] == 1);
+				}
+
+				fence(&_fence);
+			}
+
+			for (int j = 0; j < nports; ++j)
+			{
+				test_assert(kmailbox_unlink(mbxids[j]) == 0);
+				test_assert(kportal_unlink(portalids[j]) == 0);
+			}
+
+			fence(&_fence);
+		}
+	}
+
+	return (NULL);
+}
+
+/**
+ * @brief Stress Test: Portal Thread Multiplexing Gather Local
+ */
+PRIVATE void test_stress_ikc_thread_multiplexing_gather_local(void)
+{
+	kthread_t tid[THREAD_MAX - 1];
+
+	fence_init(&_fence, THREAD_MAX);
+
+	/* Create threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_gather_local, ((void *)(intptr_t) i)) == 0);
+
+	do_thread_multiplexing_gather_local(0);
+
+	/* Join threads. */
+	for (int i = 1; i < THREAD_MAX; ++i)
+		test_assert(kthread_join(tid[i - 1], NULL) == 0);
+}
+
+/*============================================================================*
  * Test Driver                                                                *
  *============================================================================*/
 
@@ -1307,6 +1550,8 @@ PRIVATE struct test ikc_tests_stress[] = {
 	{ test_stress_ikc_thread_multiplexing_gather,           "[test][ikc][stress] IKC thread multiplexing gather            [passed]" },
 	{ test_stress_ikc_thread_multiplexing_pingpong,         "[test][ikc][stress] IKC thread multiplexing ping-pong         [passed]" },
 	{ test_stress_ikc_thread_multiplexing_pingpong_reverse, "[test][ikc][stress] IKC thread multiplexing ping-pong reverse [passed]" },
+	{ test_stress_ikc_thread_multiplexing_broadcast_local,  "[test][ikc][stress] IKC thread multiplexing broadcast local   [passed]" },
+	{ test_stress_ikc_thread_multiplexing_gather_local,     "[test][ikc][stress] IKC thread multiplexing gather local      [passed]" },
 	{ test_stress_ikc_broadcast,                            "[test][ikc][stress] IKC broadcast                             [passed]" },
 	{ test_stress_ikc_gather,                               "[test][ikc][stress] IKC gather                                [passed]" },
 	{ test_stress_ikc_pingpong,                             "[test][ikc][stress] IKC ping-pong                             [passed]" },

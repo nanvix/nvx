@@ -42,3 +42,21 @@ int knode_get_num(void)
 
 	return (ret);
 }
+
+/*============================================================================*
+ * kcluster_get_num()                                                         *
+ *============================================================================*/
+
+/*
+ * @see kernel_cluster_get_num()
+ */
+int kcluster_get_num(void)
+{
+	int ret;
+
+	ret = kcall0(
+		NR_cluster_get_num
+	);
+
+	return (ret);
+}

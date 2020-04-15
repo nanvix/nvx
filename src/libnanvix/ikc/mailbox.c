@@ -134,7 +134,7 @@ ssize_t kmailbox_awrite(int mbxid, const void *buffer, size_t size)
 			(word_t) buffer,
 			(word_t) KMAILBOX_MESSAGE_SIZE
 		);
-	} while (ret == -EBUSY);
+	} while ((ret == -EAGAIN) || (ret == -EBUSY));
 
 	return (ret);
 }
@@ -163,7 +163,7 @@ ssize_t kmailbox_aread(int mbxid, void *buffer, size_t size)
 			(word_t) buffer,
 			(word_t) KMAILBOX_MESSAGE_SIZE
 		);
-	} while ((ret == -ETIMEDOUT) || (ret == -EBUSY));
+	} while ((ret == -ETIMEDOUT) || (ret == -EBUSY) || (ret == -ENOMSG));
 
 	return (ret);
 }

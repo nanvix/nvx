@@ -37,6 +37,7 @@
 	 */
 	/**@{*/
 	extern int knode_get_num(void);
+	extern int kcluster_get_num(void);
 	/**@}*/
 
 #endif /* NANVIX_SYS_NOC_H_ */

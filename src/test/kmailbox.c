@@ -1073,12 +1073,17 @@ static void test_fault_mailbox_bad_mbxid(void)
 	test_assert((mbx_in = kmailbox_create(local, 0)) >= 0);
 	test_assert((mbx_out = kmailbox_open(remote, 0)) >= 0);
 
-	test_assert(kmailbox_close(mbx_out + 1) == -EBADF);
-	test_assert(kmailbox_unlink(mbx_in + 1) == -EBADF);
+	test_assert(kmailbox_read(mbx_out, buffer, KMAILBOX_MESSAGE_SIZE) == -EBADF);
+	test_assert(kmailbox_write(mbx_in, buffer, KMAILBOX_MESSAGE_SIZE) == -EBADF);
+
 	test_assert(kmailbox_read(mbx_in + 1, buffer, KMAILBOX_MESSAGE_SIZE) == -EBADF);
-	test_assert(kmailbox_write(mbx_in + 1, buffer, KMAILBOX_MESSAGE_SIZE) == -EBADF);
-	test_assert(kmailbox_wait(mbx_in + 1) == -EBADF);
-	test_assert(kmailbox_ioctl(mbx_in + 1, MAILBOX_IOCTL_GET_VOLUME, &volume) == -EBADF);
+	test_assert(kmailbox_write(mbx_out + 1, buffer, KMAILBOX_MESSAGE_SIZE) == -EBADF);
+
+	test_assert(kmailbox_wait(mbx_out + 1) == -EBADF);
+	test_assert(kmailbox_ioctl(mbx_out + 1, MAILBOX_IOCTL_GET_VOLUME, &volume) == -EBADF);
+
+	test_assert(kmailbox_unlink(mbx_in + 1) == -EBADF);
+	test_assert(kmailbox_close(mbx_out + 1) == -EBADF);
 
 	test_assert(kmailbox_close(mbx_out) == 0);
 	test_assert(kmailbox_unlink(mbx_in) == 0);

@@ -25,6 +25,11 @@
 #ifndef NANVIX_RUNTIME_STDIKC_H_
 #define NANVIX_RUNTIME_STDIKC_H_
 
+	#include <nanvix/sys/mailbox.h>
+	#include <nanvix/sys/noc.h>
+	#include <nanvix/sys/portal.h>
+	#include <nanvix/sys/sync.h>
+
 /*============================================================================*
  * Kernel Standard Synchronization Point                                      *
  *============================================================================*/

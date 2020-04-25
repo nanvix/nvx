@@ -1260,8 +1260,7 @@ static void test_fault_portal_invalid_ioctl(void)
  */
 static void test_fault_portal_bad_portalid(void)
 {
-	int portal_in;
-	int portal_out;
+	int portal;
 	int remote;
 	int local;
 	size_t volume;
@@ -1270,19 +1269,15 @@ static void test_fault_portal_bad_portalid(void)
 	local = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	test_assert((portal_in = kportal_create(local, 0)) >= 0);
-	test_assert((portal_out = kportal_open(local, remote, 0)) >= 0);
+	portal = 0;
 
-	test_assert(kportal_close(portal_out + 1) == -EBADF);
-	test_assert(kportal_unlink(portal_in + 1) == -EBADF);
-	test_assert(kportal_allow(portal_in + 1, remote, 0) == -EBADF)
-	test_assert(kportal_read(portal_in + 1, buffer, MESSAGE_SIZE) == -EBADF);
-	test_assert(kportal_write(portal_in + 1, buffer, MESSAGE_SIZE) == -EBADF);
-	test_assert(kportal_wait(portal_in + 1) == -EBADF);
-	test_assert(kportal_ioctl(portal_in + 1, KPORTAL_IOCTL_GET_VOLUME, &volume) == -EBADF);
-
-	test_assert(kportal_close(portal_out) == 0);
-	test_assert(kportal_unlink(portal_in) == 0);
+	test_assert(kportal_close(portal) == -EBADF);
+	test_assert(kportal_unlink(portal) == -EBADF);
+	test_assert(kportal_allow(portal, remote, 0) == -EBADF)
+	test_assert(kportal_read(portal, buffer, MESSAGE_SIZE) == -EBADF);
+	test_assert(kportal_write(portal, buffer, MESSAGE_SIZE) == -EBADF);
+	test_assert(kportal_wait(portal) == -EBADF);
+	test_assert(kportal_ioctl(portal, KPORTAL_IOCTL_GET_VOLUME, &volume) == -EBADF);
 }
 
 /*============================================================================*

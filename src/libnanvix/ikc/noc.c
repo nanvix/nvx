@@ -60,3 +60,29 @@ int kcluster_get_num(void)
 
 	return (ret);
 }
+
+/*============================================================================*
+ * kcomm_get_port()                                                           *
+ *============================================================================*/
+
+/*
+ * @see kernel_comm_get_num()
+ */
+int kcomm_get_port(int id, int type)
+{
+	int ret;
+
+	if (id < 0)
+		return (-EINVAL);
+
+	if ((type != COMM_TYPE_MAILBOX) && (type != COMM_TYPE_PORTAL))
+		return (-EINVAL);
+
+	ret = kcall2(
+		NR_comm_get_port,
+		(word_t) id,
+		(word_t) type
+	);
+
+	return (ret);
+}

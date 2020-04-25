@@ -537,7 +537,7 @@ static void test_api_portal_multiplexation_3(void)
 
 		for (unsigned i = 0; i < TEST_MULTIPLEXATION3_PORTAL_SELECT_NR; ++i)
 		{
-			port = portal_in[i] % KPORTAL_PORT_NR;
+			port = kcomm_get_port(portal_in[i], COMM_TYPE_PORTAL);
 
 			kmemset(message, -1, MESSAGE_SIZE);
 

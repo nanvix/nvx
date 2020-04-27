@@ -28,6 +28,41 @@
 	#include <nanvix/sys/thread.h>
 
 	/**
+     * @brief Test's parameters
+     */
+    #define NR_NODES       2
+    #define MASTER_NODENUM 0
+    #ifdef __mppa256__
+        #define SLAVE_NODENUM  8
+    #else
+        #define SLAVE_NODENUM  1
+    #endif
+
+    #ifdef __mppa256__
+        #define TEST_THREAD_NPORTS (K1BDP_CORES_NUM - 1)
+    #else
+        #define TEST_THREAD_NPORTS (THREAD_MAX)
+    #endif
+
+    #define NSETUPS 10
+    #define NCOMMUNICATIONS 100
+
+    /**
+     * @brief Portal message size
+     */
+    #define PORTAL_SIZE (1 * KB)
+
+	/**
+     * @brief Portal message size
+     */
+    #define MAILBOX_SIZE (KMAILBOX_MESSAGE_SIZE)
+
+    /**
+     * @brief Max number of nodes involved.
+     */
+    #define MAX_NUM_NODES PROCESSOR_NOC_NODES_NUM
+
+	/**
 	 * @brief Number of iterations in stress tests.
 	 */
 	#define NITERATIONS 10
@@ -91,5 +126,10 @@
 			kshutdown() /* noop */;                   \
 		}                                             \
 	}
+
+	/**
+     * @brief Horizontal line.
+     */
+    extern const char *HLINE;
 
 #endif /* _TEST_H_  */

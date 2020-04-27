@@ -181,7 +181,6 @@ int __stdsync_cleanup(void)
 int stdsync_fence(void)
 {
 	int tid;
-	int ret;
 
 	if ((tid = kthread_self()) > THREAD_MAX)
 		return (-1);
@@ -190,8 +189,8 @@ int stdsync_fence(void)
 	/* Master cluster */
 	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
 	{
-		ret = ksync_wait(__stdbarrier[tid][0]);
-		ret = ksync_signal(__stdbarrier[tid][1]);
+		KASSERT(ksync_wait(__stdbarrier[tid][0]) == 0);
+		KASSERT(ksync_signal(__stdbarrier[tid][1]) == 0);
 	}
 
 	/* Slave cluster. */
@@ -202,11 +201,11 @@ int stdsync_fence(void)
 			delay(CLUSTER_FREQ);
 		#endif
 
-		ret = ksync_signal(__stdbarrier[tid][0]);
-		ret = ksync_wait(__stdbarrier[tid][1]);
+		KASSERT(ksync_signal(__stdbarrier[tid][0]) == 0);
+		KASSERT(ksync_wait(__stdbarrier[tid][1]) == 0);
 	}
 
-	return (ret);
+	return (0);
 }
 
 /**

@@ -32,18 +32,6 @@
 
 #if __TARGET_HAS_MAILBOX
 
-/**
- * @brief Test's parameters
- */
-#define NR_NODES       2
-#define NR_NODES_MAX   PROCESSOR_NOC_NODES_NUM
-#define MASTER_NODENUM 0
-#ifdef __mppa256__
-	#define SLAVE_NODENUM  8
-#else
-	#define SLAVE_NODENUM  1
-#endif
-
 /*============================================================================*
  * API Test: Create Unlink                                                    *
  *============================================================================*/
@@ -1093,15 +1081,6 @@ static void test_fault_mailbox_bad_mbxid(void)
  * Stress Tests                                                               *
  *============================================================================*/
 
-/**
- * @name Number of setups and communications.
- */
-/**@{*/
-#define NSETUPS 1
-#define NCOMMUNICATIONS 1
-#define TEST_MAILBOX_NPORTS TEST_MULTIPLEXATION_MBX_PAIRS
-/**@}*/
-
 /*============================================================================*
  * Stress Test: Mailbox Create Unlink                                         *
  *============================================================================*/
@@ -1307,7 +1286,7 @@ PRIVATE void test_stress_mailbox_multiplexing_broadcast(void)
 {
 	int local;
 	int remote;
-	int mbxids[TEST_MAILBOX_NPORTS];
+	int mbxids[TEST_MULTIPLEXATION_MBX_PAIRS];
 	char message[KMAILBOX_MESSAGE_SIZE];
 
 	local = knode_get_num();
@@ -1319,14 +1298,14 @@ PRIVATE void test_stress_mailbox_multiplexing_broadcast(void)
 
 		for (int i = 0; i < NSETUPS; ++i)
 		{
-			for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 				test_assert((mbxids[j] = kmailbox_open(remote, j)) >= 0);
 
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
-				for (int k = 0; k < TEST_MAILBOX_NPORTS; ++k)
+				for (int k = 0; k < TEST_THREAD_NPORTS; ++k)
 					test_assert(kmailbox_write(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
-			for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 				test_assert(kmailbox_close(mbxids[j]) == 0);
 		}
 	}
@@ -1334,12 +1313,12 @@ PRIVATE void test_stress_mailbox_multiplexing_broadcast(void)
 	{
 		for (int i = 0; i < NSETUPS; ++i)
 		{
-			for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 				test_assert((mbxids[j] = kmailbox_create(local, j)) >= 0);
 
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
 			{
-				for (int k = 0; k < TEST_MAILBOX_NPORTS; ++k)
+				for (int k = 0; k < TEST_THREAD_NPORTS; ++k)
 				{
 					message[0] = local;
 					test_assert(kmailbox_read(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
@@ -1347,7 +1326,7 @@ PRIVATE void test_stress_mailbox_multiplexing_broadcast(void)
 				}
 			}
 
-			for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 				test_assert(kmailbox_unlink(mbxids[j]) == 0);
 		}
 	}
@@ -1364,7 +1343,7 @@ PRIVATE void test_stress_mailbox_multiplexing_gather(void)
 {
 	int local;
 	int remote;
-	int mbxids[TEST_MAILBOX_NPORTS];
+	int mbxids[TEST_MULTIPLEXATION_MBX_PAIRS];
 	char message[KMAILBOX_MESSAGE_SIZE];
 
 	local = knode_get_num();
@@ -1376,14 +1355,14 @@ PRIVATE void test_stress_mailbox_multiplexing_gather(void)
 
 		for (int i = 0; i < NSETUPS; ++i)
 		{
-			for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 				test_assert((mbxids[j] = kmailbox_open(remote, j)) >= 0);
 
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
-				for (int k = 0; k < TEST_MAILBOX_NPORTS; ++k)
+				for (int k = 0; k < TEST_THREAD_NPORTS; ++k)
 					test_assert(kmailbox_write(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
-			for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 				test_assert(kmailbox_close(mbxids[j]) == 0);
 		}
 	}
@@ -1391,12 +1370,12 @@ PRIVATE void test_stress_mailbox_multiplexing_gather(void)
 	{
 		for (int i = 0; i < NSETUPS; ++i)
 		{
-			for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 				test_assert((mbxids[j] = kmailbox_create(local, j)) >= 0);
 
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
 			{
-				for (int k = 0; k < TEST_MAILBOX_NPORTS; ++k)
+				for (int k = 0; k < TEST_THREAD_NPORTS; ++k)
 				{
 					message[0] = local;
 					test_assert(kmailbox_read(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
@@ -1404,7 +1383,7 @@ PRIVATE void test_stress_mailbox_multiplexing_gather(void)
 				}
 			}
 
-			for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 				test_assert(kmailbox_unlink(mbxids[j]) == 0);
 		}
 	}
@@ -1421,8 +1400,8 @@ PRIVATE void test_stress_mailbox_multiplexing_pingpong(void)
 {
 	int local;
 	int remote;
-	int inboxes[TEST_MAILBOX_NPORTS];
-	int outboxes[TEST_MAILBOX_NPORTS];
+	int inboxes[TEST_MULTIPLEXATION_MBX_PAIRS];
+	int outboxes[TEST_MULTIPLEXATION_MBX_PAIRS];
 	char msg_in[KMAILBOX_MESSAGE_SIZE];
 	char msg_out[KMAILBOX_MESSAGE_SIZE];
 
@@ -1433,7 +1412,7 @@ PRIVATE void test_stress_mailbox_multiplexing_pingpong(void)
 
 	for (int i = 0; i < NSETUPS; ++i)
 	{
-		for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+		for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 		{
 			test_assert((inboxes[j] = kmailbox_create(local, j)) >= 0);
 			test_assert((outboxes[j] = kmailbox_open(remote, j)) >= 0);
@@ -1443,7 +1422,7 @@ PRIVATE void test_stress_mailbox_multiplexing_pingpong(void)
 		{
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
 			{
-				for (int k = 0; k < TEST_MAILBOX_NPORTS; ++k)
+				for (int k = 0; k < TEST_THREAD_NPORTS; ++k)
 				{
 					msg_in[0] = local;
 					test_assert(kmailbox_read(inboxes[k], msg_in, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
@@ -1457,7 +1436,7 @@ PRIVATE void test_stress_mailbox_multiplexing_pingpong(void)
 		{
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
 			{
-				for (int k = 0; k < TEST_MAILBOX_NPORTS; ++k)
+				for (int k = 0; k < TEST_THREAD_NPORTS; ++k)
 				{
 					test_assert(kmailbox_write(outboxes[k], msg_out, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 
@@ -1468,7 +1447,7 @@ PRIVATE void test_stress_mailbox_multiplexing_pingpong(void)
 			}
 		}
 
-		for (int j = 0; j < TEST_MAILBOX_NPORTS; ++j)
+		for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 		{
 			test_assert(kmailbox_close(outboxes[j]) == 0);
 			test_assert(kmailbox_unlink(inboxes[j]) == 0);
@@ -1539,12 +1518,6 @@ PRIVATE void fence(struct fence *b)
 		spinlock_unlock(&b->lock);
 	}
 }
-
-#ifdef __mppa256__
-	#define TEST_THREAD_NPORTS (K1BDP_CORES_NUM - 1)
-#else
-	#define TEST_THREAD_NPORTS (THREAD_MAX)
-#endif
 
 /*============================================================================*
  * Stress Test: Mailbox Thread Multiplexing Broadcast                         *

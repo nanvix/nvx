@@ -91,6 +91,15 @@
 	 */
 	extern void nanvix_puts(const char *str);
 
+    /**
+     * @name Barrier functions
+     */
+    /**@{*/
+    extern void barrier_nodes_setup(const int * nodes, int nnodes, int is_master);
+    extern void barrier_nodes(void);
+    extern void barrier_nodes_cleanup(void);
+    /**@}*/
+
 	/**
 	 * @name User-Level Testing Units
 	 */

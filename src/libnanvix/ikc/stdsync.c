@@ -110,7 +110,7 @@ int __stdsync_setup(void)
 	build_node_list(nodes, PROCESSOR_IOCLUSTERS_NUM, PROCESSOR_CCLUSTERS_NUM);
 
 	/* Master cluster */
-	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
+	if (kcluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
 	{
 		ret = __stdbarrier[tid][0] = ksync_create(
 			nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE
@@ -159,7 +159,7 @@ int __stdsync_cleanup(void)
 		return (-1);
 
 	/* Master cluster */
-	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
+	if (kcluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
 	{
 		ret = ksync_unlink(__stdbarrier[tid][0]);
 		ret = ksync_close(__stdbarrier[tid][1]);
@@ -187,7 +187,7 @@ int stdsync_fence(void)
 
 
 	/* Master cluster */
-	if (cluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
+	if (kcluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
 	{
 		KASSERT(ksync_wait(__stdbarrier[tid][0]) == 0);
 		KASSERT(ksync_signal(__stdbarrier[tid][1]) == 0);

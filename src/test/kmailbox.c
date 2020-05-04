@@ -51,7 +51,7 @@ static void test_api_mailbox_create_unlink(void)
 }
 
 /*============================================================================*
- * API Test: Open Close                                                    *
+ * API Test: Open Close                                                       *
  *============================================================================*/
 
 /**
@@ -2148,6 +2148,8 @@ void test_mailbox(void)
 		for (unsigned i = 0; mailbox_tests_stress[i].test_fn != NULL; i++)
 		{
 			mailbox_tests_stress[i].test_fn();
+
+			barrier_nodes();
 
 			if (nodenum == MASTER_NODENUM)
 				nanvix_puts(mailbox_tests_stress[i].name);

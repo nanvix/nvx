@@ -26,6 +26,15 @@
 #include <nanvix/sys/noc.h>
 #include "test.h"
 
+/**
+ * @name Configuration of the routines (Involved clusters)
+ */
+/**@{*/
+const int _nodenums[NR_NODES] ALIGN(sizeof(uint64_t)) = {
+	MASTER_NODENUM, SLAVE_NODENUM
+};
+/**@}*/
+
 #ifdef __mppa256__
 
 /**
@@ -92,40 +101,79 @@ void nanvix_puts(const char *str)
  */
 void ___start(int argc, const char *argv[])
 {
+	int index;
 	int nodenum;
 
 	((void) argc);
 	((void) argv);
 
+	index   = -1;
 	nodenum = knode_get_num();
 
-	if (nodenum == 0)
+	/* Finds the index of local node on nodenums vector. */
+	for (int i = 0; i < NR_NODES; ++i)
 	{
-		test_kframe_mgmt();
-		test_page_mgmt();
-		test_thread_mgmt();
-		test_thread_sleep();
-
-#ifndef __unix64__
-		test_perf();
-		test_signal();
-#endif
-
-		test_noc();
+		if (nodenum == _nodenums[i])
+		{
+			index = i;
+			break;
+		}
 	}
 
-	#if __TARGET_HAS_SYNC
-		test_sync();
-	#endif
-	#if __TARGET_HAS_MAILBOX
-		test_mailbox();
-	#endif
-	#if __TARGET_HAS_PORTAL
-		test_portal();
-	#endif
-	#if __TARGET_HAS_MAILBOX && __TARGET_HAS_PORTAL
-		test_ikc();
-	#endif
+	/* Only involved nodes. */
+	if (index >= 0)
+	{
+		if (nodenum == 0)
+		{
+			test_kframe_mgmt();
+			test_page_mgmt();
+			test_thread_mgmt();
+			test_thread_sleep();
+
+		#ifndef __unix64__
+			test_perf();
+			test_signal();
+		#endif
+
+			test_noc();
+		}
+
+		#if __TARGET_HAS_SYNC
+			test_sync();
+		#endif
+
+		/**
+		 * Creates a barrier with all involved clusters.
+		 * Note (valid only if multiplexation is not avaiable):
+		 * the stdsync must be cleanup before call the barruer_setup
+		 * because it uses the same local resources.
+		 */
+		barrier_nodes_setup(_nodenums, NR_NODES, (index == 0));
+
+			barrier_nodes();
+
+			#if __TARGET_HAS_MAILBOX
+				test_mailbox();
+			#endif
+
+			barrier_nodes();
+
+			#if __TARGET_HAS_PORTAL
+				test_portal();
+			#endif
+
+			barrier_nodes();
+
+			#if __TARGET_HAS_MAILBOX && __TARGET_HAS_PORTAL
+				test_ikc();
+			#endif
+
+			/* Waits everyone finishes the routines. */
+			barrier_nodes();
+
+		/* Destroy barrier. */
+		barrier_nodes_cleanup();
+	}
 
 	/* Halt. */
 	kshutdown();

@@ -1893,7 +1893,6 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
 					test_assert(kportal_allow(portalids[k], remote, (tid + k * THREAD_MAX)) >= 0);
 					test_assert(kportal_read(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
 					test_assert(message[0] == remote);
-
 				}
 
 				fence(&_fence);
@@ -2356,6 +2355,8 @@ void test_portal(void)
 		for (unsigned i = 0; portal_tests_stress[i].test_fn != NULL; i++)
 		{
 			portal_tests_stress[i].test_fn();
+
+			barrier_nodes();
 
 			if (local == MASTER_NODENUM)
 				nanvix_puts(portal_tests_stress[i].name);

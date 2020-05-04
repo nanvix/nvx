@@ -1548,6 +1548,8 @@ void test_ikc(void)
 		{
 			ikc_tests_stress[i].test_fn();
 
+			barrier_nodes();
+
 			if (local == MASTER_NODENUM)
 				nanvix_puts(ikc_tests_stress[i].name);
 		}

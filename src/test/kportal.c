@@ -31,6 +31,8 @@
 
 #if __TARGET_HAS_PORTAL
 
+PRIVATE char message[PORTAL_SIZE_LARGE];
+
 /*============================================================================*
  * API Test: Create Unlink                                                    *
  *============================================================================*/
@@ -138,11 +140,11 @@ static void test_api_portal_get_latency(void)
 }
 
 /*============================================================================*
- * API Test: Read Write 2 CC                                                  *
+ * API Test: Read Write                                                       *
  *============================================================================*/
 
 /**
- * @brief API Test: Read Write 2 CC
+ * @brief API Test: Read Write
  */
 static void test_api_portal_read_write(void)
 {
@@ -152,7 +154,6 @@ static void test_api_portal_read_write(void)
 	int portal_out;
 	size_t volume;
 	uint64_t latency;
-	char message[PORTAL_SIZE];
 
 	local  = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
@@ -220,6 +221,87 @@ static void test_api_portal_read_write(void)
 }
 
 /*============================================================================*
+ * API Test: Read Write Large                                                 *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Read Write Large
+ */
+static void test_api_portal_read_write_large(void)
+{
+	int local;
+	int remote;
+	int portal_in;
+	int portal_out;
+	size_t volume;
+	uint64_t latency;
+
+	local  = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((portal_in = kportal_create(local, 0)) >= 0);
+	test_assert((portal_out = kportal_open(local, remote, 0)) >= 0);
+
+	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == 0);
+	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency == 0);
+
+	test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == 0);
+	test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency == 0);
+
+	if (local == MASTER_NODENUM)
+	{
+		for (unsigned i = 0; i < NITERATIONS; i++)
+		{
+			kmemset(message, 0, PORTAL_SIZE_LARGE);
+
+			test_assert(kportal_allow(portal_in, remote, 0) == 0);
+			test_assert(kportal_read(portal_in, message, PORTAL_SIZE_LARGE) == PORTAL_SIZE_LARGE);
+
+			for (unsigned j = 0; j < PORTAL_SIZE_LARGE; ++j)
+				test_assert(message[j] == 1);
+
+			kmemset(message, 2, PORTAL_SIZE_LARGE);
+
+			test_assert(kportal_write(portal_out, message, PORTAL_SIZE_LARGE) == PORTAL_SIZE_LARGE);
+		}
+	}
+	else
+	{
+		for (unsigned i = 0; i < NITERATIONS; i++)
+		{
+			kmemset(message, 1, PORTAL_SIZE_LARGE);
+
+			test_assert(kportal_write(portal_out, message, PORTAL_SIZE_LARGE) == PORTAL_SIZE_LARGE);
+
+			kmemset(message, 0, PORTAL_SIZE_LARGE);
+
+			test_assert(kportal_allow(portal_in, remote, 0) == 0);
+			test_assert(kportal_read(portal_in, message, PORTAL_SIZE_LARGE) == PORTAL_SIZE_LARGE);
+
+			for (unsigned j = 0; j < PORTAL_SIZE_LARGE; ++j)
+				test_assert(message[j] == 2);
+		}
+	}
+
+	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == (NITERATIONS * PORTAL_SIZE_LARGE));
+	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency > 0);
+
+	test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == (NITERATIONS * PORTAL_SIZE_LARGE));
+	test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency > 0);
+
+	test_assert(kportal_close(portal_out) == 0);
+	test_assert(kportal_unlink(portal_in) == 0);
+}
+
+/*============================================================================*
  * API Test: Virtualization                                                   *
  *============================================================================*/
 
@@ -273,7 +355,6 @@ static void test_api_portal_multiplexation(void)
 	int portal_out[TEST_MULTIPLEXATION_PORTAL_PAIRS];
 	size_t volume;
 	uint64_t latency;
-	char message[PORTAL_SIZE];
 
 	local  = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
@@ -353,7 +434,6 @@ static void test_api_portal_allow(void)
 	int remote;
 	int portal_in[2];
 	int portal_out[2];
-	char message[PORTAL_SIZE];
 
 	local  = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
@@ -409,7 +489,6 @@ static void test_api_portal_multiplexation_2(void)
 	int portal_out[TEST_MULTIPLEXATION2_PORTAL_PAIRS];
 	size_t volume;
 	uint64_t latency;
-	char message[PORTAL_SIZE];
 
 	local  = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
@@ -488,7 +567,6 @@ static void test_api_portal_multiplexation_3(void)
 	int port;
 	size_t volume;
 	uint64_t latency;
-	char message[PORTAL_SIZE];
 
 	local  = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
@@ -575,7 +653,6 @@ static void test_api_portal_multiplexation_4(void)
 	int port;
 	size_t volume;
 	uint64_t latency;
-	char message[PORTAL_SIZE];
 
 	local  = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
@@ -664,7 +741,6 @@ static void test_api_portal_pending_msg_unlink(void)
 	uint64_t latency;
 	int portal_in[TEST_PENDING_UNLINK_PORTAL_PAIRS];
 	int portal_out[TEST_PENDING_UNLINK_PORTAL_PAIRS];
-	char message[PORTAL_SIZE];
 
 	local  = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
@@ -732,7 +808,6 @@ static void test_api_portal_msg_forwarding(void)
 	int portal_out;
 	size_t volume;
 	uint64_t latency;
-	char message[PORTAL_SIZE];
 
 	local = knode_get_num();
 
@@ -1085,7 +1160,7 @@ static void test_fault_portal_invalid_read_size(void)
 
 		test_assert(kportal_read(portalid, buffer, -1) == -EINVAL);
 		test_assert(kportal_read(portalid, buffer, 0) == -EINVAL);
-		test_assert(kportal_read(portalid, buffer, HAL_PORTAL_MAX_SIZE + 1) == -EINVAL);
+		test_assert(kportal_read(portalid, buffer, KPORTAL_MAX_SIZE + 1) == -EINVAL);
 
 	test_assert(kportal_unlink(portalid) == 0);
 }
@@ -1169,7 +1244,7 @@ static void test_fault_portal_invalid_write_size(void)
 
 		test_assert(kportal_write(portalid, buffer, -1) == -EINVAL);
 		test_assert(kportal_write(portalid, buffer, 0) == -EINVAL);
-		test_assert(kportal_write(portalid, buffer, HAL_PORTAL_MAX_SIZE + 1) == -EINVAL);
+		test_assert(kportal_write(portalid, buffer, KPORTAL_MAX_SIZE + 1) == -EINVAL);
 
 	test_assert(kportal_close(portalid) == 0);
 }
@@ -1319,50 +1394,52 @@ PRIVATE void test_stress_portal_open_close(void)
  * Stress Test: Portal Broadcast                                              *
  *============================================================================*/
 
+PRIVATE void test_stress_do_sender_single(int local, int remote)
+{
+	int portalid;
+
+	message[0] = local;
+
+	for (int i = 0; i < NSETUPS; ++i)
+	{
+		test_assert((portalid = kportal_open(local, remote, 0)) >= 0);
+
+		for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			test_assert(kportal_write(portalid, message, PORTAL_SIZE) == PORTAL_SIZE);
+
+		test_assert(kportal_close(portalid) == 0);
+	}
+}
+
+PRIVATE void test_stress_do_receiver_single(int local, int remote)
+{
+	int portalid;
+
+	for (int i = 0; i < NSETUPS; ++i)
+	{
+		test_assert((portalid = kportal_create(local, 0)) >= 0);
+
+		for (int j = 0; j < NCOMMUNICATIONS; ++j)
+		{
+			message[0] = local;
+			test_assert(kportal_allow(portalid, remote, 0) >= 0);
+			test_assert(kportal_read(portalid, message, PORTAL_SIZE) == PORTAL_SIZE);
+			test_assert(message[0] == remote);
+		}
+
+		test_assert(kportal_unlink(portalid) == 0);
+	}
+}
+
 /**
  * @brief Stress Test: Portal Broadcast
  */
 PRIVATE void test_stress_portal_broadcast(void)
 {
-	int local;
-	int remote;
-	int portalid;
-	char message[PORTAL_SIZE];
-	
-	local = knode_get_num();
-	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
-
-	if (local == MASTER_NODENUM)
-	{
-		message[0] = local;
-
-		for (int i = 0; i < NSETUPS; ++i)
-		{
-			test_assert((portalid = kportal_open(local, remote, 0)) >= 0);
-
-			for (int j = 0; j < NCOMMUNICATIONS; ++j)
-				test_assert(kportal_write(portalid, message, PORTAL_SIZE) == PORTAL_SIZE);
-
-			test_assert(kportal_close(portalid) == 0);
-		}
-	}
+	if (knode_get_num() == MASTER_NODENUM)
+		test_stress_do_sender_single(MASTER_NODENUM, SLAVE_NODENUM);
 	else
-	{
-		for (int i = 0; i < NSETUPS; ++i)
-		{
-			test_assert((portalid = kportal_create(local, 0)) >= 0);
-
-			for (int j = 0; j < NCOMMUNICATIONS; ++j)
-			{
-				message[0] = local;
-				test_assert(kportal_allow(portalid, remote, 0) >= 0);
-				test_assert(kportal_read(portalid, message, PORTAL_SIZE) == PORTAL_SIZE);
-				test_assert(message[0] == remote);
-			}
-
-			test_assert(kportal_unlink(portalid) == 0);
-		}
-	}
+		test_stress_do_receiver_single(SLAVE_NODENUM, MASTER_NODENUM);
 }
 
 /*============================================================================*
@@ -1374,45 +1451,10 @@ PRIVATE void test_stress_portal_broadcast(void)
  */
 PRIVATE void test_stress_portal_gather(void)
 {
-	int local;
-	int remote;
-	int portalid;
-	char message[PORTAL_SIZE];
-
-	local = knode_get_num();
-	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
-
-	if (local == SLAVE_NODENUM)
-	{
-		message[0] = local;
-
-		for (int i = 0; i < NSETUPS; ++i)
-		{
-			test_assert((portalid = kportal_open(local, remote, 0)) >= 0);
-
-			for (int j = 0; j < NCOMMUNICATIONS; ++j)
-				test_assert(kportal_write(portalid, message, PORTAL_SIZE) == PORTAL_SIZE);
-
-			test_assert(kportal_close(portalid) == 0);
-		}
-	}
+	if (knode_get_num() == MASTER_NODENUM)
+		test_stress_do_receiver_single(MASTER_NODENUM, SLAVE_NODENUM);
 	else
-	{
-		for (int i = 0; i < NSETUPS; ++i)
-		{
-			test_assert((portalid = kportal_create(local, 0)) >= 0);
-
-			for (int j = 0; j < NCOMMUNICATIONS; ++j)
-			{
-				message[0] = local;
-				test_assert(kportal_allow(portalid, remote, 0) >= 0);
-				test_assert(kportal_read(portalid, message, PORTAL_SIZE) == PORTAL_SIZE);
-				test_assert(message[0] == remote);
-			}
-
-			test_assert(kportal_unlink(portalid) == 0);
-		}
-	}
+		test_stress_do_sender_single(SLAVE_NODENUM, MASTER_NODENUM);
 }
 
 /*============================================================================*
@@ -1428,41 +1470,38 @@ PRIVATE void test_stress_portal_pingpong(void)
 	int remote;
 	int inportal;
 	int outportal;
-	char msg_in[PORTAL_SIZE];
-	char msg_out[PORTAL_SIZE];
 
 	local = knode_get_num();
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
-
-	msg_out[0] = local;
 
 	for (int i = 0; i < NSETUPS; ++i)
 	{
 		test_assert((inportal = kportal_create(local, 0)) >= 0);
 		test_assert((outportal = kportal_open(local, remote, 0)) >= 0);
 
-		if (local == SLAVE_NODENUM)
+		if (local == MASTER_NODENUM)
 		{
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
 			{
-				msg_in[0] = local;
+				message[0] = local;
 				test_assert(kportal_allow(inportal, remote, 0) >= 0);
-				test_assert(kportal_read(inportal, msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-				test_assert(msg_in[0] == remote);
+				test_assert(kportal_read(inportal, message, PORTAL_SIZE) == PORTAL_SIZE);
+				test_assert(message[0] == remote);
 
-				test_assert(kportal_write(outportal, msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+				message[0] = local;
+				test_assert(kportal_write(outportal, message, PORTAL_SIZE) == PORTAL_SIZE);
 			}
 		}
 		else
 		{
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
 			{
-				test_assert(kportal_write(outportal, msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+				message[0] = local;
+				test_assert(kportal_write(outportal, message, PORTAL_SIZE) == PORTAL_SIZE);
 
-				msg_in[0] = local;
 				test_assert(kportal_allow(inportal, remote, 0) >= 0);
-				test_assert(kportal_read(inportal, msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-				test_assert(msg_in[0] == remote);
+				test_assert(kportal_read(inportal, message, PORTAL_SIZE) == PORTAL_SIZE);
+				test_assert(message[0] == remote);
 			}
 		}
 
@@ -1475,58 +1514,60 @@ PRIVATE void test_stress_portal_pingpong(void)
  * Stress Test: Portal Multiplexing Broadcast                                 *
  *============================================================================*/
 
+PRIVATE void test_stress_do_sender_multiplex(int local, int remote)
+{
+	int portalids[TEST_MULTIPLEXATION_PORTAL_PAIRS];
+
+	message[0] = local;
+
+	for (int i = 0; i < NSETUPS; ++i)
+	{
+		for (int j = 0; j < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++j)
+			test_assert((portalids[j] = kportal_open(local, remote, j)) >= 0);
+
+		for (int j = 0; j < NCOMMUNICATIONS; ++j)
+			for (int k = 0; k < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++k)
+				test_assert(kportal_write(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+
+		for (int j = 0; j < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++j)
+			test_assert(kportal_close(portalids[j]) == 0);
+	}
+}
+
+PRIVATE void test_stress_do_receiver_multiplex(int local, int remote)
+{
+	int portalids[TEST_MULTIPLEXATION_PORTAL_PAIRS];
+
+	for (int i = 0; i < NSETUPS; ++i)
+	{
+		for (int j = 0; j < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++j)
+			test_assert((portalids[j] = kportal_create(local, j)) >= 0);
+
+		for (int j = 0; j < NCOMMUNICATIONS; ++j)
+		{
+			for (int k = 0; k < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++k)
+			{
+				message[0] = local;
+				test_assert(kportal_allow(portalids[k], remote, k) >= 0);
+				test_assert(kportal_read(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+				test_assert(message[0] == remote);
+			}
+		}
+
+		for (int j = 0; j < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++j)
+			test_assert(kportal_unlink(portalids[j]) == 0);
+	}
+}
+
 /**
  * @brief Stress Test: Portal Multiplexing Broadcast
  */
 PRIVATE void test_stress_portal_multiplexing_broadcast(void)
 {
-	int local;
-	int remote;
-	int portalids[TEST_MULTIPLEXATION_PORTAL_PAIRS];
-	char message[PORTAL_SIZE];
-
-	local = knode_get_num();
-	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
-
-	if (local == MASTER_NODENUM)
-	{
-		message[0] = local;
-
-		for (int i = 0; i < NSETUPS; ++i)
-		{
-			for (int j = 0; j < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++j)
-				test_assert((portalids[j] = kportal_open(local, remote, j)) >= 0);
-
-			for (int j = 0; j < NCOMMUNICATIONS; ++j)
-				for (int k = 0; k < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++k)
-					test_assert(kportal_write(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
-
-			for (int j = 0; j < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++j)
-				test_assert(kportal_close(portalids[j]) == 0);
-		}
-	}
+	if (knode_get_num() == MASTER_NODENUM)
+		test_stress_do_sender_multiplex(MASTER_NODENUM, SLAVE_NODENUM);
 	else
-	{
-		for (int i = 0; i < NSETUPS; ++i)
-		{
-			for (int j = 0; j < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++j)
-				test_assert((portalids[j] = kportal_create(local, j)) >= 0);
-
-			for (int j = 0; j < NCOMMUNICATIONS; ++j)
-			{
-				for (int k = 0; k < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++k)
-				{
-					message[0] = local;
-					test_assert(kportal_allow(portalids[k], remote, k) >= 0);
-					test_assert(kportal_read(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(message[0] == remote);
-				}
-			}
-
-			for (int j = 0; j < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++j)
-				test_assert(kportal_unlink(portalids[j]) == 0);
-		}
-	}
+		test_stress_do_receiver_multiplex(SLAVE_NODENUM, MASTER_NODENUM);
 }
 
 /*============================================================================*
@@ -1538,53 +1579,10 @@ PRIVATE void test_stress_portal_multiplexing_broadcast(void)
  */
 PRIVATE void test_stress_portal_multiplexing_gather(void)
 {
-	int local;
-	int remote;
-	int portalids[TEST_MULTIPLEXATION_PORTAL_PAIRS];
-	char message[PORTAL_SIZE];
-
-	local = knode_get_num();
-	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
-
-	if (local == SLAVE_NODENUM)
-	{
-		message[0] = local;
-
-		for (int i = 0; i < NSETUPS; ++i)
-		{
-			for (int j = 0; j < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++j)
-				test_assert((portalids[j] = kportal_open(local, remote, j)) >= 0);
-
-			for (int j = 0; j < NCOMMUNICATIONS; ++j)
-				for (int k = 0; k < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++k)
-					test_assert(kportal_write(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
-
-			for (int j = 0; j < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++j)
-				test_assert(kportal_close(portalids[j]) == 0);
-		}
-	}
+	if (knode_get_num() == MASTER_NODENUM)
+		test_stress_do_receiver_multiplex(MASTER_NODENUM, SLAVE_NODENUM);
 	else
-	{
-		for (int i = 0; i < NSETUPS; ++i)
-		{
-			for (int j = 0; j < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++j)
-				test_assert((portalids[j] = kportal_create(local, j)) >= 0);
-
-			for (int j = 0; j < NCOMMUNICATIONS; ++j)
-			{
-				for (int k = 0; k < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++k)
-				{
-					message[0] = local;
-					test_assert(kportal_allow(portalids[k], remote, k) >= 0);
-					test_assert(kportal_read(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(message[0] == remote);
-				}
-			}
-
-			for (int j = 0; j < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++j)
-				test_assert(kportal_unlink(portalids[j]) == 0);
-		}
-	}
+		test_stress_do_sender_multiplex(SLAVE_NODENUM, MASTER_NODENUM);
 }
 
 /*============================================================================*
@@ -1600,13 +1598,9 @@ PRIVATE void test_stress_portal_multiplexing_pingpong(void)
 	int remote;
 	int inportals[TEST_MULTIPLEXATION_PORTAL_PAIRS];
 	int outportals[TEST_MULTIPLEXATION_PORTAL_PAIRS];
-	PRIVATE char msg_in[PORTAL_SIZE];
-	PRIVATE char msg_out[PORTAL_SIZE];
 
 	local = knode_get_num();
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
-
-	msg_out[0] = local;
 
 	for (int i = 0; i < NSETUPS; ++i)
 	{
@@ -1622,12 +1616,13 @@ PRIVATE void test_stress_portal_multiplexing_pingpong(void)
 			{
 				for (int k = 0; k < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++k)
 				{
-					msg_in[0] = local;
+					message[0] = local;
 					test_assert(kportal_allow(inportals[k], remote, k) >= 0);
-					test_assert(kportal_read(inportals[k], msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(msg_in[0] == remote);
+					test_assert(kportal_read(inportals[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(message[0] == remote);
 
-					test_assert(kportal_write(outportals[k], msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+					message[0] = local;
+					test_assert(kportal_write(outportals[k], message, PORTAL_SIZE) == PORTAL_SIZE);
 				}
 			}
 		}
@@ -1637,12 +1632,13 @@ PRIVATE void test_stress_portal_multiplexing_pingpong(void)
 			{
 				for (int k = 0; k < TEST_MULTIPLEXATION_PORTAL_PAIRS; ++k)
 				{
-					test_assert(kportal_write(outportals[k], msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+					message[0] = local;
+					test_assert(kportal_write(outportals[k], message, PORTAL_SIZE) == PORTAL_SIZE);
 
-					msg_in[0] = local;
+					message[0] = local;
 					test_assert(kportal_allow(inportals[k], remote, k) >= 0);
-					test_assert(kportal_read(inportals[k], msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(msg_in[0] == remote);
+					test_assert(kportal_read(inportals[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(message[0] == remote);
 				}
 			}
 		}
@@ -1723,81 +1719,83 @@ PRIVATE void fence(struct fence *b)
  * Stress Test: Portal Thread Multiplexing Broadcast                          *
  *============================================================================*/
 
-PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
+PRIVATE void test_stress_do_sender_thread(int tid, int local, int remote)
 {
-	int tid;
-	int local;
-	int remote;
 	int nports;
 	int portalids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	char message[PORTAL_SIZE];
+	char msg[PORTAL_SIZE];
 
-	tid = ((int)(intptr_t) arg);
+	msg[0] = local;
 
-	local = knode_get_num();
-	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
-
-	if (local == MASTER_NODENUM)
+	for (int i = 0; i < NSETUPS; ++i)
 	{
-		message[0] = local;
-
-		for (int i = 0; i < NSETUPS; ++i)
+		nports = 0;
+		for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 		{
-			nports = 0;
-			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
-			{
-				if (j == (tid + nports * THREAD_MAX))
-					test_assert((portalids[nports++] = kportal_open(local, remote, j)) >= 0);
-
-				fence(&_fence);
-			}
-
-			for (int j = 0; j < NCOMMUNICATIONS; ++j)
-			{
-				for (int k = 0; k < nports; ++k)
-					test_assert(kportal_write(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
-
-				fence(&_fence);
-			}
-
-			for (int j = 0; j < nports; ++j)
-				test_assert(kportal_close(portalids[j]) == 0);
+			if (j == (tid + nports * THREAD_MAX))
+				test_assert((portalids[nports++] = kportal_open(local, remote, j)) >= 0);
 
 			fence(&_fence);
 		}
+
+		for (int j = 0; j < NCOMMUNICATIONS; ++j)
+		{
+			for (int k = 0; k < nports; ++k)
+				test_assert(kportal_write(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+
+			fence(&_fence);
+		}
+
+		for (int j = 0; j < nports; ++j)
+			test_assert(kportal_close(portalids[j]) == 0);
+
+		fence(&_fence);
 	}
+}
+
+PRIVATE void test_stress_do_receiver_thread(int tid, int local, int remote)
+{
+	int nports;
+	int portalids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
+	char msg[PORTAL_SIZE];
+
+	for (int i = 0; i < NSETUPS; ++i)
+	{
+		nports = 0;
+		for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
+		{
+			if (j == (tid + nports * THREAD_MAX))
+				test_assert((portalids[nports++] = kportal_create(local, j)) >= 0);
+
+			fence(&_fence);
+		}
+
+		for (int j = 0; j < NCOMMUNICATIONS; ++j)
+		{
+			for (int k = 0; k < nports; ++k)
+			{
+				msg[0] = local;
+				test_assert(kportal_allow(portalids[k], remote, (tid + k * THREAD_MAX)) >= 0);
+				test_assert(kportal_read(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+				test_assert(msg[0] == remote);
+			}
+
+			fence(&_fence);
+		}
+
+		for (int j = 0; j < nports; ++j)
+			test_assert(kportal_unlink(portalids[j]) == 0);
+
+		fence(&_fence);
+	}
+}
+
+PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
+{
+	if (knode_get_num() == MASTER_NODENUM)
+		test_stress_do_sender_thread(((int)(intptr_t) arg), MASTER_NODENUM, SLAVE_NODENUM);
 	else
-	{
-		for (int i = 0; i < NSETUPS; ++i)
-		{
-			nports = 0;
-			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
-			{
-				if (j == (tid + nports * THREAD_MAX))
-					test_assert((portalids[nports++] = kportal_create(local, j)) >= 0);
-
-				fence(&_fence);
-			}
-
-			for (int j = 0; j < NCOMMUNICATIONS; ++j)
-			{
-				for (int k = 0; k < nports; ++k)
-				{
-					message[0] = local;
-					test_assert(kportal_allow(portalids[k], remote, (tid + k * THREAD_MAX)) >= 0);
-					test_assert(kportal_read(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(message[0] == remote);
-				}
-
-				fence(&_fence);
-			}
-
-			for (int j = 0; j < nports; ++j)
-				test_assert(kportal_unlink(portalids[j]) == 0);
-
-			fence(&_fence);
-		}
-	}
+		test_stress_do_receiver_thread(((int)(intptr_t) arg), SLAVE_NODENUM, MASTER_NODENUM);
 
 	return (NULL);
 }
@@ -1831,79 +1829,10 @@ PRIVATE void test_stress_portal_thread_multiplexing_broadcast(void)
  */
 PRIVATE void * do_thread_multiplexing_gather(void * arg)
 {
-	int tid;
-	int nports;
-	int local;
-	int remote;
-	int portalids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	char message[PORTAL_SIZE];
-
-	tid = ((int)(intptr_t) arg);
-
-	local = knode_get_num();
-	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
-
-	if (local == SLAVE_NODENUM)
-	{
-		message[0] = local;
-
-		for (int i = 0; i < NSETUPS; ++i)
-		{
-			nports = 0;
-			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
-			{
-				if (j == (tid + nports * THREAD_MAX))
-					test_assert((portalids[nports++] = kportal_open(local, remote, j)) >= 0);
-
-				fence(&_fence);
-			}
-
-			for (int j = 0; j < NCOMMUNICATIONS; ++j)
-			{
-				for (int k = 0; k < nports; ++k)
-					test_assert(kportal_write(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
-
-				fence(&_fence);
-			}
-
-			for (int j = 0; j < nports; ++j)
-				test_assert(kportal_close(portalids[j]) == 0);
-
-			fence(&_fence);
-		}
-	}
+	if (knode_get_num() == MASTER_NODENUM)
+		test_stress_do_receiver_thread(((int)(intptr_t) arg), MASTER_NODENUM, SLAVE_NODENUM);
 	else
-	{
-		for (int i = 0; i < NSETUPS; ++i)
-		{
-			nports = 0;
-			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
-			{
-				if (j == (tid + nports * THREAD_MAX))
-					test_assert((portalids[nports++] = kportal_create(local, j)) >= 0);
-
-				fence(&_fence);
-			}
-
-			for (int j = 0; j < NCOMMUNICATIONS; ++j)
-			{
-				for (int k = 0; k < nports; ++k)
-				{
-					message[0] = local;
-					test_assert(kportal_allow(portalids[k], remote, (tid + k * THREAD_MAX)) >= 0);
-					test_assert(kportal_read(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(message[0] == remote);
-				}
-
-				fence(&_fence);
-			}
-
-			for (int j = 0; j < nports; ++j)
-				test_assert(kportal_unlink(portalids[j]) == 0);
-
-			fence(&_fence);
-		}
-	}
+		test_stress_do_sender_thread(((int)(intptr_t) arg), SLAVE_NODENUM, MASTER_NODENUM);
 
 	return (NULL);
 }
@@ -2045,7 +1974,7 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 	int local;
 	int nports;
 	int portalids[TEST_THREAD_NPORTS];
-	char message[PORTAL_SIZE];
+	char msg[PORTAL_SIZE];
 
 	tid = ((int)(intptr_t) arg);
 
@@ -2053,7 +1982,7 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 
 	if (tid == 0)
 	{
-		message[0] = 1;
+		msg[0] = 1;
 
 		for (int i = 0; i < NSETUPS; ++i)
 		{
@@ -2068,7 +1997,7 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
 			{
 				for (int k = 0; k < nports; ++k)
-					test_assert(kportal_write(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kportal_write(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
 
 				fence(&_fence);
 			}
@@ -2096,10 +2025,10 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					message[0] = 0;
+					msg[0] = 0;
 					test_assert(kportal_allow(portalids[k], local, ((tid - 1) + k * (THREAD_MAX - 1))) >= 0);
-					test_assert(kportal_read(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(message[0] == 1);
+					test_assert(kportal_read(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(msg[0] == 1);
 				}
 
 				fence(&_fence);
@@ -2148,7 +2077,7 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 	int local;
 	int nports;
 	int portalids[TEST_THREAD_NPORTS];
-	char message[PORTAL_SIZE];
+	char msg[PORTAL_SIZE];
 
 	tid = ((int)(intptr_t) arg);
 
@@ -2156,7 +2085,7 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 
 	if (tid != 0)
 	{
-		message[0] = 1;
+		msg[0] = 1;
 
 		for (int i = 0; i < NSETUPS; ++i)
 		{
@@ -2172,7 +2101,7 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
 			{
 				for (int k = 0; k < nports; ++k)
-					test_assert(kportal_write(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kportal_write(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
 
 				fence(&_fence);
 			}
@@ -2199,10 +2128,10 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					message[0] = 0;
+					msg[0] = 0;
 					test_assert(kportal_allow(portalids[k], local, k) >= 0);
-					test_assert(kportal_read(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(message[0] == 1);
+					test_assert(kportal_read(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(msg[0] == 1);
 
 				}
 
@@ -2252,6 +2181,7 @@ static struct test portal_tests_api[] = {
 	{ test_api_portal_get_volume,         "[test][portal][api] portal get volume         [passed]" },
 	{ test_api_portal_get_latency,        "[test][portal][api] portal get latency        [passed]" },
 	{ test_api_portal_read_write,         "[test][portal][api] portal read write         [passed]" },
+	{ test_api_portal_read_write_large,   "[test][portal][api] portal read write large   [passed]" },
 	{ test_api_portal_virtualization,     "[test][portal][api] portal virtualization     [passed]" },
 	{ test_api_portal_multiplexation,     "[test][portal][api] portal multiplexation     [passed]" },
 	{ test_api_portal_allow,              "[test][portal][api] portal allow              [passed]" },
@@ -2334,7 +2264,7 @@ void test_portal(void)
 		{
 			portal_tests_api[i].test_fn();
 
-			if (local == MASTER_NODENUM)
+			// if (local == MASTER_NODENUM)
 				nanvix_puts(portal_tests_api[i].name);
 		}
 

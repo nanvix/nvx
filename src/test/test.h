@@ -30,27 +30,27 @@
 	/**
      * @brief Test's parameters
      */
+	/**@{*/
     #define NR_NODES       2
     #define MASTER_NODENUM 0
-    #ifdef __mppa256__
-        #define SLAVE_NODENUM  8
-    #else
-        #define SLAVE_NODENUM  1
-    #endif
-
-    #ifdef __mppa256__
-        #define TEST_THREAD_NPORTS (K1BDP_CORES_NUM - 1)
-    #else
-        #define TEST_THREAD_NPORTS (THREAD_MAX)
-    #endif
-
+#ifdef __mppa256__
+	#define SLAVE_NODENUM  8
+	#define TEST_THREAD_NPORTS (K1BDP_CORES_NUM - 1)
+#else
+	#define SLAVE_NODENUM  1
+	#define TEST_THREAD_NPORTS (THREAD_MAX)
+#endif
     #define NSETUPS 10
     #define NCOMMUNICATIONS 100
+	/**@}*/
 
     /**
-     * @brief Portal message size
+     * @name Portal sizes.
      */
-    #define PORTAL_SIZE (1 * KB)
+	/**@{*/
+    #define PORTAL_SIZE       (1 * KB)                            /**< Small size. */
+	#define PORTAL_SIZE_LARGE (HAL_PORTAL_MAX_SIZE + PORTAL_SIZE) /**< Large size. */
+	/**@}*/
 
 	/**
      * @brief Portal message size

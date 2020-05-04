@@ -29,6 +29,20 @@
 #include <nanvix/sys/noc.h>
 #include <posix/errno.h>
 
+/**
+ * @brief Protection for allows variable.
+ */
+PRIVATE spinlock_t kportal_lock = SPINLOCK_UNLOCKED;
+
+/**
+ * @brief Store allows information.
+ */
+PRIVATE struct
+{
+	int remote; /**< Remote ID.      */
+	int port;   /**< Remote port ID. */
+} kportal_allows[KPORTAL_MAX];
+
 /*============================================================================*
  * kportal_create()                                                           *
  *============================================================================*/
@@ -52,6 +66,14 @@ int kportal_create(int local, int local_port)
 		(word_t) local_port
 	);
 
+	if (ret >= 0)
+	{
+		spinlock_lock(&kportal_lock);
+			kportal_allows[ret].remote = -1;
+			kportal_allows[ret].port   = -1;
+		spinlock_unlock(&kportal_lock);
+	}
+
 	return (ret);
 }
 
@@ -73,6 +95,14 @@ int kportal_allow(int portalid, int remote, int remote_port)
 		(word_t) remote,
 		(word_t) remote_port
 	);
+
+	if (ret == 0)
+	{
+		spinlock_lock(&kportal_lock);
+			kportal_allows[portalid].remote = remote;
+			kportal_allows[portalid].port   = remote_port;
+		spinlock_unlock(&kportal_lock);
+	}
 
 	return (ret);
 }
@@ -235,23 +265,39 @@ int kportal_wait(int portalid)
  * @details The kportal_write() synchronously write @p size bytes of
  * data pointed to by @p buffer to the output portal @p portalid.
  */
-ssize_t kportal_write(int portalid, const void *buffer, size_t size)
+ssize_t kportal_write(int portalid, const void * buffer, size_t size)
 {
-	int ret;
+	ssize_t ret;       /* Return value.               */
+	ssize_t n;         /* Size of current data piece. */
+	ssize_t remainder; /* Remainder of total data.    */
+	size_t times;      /* Number of pieces.           */
 
 	/* Invalid buffer. */
 	if (buffer == NULL)
 		return (-EINVAL);
 
 	/* Invalid size. */
-	if (size == 0 || size > HAL_PORTAL_MAX_SIZE)
+	if (size == 0 || size > KPORTAL_MAX_SIZE)
 		return (-EINVAL);
 
-	if ((ret = kportal_awrite(portalid, buffer, size)) < 0)
-		return (ret);
+	times     = size / HAL_PORTAL_MAX_SIZE;
+	remainder = size - (times * HAL_PORTAL_MAX_SIZE);
 
-	if ((ret = kportal_wait(portalid)) < 0)
-		return (ret);
+	for (size_t t = 0; t < times + (remainder != 0); ++t)
+	{
+		n = (t != times) ? HAL_PORTAL_MAX_SIZE : remainder;
+
+		/* Sends a piece of the message. */
+		if ((ret = kportal_awrite(portalid, buffer, n)) < 0)
+			return (ret);
+
+		/* Waits for the asynchronous operation to complete. */
+		if ((ret = kportal_wait(portalid)) != 0)
+			return (ret);
+
+		/* Next pieces. */
+		buffer += n;
+	}
 
 	return (size);
 }
@@ -264,29 +310,62 @@ ssize_t kportal_write(int portalid, const void *buffer, size_t size)
  * @details The kportal_read() synchronously read @p size bytes of
  * data pointed to by @p buffer from the input portal @p portalid.
  */
-ssize_t kportal_read(int portalid, void *buffer, size_t size)
+ssize_t kportal_read(int portalid, void * buffer, size_t size)
 {
-	int ret;
+	ssize_t ret;       /* Return value.               */
+	ssize_t n;         /* Size of current data piece. */
+	ssize_t remainder; /* Remainder of total data.    */
+	size_t times;      /* Number of pieces.           */
+	int remote;
+	int port;
 
 	/* Invalid buffer. */
 	if (buffer == NULL)
 		return (-EINVAL);
 
 	/* Invalid size. */
-	if (size == 0 || size > HAL_PORTAL_MAX_SIZE)
+	if (size == 0 || size > KPORTAL_MAX_SIZE)
 		return (-EINVAL);
 
-	/* Repeat while reading valid messages for another ports. */
-	do
-	{
-		/* Read a message. */
-		if ((ret = kportal_aread(portalid, buffer, size)) < 0)
-			return (ret);
-	} while ((ret = kportal_wait(portalid)) > 0);
+	times     = size / HAL_PORTAL_MAX_SIZE;
+	remainder = size - (times * HAL_PORTAL_MAX_SIZE);
+	ret       = (-EINVAL);
+	spinlock_lock(&kportal_lock);
+		remote = kportal_allows[portalid].remote;
+		port   = kportal_allows[portalid].port;
+	spinlock_unlock(&kportal_lock);
 
-	/* Wait failed. */
-	if (ret < 0)
-		return (ret);
+	for (size_t t = 0; t < times + (remainder != 0); ++t)
+	{
+		n = (t != times) ? HAL_PORTAL_MAX_SIZE : remainder;
+
+		/* Repeat while reading valid messages for another ports. */
+		do
+		{
+			/* Consecutive reads must be allowed. */
+			if (t != 0 && ret >= 0)
+				kportal_allow(portalid, remote, port);
+
+			/* Reads a piece of the message. */
+			if ((ret = kportal_aread(portalid, buffer, n)) < 0)
+				return (ret);
+
+		/* Waits for the asynchronous operation to complete. */
+		} while ((ret = kportal_wait(portalid)) > 0);
+
+		/* Wait failed. */
+		if (ret < 0)
+			return (ret);
+
+		/* Next pieces. */
+		buffer += n;
+	}
+
+	/* Complete a allowed read. */
+	spinlock_lock(&kportal_lock);
+		kportal_allows[portalid].remote = -1;
+		kportal_allows[portalid].port   = -1;
+	spinlock_unlock(&kportal_lock);
 
 	return (size);
 }

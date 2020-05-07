@@ -91,6 +91,7 @@
 	 */
 	extern void nanvix_puts(const char *str);
 
+#if __TARGET_HAS_SYNC
     /**
      * @name Barrier functions
      */
@@ -99,6 +100,7 @@
     extern void barrier_nodes(void);
     extern void barrier_nodes_cleanup(void);
     /**@}*/
+#endif /* __TARGET_HAS_SYNC */
 
 	/**
 	 * @name User-Level Testing Units

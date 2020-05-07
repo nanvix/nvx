@@ -190,7 +190,7 @@ int kportal_aread(int portalid, void * buffer, size_t size)
 		return (-EINVAL);
 
 	/* Invalid size. */
-	if (size == 0 || size > HAL_PORTAL_MAX_SIZE)
+	if (size == 0 || size > KPORTAL_MESSAGE_DATA_SIZE)
 		return (-EINVAL);
 
 	do
@@ -222,7 +222,7 @@ int kportal_awrite(int portalid, const void * buffer, size_t size)
 		return (-EINVAL);
 
 	/* Invalid size. */
-	if (size == 0 || size > HAL_PORTAL_MAX_SIZE)
+	if (size == 0 || size > KPORTAL_MESSAGE_DATA_SIZE)
 		return (-EINVAL);
 
 	do
@@ -267,10 +267,10 @@ int kportal_wait(int portalid)
  */
 ssize_t kportal_write(int portalid, const void * buffer, size_t size)
 {
-	ssize_t ret;       /* Return value.               */
-	ssize_t n;         /* Size of current data piece. */
-	ssize_t remainder; /* Remainder of total data.    */
-	size_t times;      /* Number of pieces.           */
+	ssize_t ret;      /* Return value.               */
+	size_t n;         /* Size of current data piece. */
+	size_t remainder; /* Remainder of total data.    */
+	size_t times;     /* Number of pieces.           */
 
 	/* Invalid buffer. */
 	if (buffer == NULL)
@@ -280,12 +280,12 @@ ssize_t kportal_write(int portalid, const void * buffer, size_t size)
 	if (size == 0 || size > KPORTAL_MAX_SIZE)
 		return (-EINVAL);
 
-	times     = size / HAL_PORTAL_MAX_SIZE;
-	remainder = size - (times * HAL_PORTAL_MAX_SIZE);
+	times     = size / KPORTAL_MESSAGE_DATA_SIZE;
+	remainder = size - (times * KPORTAL_MESSAGE_DATA_SIZE);
 
 	for (size_t t = 0; t < times + (remainder != 0); ++t)
 	{
-		n = (t != times) ? HAL_PORTAL_MAX_SIZE : remainder;
+		n = (t != times) ? KPORTAL_MESSAGE_DATA_SIZE : remainder;
 
 		/* Sends a piece of the message. */
 		if ((ret = kportal_awrite(portalid, buffer, n)) < 0)
@@ -312,12 +312,12 @@ ssize_t kportal_write(int portalid, const void * buffer, size_t size)
  */
 ssize_t kportal_read(int portalid, void * buffer, size_t size)
 {
-	ssize_t ret;       /* Return value.               */
-	ssize_t n;         /* Size of current data piece. */
-	ssize_t remainder; /* Remainder of total data.    */
-	size_t times;      /* Number of pieces.           */
-	int remote;
-	int port;
+	ssize_t ret;      /* Return value.               */
+	size_t n;         /* Size of current data piece. */
+	size_t remainder; /* Remainder of total data.    */
+	size_t times;     /* Number of pieces.           */
+	int remote;       /* Number of target remote.    */
+	int port;         /* Number of target port.      */
 
 	/* Invalid buffer. */
 	if (buffer == NULL)
@@ -327,8 +327,8 @@ ssize_t kportal_read(int portalid, void * buffer, size_t size)
 	if (size == 0 || size > KPORTAL_MAX_SIZE)
 		return (-EINVAL);
 
-	times     = size / HAL_PORTAL_MAX_SIZE;
-	remainder = size - (times * HAL_PORTAL_MAX_SIZE);
+	times     = size / KPORTAL_MESSAGE_DATA_SIZE;
+	remainder = size - (times * KPORTAL_MESSAGE_DATA_SIZE);
 	ret       = (-EINVAL);
 	spinlock_lock(&kportal_lock);
 		remote = kportal_allows[portalid].remote;
@@ -337,7 +337,7 @@ ssize_t kportal_read(int portalid, void * buffer, size_t size)
 
 	for (size_t t = 0; t < times + (remainder != 0); ++t)
 	{
-		n = (t != times) ? HAL_PORTAL_MAX_SIZE : remainder;
+		n = (t != times) ? KPORTAL_MESSAGE_DATA_SIZE : remainder;
 
 		/* Repeat while reading valid messages for another ports. */
 		do

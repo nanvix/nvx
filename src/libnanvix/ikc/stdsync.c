@@ -29,12 +29,13 @@
 #include <nanvix/sys/perf.h>
 #include <nanvix/sys/thread.h>
 #include <nanvix/runtime/stdikc.h>
+#include <nanvix/runtime/barrier.h>
 
 /**
  * @brief Kernel standard sync.
  */
-static int __stdbarrier[THREAD_MAX + 1][2] = {
-	[0 ... (THREAD_MAX)] = { -1, -1 },
+static barrier_t __stdbarrier[THREAD_MAX + 1] = {
+	[0 ... (THREAD_MAX)] = BARRIER_NULL,
 };
 
 #ifndef __unix64__
@@ -102,48 +103,17 @@ static void build_node_list(int *nodes, int nioclusters, int ncclusters)
 int __stdsync_setup(void)
 {
 	int tid;
-	int ret;
 	int nodes[PROCESSOR_CLUSTERS_NUM];
 
-	tid = kthread_self();
+	if ((tid = kthread_self()) > THREAD_MAX)
+		return (-1);
 
 	build_node_list(nodes, PROCESSOR_IOCLUSTERS_NUM, PROCESSOR_CCLUSTERS_NUM);
 
-	/* Master cluster */
-	if (kcluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
-	{
-		ret = __stdbarrier[tid][0] = ksync_create(
-			nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE
-		);
-		if (ret >= 0)
-		{
-			ret = __stdbarrier[tid][1] = ksync_open(
-				nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ONE_TO_ALL
-			);
-
-			if (ret < 0)
-				ksync_unlink(__stdbarrier[tid][0]);
-		}
-	}
-
-	else
-	{
-		ret = __stdbarrier[tid][0] = ksync_open(
-			nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ALL_TO_ONE
-		);
-		if (ret >= 0)
-		{
-			ret = __stdbarrier[tid][1] = ksync_create(
-				nodes, PROCESSOR_CLUSTERS_NUM, SYNC_ONE_TO_ALL
-			);
-
-			if (ret < 0)
-				ksync_close(__stdbarrier[tid][0]);
-		}
-	}
+	__stdbarrier[tid] = barrier_create(nodes, PROCESSOR_CLUSTERS_NUM);
 
 	/* Slave cluster. */
-	return ((ret < 0) ? -1 : -0);
+	return (0);
 }
 
 /**
@@ -158,18 +128,7 @@ int __stdsync_cleanup(void)
 	if ((tid = kthread_self()) > THREAD_MAX)
 		return (-1);
 
-	/* Master cluster */
-	if (kcluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
-	{
-		ret = ksync_unlink(__stdbarrier[tid][0]);
-		ret = ksync_close(__stdbarrier[tid][1]);
-	}
-
-	else
-	{
-		ret = ksync_close(__stdbarrier[tid][0]);
-		ret = ksync_unlink(__stdbarrier[tid][1]);
-	}
+	ret = barrier_destroy(__stdbarrier[tid]);
 
 	return (ret);
 }
@@ -181,33 +140,15 @@ int __stdsync_cleanup(void)
 int stdsync_fence(void)
 {
 	int tid;
+	int ret;
 
 	if ((tid = kthread_self()) > THREAD_MAX)
 		return (-1);
 
+	ret = barrier_wait(__stdbarrier[tid]);
 
-	/* Master cluster */
-	if (kcluster_get_num() == PROCESSOR_CLUSTERNUM_MASTER)
-	{
-		KASSERT(ksync_wait(__stdbarrier[tid][0]) == 0);
-		KASSERT(ksync_signal(__stdbarrier[tid][1]) == 0);
-	}
-
-	/* Slave cluster. */
-	else
-	{
-		/* Waits one second. */
-		#ifndef __unix64__
-			delay(CLUSTER_FREQ);
-		#endif
-
-		KASSERT(ksync_signal(__stdbarrier[tid][0]) == 0);
-		KASSERT(ksync_wait(__stdbarrier[tid][1]) == 0);
-	}
-
-	return (0);
+	return (ret);
 }
-
 
 #else
 extern int make_iso_compilers_happy;

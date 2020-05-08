@@ -208,18 +208,6 @@ int stdsync_fence(void)
 	return (0);
 }
 
-/**
- * @todo TODO: provide a detailed description for this function.
- */
-int stdsync_get(void)
-{
-	int tid;
-
-	if ((tid = kthread_self()) > THREAD_MAX)
-		return (-1);
-
-	return (__stdbarrier[tid][0]);
-}
 
 #else
 extern int make_iso_compilers_happy;

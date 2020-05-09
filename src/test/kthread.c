@@ -33,7 +33,6 @@
 #define UTEST_KTHREAD_BAD_ARG   0 /**< Test bad thread argument? */
 #define UTEST_KTHREAD_BAD_JOIN  0 /**< Test bad thread join?     */
 #define UTEST_KTHREAD_BAD_EXIT  0 /**< Test bad thread exit?     */
-#define UTEST_KTHREAD_STRESS    0 /**< Run stress tests?         */
 /**@}*/
 
 /**
@@ -43,7 +42,39 @@
  */
 static void *task(void *arg)
 {
-	((void) arg);
+	UNUSED(arg);
+
+	return (NULL);
+}
+
+/**
+ * @brief Global lock to thread tests.
+ */
+static spinlock_t lock_tt = SPINLOCK_UNLOCKED;
+
+/**
+ * @brief Release fence task.
+ */
+static bool release_tt = false;
+
+/**
+ * @brief Fence task.
+ *
+ * @param arg Unused argument.
+ */
+static void *fence_task(void *arg)
+{
+	int release;
+
+	UNUSED(arg);
+	release = false;
+
+	while (!release)
+	{
+		spinlock_lock(&lock_tt);
+			release = release_tt;
+		spinlock_unlock(&lock_tt);
+	}
 
 	return (NULL);
 }
@@ -148,7 +179,7 @@ static void test_fault_kthread_join_bad(void)
 
 	/* Join bad thread. */
 	test_assert(kthread_create(&tid, task, NULL) == 0);
-	test_assert(kthread_join(2, NULL) < 0);
+	test_assert(kthread_join(tid + 1, NULL) < 0);
 	test_assert(kthread_join(tid, NULL) == 0);
 
 	/* Join with bad return value. */
@@ -176,10 +207,20 @@ static void test_stress_kthread_create_overflow(void)
 	kthread_t tid[NTHREADS + 1];
 
 	for (int i = 0; i < NTHREADS; i++)
-		test_assert(kthread_create(&tid[i], task, NULL) == 0);
-	test_assert(kthread_create(&tid[NTHREADS], task, NULL) < 0);
+		test_assert(kthread_create(&tid[i], fence_task, NULL) == 0);
+
+	test_assert(kthread_create(&tid[NTHREADS], fence_task, NULL) < 0);
+
+	spinlock_lock(&lock_tt);
+		release_tt = true;
+	spinlock_unlock(&lock_tt);
+
 	for (int i = 0; i < NTHREADS; i++)
 		test_assert(kthread_join(tid[i], NULL) == 0);
+
+	spinlock_lock(&lock_tt);
+		release_tt = false;
+	spinlock_unlock(&lock_tt);
 
 #endif
 }
@@ -236,11 +277,9 @@ static struct test thread_mgmt_tests_fault[] = {
  * @brief Stress tests.
  */
 static struct test thread_mgmt_tests_stress[] = {
-#if (UTEST_KTHREAD_STRESS)
-	{ test_fault_kthread_create_overflow, "[test][thread][stress] thread creation overflow    [passed]" },
-	{ test_stress_kthread_create,         "[test][thread][stress] thread creation/termination [passed]" },
-#endif
-	{ NULL,                                NULL                                                         },
+	{ test_stress_kthread_create_overflow, "[test][thread][stress] thread creation overflow    [passed]" },
+	{ test_stress_kthread_create,          "[test][thread][stress] thread creation/termination [passed]" },
+	{ NULL,                                 NULL                                                         },
 };
 
 /**

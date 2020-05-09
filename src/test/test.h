@@ -65,7 +65,7 @@
 	/**
 	 * @brief Number of iterations in stress tests.
 	 */
-	#define NITERATIONS 10
+	#define NITERATIONS 1000
 
 	/**
 	 * @brief Number of threads to spawn in stress tests.

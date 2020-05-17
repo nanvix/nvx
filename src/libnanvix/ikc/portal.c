@@ -401,6 +401,18 @@ int kportal_ioctl(int portalid, unsigned request, ...)
 	return (ret);
 }
 
+/*============================================================================*
+ * kportal_init()                                                             *
+ *============================================================================*/
+
+/**
+ * @details The kportal_init() Initializes portal system.
+ */
+PUBLIC void kportal_init(void)
+{
+	kprintf("[user][portal] Initializes portal module");
+}
+
 #else
 extern int make_iso_compilers_happy;
 #endif /* __TARGET_HAS_PORTAL */

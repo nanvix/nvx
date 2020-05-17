@@ -34,6 +34,11 @@
 	#include <posix/sys/types.h>
 
 	/**
+	 * @brief Initializes the user-side of the mailbox system.
+	 */
+	extern void kmailbox_init(void);
+
+	/**
 	 * @brief Creates an input mailbox.
 	 *
 	 * @param local Target local NoC node.

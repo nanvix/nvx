@@ -35,6 +35,11 @@
 	#include <posix/stdint.h>
 
 	/**
+	 * @brief Initializes the user-side of the portal system.
+	 */
+	extern void kportal_init(void);
+
+	/**
 	 * @brief Creates a portal.
 	 *
 	 * @param local      Logic ID of the Local Node.

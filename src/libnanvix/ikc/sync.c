@@ -178,6 +178,18 @@ int ksync_unlink(int syncid)
 	return (ret);
 }
 
+/*============================================================================*
+ * ksync_init()                                                               *
+ *============================================================================*/
+
+/**
+ * @details The ksync_init() Initializes sync system.
+ */
+PUBLIC void ksync_init(void)
+{
+	kprintf("[user][sync] Initializes sync module");
+}
+
 #else
 extern int make_iso_compilers_happy;
 #endif /* __TARGET_HAS_MAILBOX */

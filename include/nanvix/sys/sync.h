@@ -33,7 +33,12 @@
 	#include <nanvix/kernel/kernel.h>
 	#include <posix/sys/types.h>
 
-		/**
+	/**
+	 * @brief Initializes the user-side of the synchronization system.
+	 */
+	extern void ksync_init(void);
+
+	/**
 	 * @brief Creates a synchronization point.
 	 *
 	 * @param nodes  Logic IDs of Target Nodes.

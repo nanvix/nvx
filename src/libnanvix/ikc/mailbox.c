@@ -290,6 +290,18 @@ int kmailbox_ioctl(int mbxid, unsigned request, ...)
 	return (ret);
 }
 
+/*============================================================================*
+ * kmailbox_init()                                                            *
+ *============================================================================*/
+
+/**
+ * @details The kmailbox_init() Initializes mailbox system.
+ */
+PUBLIC void kmailbox_init(void)
+{
+	kprintf("[user][mailbox] Initializes mailbox module");
+}
+
 #else
 extern int make_iso_compilers_happy;
 #endif /* __TARGET_HAS_MAILBOX */

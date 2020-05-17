@@ -2264,7 +2264,7 @@ void test_portal(void)
 		{
 			portal_tests_api[i].test_fn();
 
-			// if (local == MASTER_NODENUM)
+			if (local == MASTER_NODENUM)
 				nanvix_puts(portal_tests_api[i].name);
 		}
 

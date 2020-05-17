@@ -48,8 +48,8 @@
      * @name Portal sizes.
      */
 	/**@{*/
-    #define PORTAL_SIZE       (1 * KB)                            /**< Small size. */
-	#define PORTAL_SIZE_LARGE (HAL_PORTAL_MAX_SIZE + PORTAL_SIZE) /**< Large size. */
+    #define PORTAL_SIZE       (1 * KB)                             /**< Small size. */
+	#define PORTAL_SIZE_LARGE (HAL_PORTAL_DATA_SIZE + PORTAL_SIZE) /**< Large size. */
 	/**@}*/
 
 	/**

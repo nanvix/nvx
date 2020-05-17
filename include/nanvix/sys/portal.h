@@ -105,7 +105,7 @@
 	 * @returns Upon successful completion, zero is returned. Upon
 	 * failure, a negative error code is returned instead.
 	 */
-	extern int kportal_read(int portalid, void * buffer, size_t size);
+	extern ssize_t kportal_read(int portalid, void * buffer, size_t size);
 
 	/**
 	 * @brief Asynchronously reads data from a portal.
@@ -117,7 +117,7 @@
 	 * @returns Upon successful completion, zero is returned. Upon
 	 * failure, a negative error code is returned instead.
 	 */
-	extern int kportal_aread(int portalid, void * buffer, size_t size);
+	extern ssize_t kportal_aread(int portalid, void * buffer, size_t size);
 
 	/**
 	 * @brief Writes data to a portal.
@@ -129,7 +129,7 @@
 	 * @returns Upon successful, zero is returned. Upon failure, a
 	 * negative error code is returned instead.
 	 */
-	extern int kportal_write(int portalid, const void * buffer, size_t size);
+	extern ssize_t kportal_write(int portalid, const void * buffer, size_t size);
 
 	/**
 	 * @brief Asynchronously writes data to a portal.
@@ -141,7 +141,7 @@
 	 * @returns Upon successful, zero is returned. Upon failure, a
 	 * negative error code is returned instead.
 	 */
-	extern int kportal_awrite(int portalid, const void * buffer, size_t size);
+	extern ssize_t kportal_awrite(int portalid, const void * buffer, size_t size);
 
 	/**
 	 * @brief Waits for an asynchronous operation on a portal to complete.

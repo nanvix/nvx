@@ -181,9 +181,9 @@ int kportal_close(int portalid)
  * @details The kportal_aread() asynchronously read @p size bytes of
  * data pointed to by @p buffer from the input portal @p portalid.
  */
-int kportal_aread(int portalid, void * buffer, size_t size)
+ssize_t kportal_aread(int portalid, void * buffer, size_t size)
 {
-	int ret;
+	ssize_t ret;
 
 	/* Invalid buffer. */
 	if (buffer == NULL)
@@ -213,9 +213,9 @@ int kportal_aread(int portalid, void * buffer, size_t size)
  * @details The kportal_awrite() asynchronously write @p size bytes
  * of data pointed to by @p buffer to the output portal @p portalid.
  */
-int kportal_awrite(int portalid, const void * buffer, size_t size)
+ssize_t kportal_awrite(int portalid, const void * buffer, size_t size)
 {
-	int ret;
+	ssize_t ret;
 
 	/* Invalid buffer. */
 	if (buffer == NULL)

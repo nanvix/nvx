@@ -720,6 +720,240 @@ static void test_api_portal_multiplexation_4(void)
 	}
 }
 
+/**
+ * @brief API Test: Multiplexation test to assert the correct working when
+ * messages flow occur in diferent order than the expected.
+ */
+static void test_api_portal_multiplexation_2_large(void)
+{
+	int local;
+	int remote;
+	int portal_in[TEST_MULTIPLEXATION2_PORTAL_PAIRS];
+	int portal_out[TEST_MULTIPLEXATION2_PORTAL_PAIRS];
+	size_t volume;
+	uint64_t latency;
+
+	local  = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	/* Creates multiple virtual portals. */
+	for (unsigned i = 0; i < TEST_MULTIPLEXATION2_PORTAL_PAIRS; ++i)
+	{
+		test_assert((portal_in[i] = kportal_create(local, i)) >= 0);
+		test_assert((portal_out[i] = kportal_open(local, remote, i)) >= 0);
+	}
+
+	if (local == MASTER_NODENUM)
+	{
+		/* Read the messages in descendant order. */
+		for (int i = (TEST_MULTIPLEXATION2_PORTAL_PAIRS - 1); i >= 0; --i)
+		{
+			kmemset(message, i, PORTAL_SIZE_LARGE);
+
+			test_assert(kportal_allow(portal_in[i], remote, i) == 0);
+			test_assert(kportal_read(portal_in[i], message, PORTAL_SIZE_LARGE) == PORTAL_SIZE_LARGE);
+
+			for (unsigned j = 0; j < PORTAL_SIZE_LARGE; ++j)
+				test_assert((message[j] - i) == 0);
+
+			/* Checks the data transfered by each vportal. */
+			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(volume == PORTAL_SIZE_LARGE);
+			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+			test_assert(latency > 0);
+		}
+	}
+	else
+	{
+		for (unsigned i = 0; i < TEST_MULTIPLEXATION2_PORTAL_PAIRS; ++i)
+		{
+			kmemset(message, i, PORTAL_SIZE_LARGE);
+
+			test_assert(kportal_write(portal_out[i], message, PORTAL_SIZE_LARGE) == PORTAL_SIZE_LARGE);
+
+			test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(volume == PORTAL_SIZE_LARGE);
+			test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+			test_assert(latency > 0);
+		}
+	}
+
+	/* Deletion of the created virtual portals. */
+	for (unsigned i = 0; i < TEST_MULTIPLEXATION2_PORTAL_PAIRS; ++i)
+	{
+		test_assert(kportal_unlink(portal_in[i]) == 0);
+		test_assert(kportal_close(portal_out[i]) == 0);
+	}
+}
+
+/*============================================================================*
+ * API Test: Multiplexation - Messages Selection                              *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Multiplexation test to assert the correct message selection
+ * of multiple messages.
+ *
+ * @details In this test, the MASTER node sends 4 messages but only 2 for open ports
+ * on the SLAVE which need to select them correctly.
+ */
+static void test_api_portal_multiplexation_3_large(void)
+{
+	int local;
+	int remote;
+	int portal_in[TEST_MULTIPLEXATION3_PORTAL_SELECT_NR];
+	int portal_out[TEST_MULTIPLEXATION3_PORTAL_MSGS_NR];
+	int port;
+	size_t volume;
+	uint64_t latency;
+
+	local  = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	if (local == SLAVE_NODENUM)
+	{
+		/* Opens the output vportals. */
+		for (unsigned int i = 0; i < TEST_MULTIPLEXATION3_PORTAL_MSGS_NR; ++i)
+			test_assert((portal_out[i] = kportal_open(local, remote, i)) >= 0);
+
+		/* Sends all the messages to the SLAVE node. */
+		for (int i = (TEST_MULTIPLEXATION3_PORTAL_MSGS_NR - 1); i >= 0; --i)
+		{
+			kmemset(message, i, PORTAL_SIZE_LARGE);
+
+			test_assert(kportal_write(portal_out[i], message, PORTAL_SIZE_LARGE) == PORTAL_SIZE_LARGE);
+		}
+
+		/* Closes the opened vportals. */
+		for (unsigned int i = 0; i < TEST_MULTIPLEXATION3_PORTAL_MSGS_NR; ++i)
+		{
+			test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(volume == PORTAL_SIZE_LARGE);
+
+			test_assert(kportal_close(portal_out[i]) == 0);
+		}
+	}
+	else
+	{
+		/* Creates multiple virtual portals (half of the MASTER senders). */
+		for (int i = 0; i < TEST_MULTIPLEXATION3_PORTAL_SELECT_NR; ++i)
+			test_assert((portal_in[i] = kportal_create(local, (i*2))) >= 0);
+
+		for (unsigned i = 0; i < TEST_MULTIPLEXATION3_PORTAL_SELECT_NR; ++i)
+		{
+			port = kcomm_get_port(portal_in[i], COMM_TYPE_PORTAL);
+
+			kmemset(message, -1, PORTAL_SIZE_LARGE);
+
+			test_assert(kportal_allow(portal_in[i], remote, port) == 0);
+			test_assert(kportal_read(portal_in[i], message, PORTAL_SIZE_LARGE) == PORTAL_SIZE_LARGE);
+
+			for (unsigned j = 0; j < PORTAL_SIZE_LARGE; ++j)
+				test_assert((message[j] - port) == 0);
+		}
+
+		/* Checks the data volume transferred by each vportal. */
+		for (unsigned i = 0; i < TEST_MULTIPLEXATION3_PORTAL_SELECT_NR; ++i)
+		{
+			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(volume == PORTAL_SIZE_LARGE);
+			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+			test_assert(latency > 0);
+
+			/* Unlinks each vportal. */
+			test_assert(kportal_unlink(portal_in[i]) == 0);
+		}
+	}
+}
+
+/*============================================================================*
+ * API Test: Multiplexation - Multiple Messages                               *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Multiplexation test to assert the message buffers tab
+ * solution to support multiple messages on the same port simultaneously.
+ *
+ * @details In this test, the SLAVE sends 4 messages to 2 ports of the SLAVE.
+ * The reads in the master are also made out of order to assure that there are
+ * 2 messages queued for each vportal on MASTER.
+ */
+static void test_api_portal_multiplexation_4_large(void)
+{
+	int local;
+	int remote;
+	int portal_in[TEST_MLTPX4_PORTAL_SELECT_NR];
+	int portal_out[TEST_MLTPX4_PORTAL_SEND_NR];
+	int port;
+	size_t volume;
+	uint64_t latency;
+
+	local  = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	if (local == MASTER_NODENUM)
+	{
+		/* Creates multiple virtual portals. */
+		for (unsigned i = 0; i < TEST_MLTPX4_PORTAL_SELECT_NR; ++i)
+			test_assert((portal_in[i] = kportal_create(local, i)) >= 0);
+
+		/* For each input vportal. */
+		for (int i = (TEST_MLTPX4_PORTAL_SELECT_NR - 1); i >= 0; --i)
+		{
+			/* For each message it should receive. */
+			for (int j = (TEST_MLTPX4_PORTAL_SELECT_MSG - 1); j >= 0; --j)
+			{
+				port = (i*2 + j);
+
+				kmemset(message, -1, PORTAL_SIZE_LARGE);
+
+				test_assert(kportal_allow(portal_in[i], remote, port) == 0);
+				test_assert(kportal_read(portal_in[i], message, PORTAL_SIZE_LARGE) == PORTAL_SIZE_LARGE);
+
+				/* Asserts the message data. */
+				for (unsigned k = 0; k < PORTAL_SIZE_LARGE; ++k)
+					test_assert((message[k] - port) == 0);
+			}
+		}
+
+		/* Checks the data volume transferred by each vportal. */
+		for (unsigned i = 0; i < TEST_MLTPX4_PORTAL_SELECT_NR; ++i)
+		{
+			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(volume == (PORTAL_SIZE_LARGE * TEST_MLTPX4_PORTAL_SELECT_MSG));
+			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
+			test_assert(latency > 0);
+
+			/* Unlinks the created vportals. */
+			test_assert(kportal_unlink(portal_in[i]) == 0);
+		}
+	}
+	else
+	{
+		/* Opens the output vportals. */
+		for (unsigned i = 0; i < TEST_MLTPX4_PORTAL_SEND_NR; ++i)
+			test_assert((portal_out[i] = kportal_open(local, remote, (int) (i/TEST_MLTPX4_PORTAL_SELECT_MSG))) >= 0);
+
+		/* Sends all the messages to the MASTER node. */
+		for (unsigned i = 0; i < TEST_MLTPX4_PORTAL_SEND_NR; ++i)
+		{
+			kmemset(message, i, PORTAL_SIZE_LARGE);
+
+			test_assert(kportal_write(portal_out[i], message, PORTAL_SIZE_LARGE) == PORTAL_SIZE_LARGE);
+		}
+
+		/* Checks the data volume transferred by each vportal. */
+		for (unsigned i = 0; i < TEST_MLTPX4_PORTAL_SEND_NR; ++i)
+		{
+			test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
+			test_assert(volume == PORTAL_SIZE_LARGE);
+
+			/* Closes the output vportals. */
+			test_assert(kportal_close(portal_out[i]) == 0);
+		}
+	}
+}
+
 /*============================================================================*
  * API Test: Pending Messages - Unlink                                        *
  *============================================================================*/
@@ -2176,21 +2410,24 @@ PRIVATE void test_stress_portal_thread_multiplexing_gather_local(void)
  * @brief API tests.
  */
 static struct test portal_tests_api[] = {
-	{ test_api_portal_create_unlink,      "[test][portal][api] portal create unlink      [passed]" },
-	{ test_api_portal_open_close,         "[test][portal][api] portal open close         [passed]" },
-	{ test_api_portal_get_volume,         "[test][portal][api] portal get volume         [passed]" },
-	{ test_api_portal_get_latency,        "[test][portal][api] portal get latency        [passed]" },
-	{ test_api_portal_read_write,         "[test][portal][api] portal read write         [passed]" },
-	{ test_api_portal_read_write_large,   "[test][portal][api] portal read write large   [passed]" },
-	{ test_api_portal_virtualization,     "[test][portal][api] portal virtualization     [passed]" },
-	{ test_api_portal_multiplexation,     "[test][portal][api] portal multiplexation     [passed]" },
-	{ test_api_portal_allow,              "[test][portal][api] portal allow              [passed]" },
-	{ test_api_portal_multiplexation_2,   "[test][portal][api] portal multiplexation 2   [passed]" },
-	{ test_api_portal_multiplexation_3,   "[test][portal][api] portal multiplexation 3   [passed]" },
-	{ test_api_portal_multiplexation_4,   "[test][portal][api] portal multiplexation 4   [passed]" },
-	{ test_api_portal_pending_msg_unlink, "[test][portal][api] portal pending msg unlink [passed]" },
-	{ test_api_portal_msg_forwarding,     "[test][portal][api] portal message forwarding [passed]" },
-	{ NULL,                                NULL                                                    },
+	{ test_api_portal_create_unlink,          "[test][portal][api] portal create unlink          [passed]" },
+	{ test_api_portal_open_close,             "[test][portal][api] portal open close             [passed]" },
+	{ test_api_portal_get_volume,             "[test][portal][api] portal get volume             [passed]" },
+	{ test_api_portal_get_latency,            "[test][portal][api] portal get latency            [passed]" },
+	{ test_api_portal_read_write,             "[test][portal][api] portal read write             [passed]" },
+	{ test_api_portal_read_write_large,       "[test][portal][api] portal read write large       [passed]" },
+	{ test_api_portal_virtualization,         "[test][portal][api] portal virtualization         [passed]" },
+	{ test_api_portal_multiplexation,         "[test][portal][api] portal multiplexation         [passed]" },
+	{ test_api_portal_allow,                  "[test][portal][api] portal allow                  [passed]" },
+	{ test_api_portal_multiplexation_2,       "[test][portal][api] portal multiplexation 2       [passed]" },
+	{ test_api_portal_multiplexation_3,       "[test][portal][api] portal multiplexation 3       [passed]" },
+	{ test_api_portal_multiplexation_4,       "[test][portal][api] portal multiplexation 4       [passed]" },
+	{ test_api_portal_multiplexation_2_large, "[test][portal][api] portal multiplexation 2 Large [passed]" },
+	{ test_api_portal_multiplexation_3_large, "[test][portal][api] portal multiplexation 3 Large [passed]" },
+	{ test_api_portal_multiplexation_4_large, "[test][portal][api] portal multiplexation 4 Large [passed]" },
+	{ test_api_portal_pending_msg_unlink,     "[test][portal][api] portal pending msg unlink     [passed]" },
+	{ test_api_portal_msg_forwarding,         "[test][portal][api] portal message forwarding     [passed]" },
+	{ NULL,                                    NULL                                                        },
 };
 
 /**

@@ -214,7 +214,11 @@ static void test_api_mailbox_read_write(void)
  * API Test: Virtualization                                                   *
  *============================================================================*/
 
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+#define TEST_VIRTUALIZATION_MBX_NR KMAILBOX_PORT_NR
+#else
 #define TEST_VIRTUALIZATION_MBX_NR MAILBOX_PORT_NR
+#endif
 
 /**
  * @brief API Test: Virtualization.
@@ -248,7 +252,11 @@ static void test_api_mailbox_virtualization(void)
  * API Test: Multiplexation                                                   *
  *============================================================================*/
 
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+#define TEST_MULTIPLEXATION_MBX_PAIRS KMAILBOX_PORT_NR
+#else
 #define TEST_MULTIPLEXATION_MBX_PAIRS MAILBOX_PORT_NR
+#endif
 
 /**
  * @brief API Test: Multiplex of virtual to hardware mailboxes.
@@ -663,7 +671,12 @@ static void test_fault_mailbox_invalid_create(void)
 	test_assert(kmailbox_create(-1, 0) == -EINVAL);
 	test_assert(kmailbox_create(PROCESSOR_NOC_NODES_NUM, 0) == -EINVAL);
 	test_assert(kmailbox_create(nodenum, -1) == -EINVAL);
+
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+	test_assert(kmailbox_create(nodenum, KMAILBOX_PORT_NR) == -EINVAL);
+#else
 	test_assert(kmailbox_create(nodenum, MAILBOX_PORT_NR) == -EINVAL);
+#endif
 }
 
 /*============================================================================*
@@ -774,7 +787,11 @@ static void test_fault_mailbox_invalid_open(void)
 	test_assert(kmailbox_open(-1, 0) == -EINVAL);
 	test_assert(kmailbox_open(PROCESSOR_NOC_NODES_NUM, 0) == -EINVAL);
 	test_assert(kmailbox_open(nodenum, -1) == -EINVAL);
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+	test_assert(kmailbox_open(nodenum, KMAILBOX_PORT_NR) == -EINVAL);
+#else
 	test_assert(kmailbox_open(nodenum, MAILBOX_PORT_NR) == -EINVAL);
+#endif
 }
 
 /*============================================================================*

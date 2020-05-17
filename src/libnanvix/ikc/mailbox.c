@@ -40,6 +40,11 @@ int kmailbox_create(int local, int port)
 {
 	int ret;
 
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+	if (!WITHIN(port, 0, KMAILBOX_PORT_NR))
+		return (-EINVAL);
+#endif /* __NANVIX_IKC_USES_ONLY_MAILBOX */
+
 	ret = kcall2(
 		NR_mailbox_create,
 		(word_t) local,
@@ -60,6 +65,11 @@ int kmailbox_create(int local, int port)
 int kmailbox_open(int remote, int remote_port)
 {
 	int ret;
+
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+	if (!WITHIN(remote_port, 0, KMAILBOX_PORT_NR))
+		return (-EINVAL);
+#endif /* __NANVIX_IKC_USES_ONLY_MAILBOX */
 
 	ret = kcall2(
 		NR_mailbox_open,
@@ -118,7 +128,7 @@ int kmailbox_close(int mbxid)
  * @details The kmailbox_awrite() asynchronously write @p size bytes
  * of data pointed to by @p buffer to the output mailbox @p mbxid.
  */
-ssize_t kmailbox_awrite(int mbxid, const void *buffer, size_t size)
+ssize_t kmailbox_awrite(int mbxid, const void * buffer, size_t size)
 {
 	int ret;
 
@@ -132,7 +142,7 @@ ssize_t kmailbox_awrite(int mbxid, const void *buffer, size_t size)
 			NR_mailbox_awrite,
 			(word_t) mbxid,
 			(word_t) buffer,
-			(word_t) KMAILBOX_MESSAGE_SIZE
+			(word_t) size
 		);
 	} while ((ret == -ETIMEDOUT) || (ret == -EAGAIN) || (ret == -EBUSY));
 
@@ -147,7 +157,7 @@ ssize_t kmailbox_awrite(int mbxid, const void *buffer, size_t size)
  * @details The kmailbox_aread() asynchronously read @p size bytes of
  * data pointed to by @p buffer from the input mailbox @p mbxid.
  */
-ssize_t kmailbox_aread(int mbxid, void *buffer, size_t size)
+ssize_t kmailbox_aread(int mbxid, void * buffer, size_t size)
 {
 	int ret;
 
@@ -161,7 +171,7 @@ ssize_t kmailbox_aread(int mbxid, void *buffer, size_t size)
 			NR_mailbox_aread,
 			(word_t) mbxid,
 			(word_t) buffer,
-			(word_t) KMAILBOX_MESSAGE_SIZE
+			(word_t) size
 		);
 	} while ((ret == -ETIMEDOUT) || (ret == -EBUSY) || (ret == -ENOMSG));
 
@@ -198,10 +208,9 @@ int kmailbox_wait(int mbxid)
  *
  * @todo Uncomment kmailbox_wait() call when microkernel properly supports it.
  */
-ssize_t kmailbox_write(int mbxid, const void *buffer, size_t size)
+ssize_t kmailbox_write(int mbxid, const void * buffer, size_t size)
 {
 	int ret;
-	char buffer2[KMAILBOX_MESSAGE_SIZE];
 
 	/* Invalid buffer. */
 	if (buffer == NULL)
@@ -211,9 +220,7 @@ ssize_t kmailbox_write(int mbxid, const void *buffer, size_t size)
 	if ((size == 0) || (size > KMAILBOX_MESSAGE_SIZE))
 		return (-EINVAL);
 
-	kmemcpy(buffer2, buffer, size);
-
-	if ((ret = kmailbox_awrite(mbxid, buffer2, KMAILBOX_MESSAGE_SIZE)) < 0)
+	if ((ret = kmailbox_awrite(mbxid, buffer, size)) < 0)
 		return (ret);
 
 	if ((ret = kmailbox_wait(mbxid)) < 0)
@@ -230,10 +237,9 @@ ssize_t kmailbox_write(int mbxid, const void *buffer, size_t size)
  * @details The kmailbox_read() synchronously read @p size bytes of
  * data pointed to by @p buffer from the input mailbox @p mbxid.
  */
-ssize_t kmailbox_read(int mbxid, void *buffer, size_t size)
+ssize_t kmailbox_read(int mbxid, void * buffer, size_t size)
 {
 	int ret;
-	char buffer2[KMAILBOX_MESSAGE_SIZE];
 
 	/* Invalid buffer. */
 	if (buffer == NULL)
@@ -246,15 +252,13 @@ ssize_t kmailbox_read(int mbxid, void *buffer, size_t size)
 	/* Repeat while reading valid messages for another ports. */
 	do
 	{
-		if ((ret = kmailbox_aread(mbxid, buffer2, KMAILBOX_MESSAGE_SIZE)) < 0)
+		if ((ret = kmailbox_aread(mbxid, buffer, size)) < 0)
 			return (ret);
 	} while ((ret = kmailbox_wait(mbxid)) > 0);
 
 	/* Wait failed. */
 	if (ret < 0)
 		return (ret);
-
-	kmemcpy(buffer, buffer2, size);
 
 	return (size);
 }
@@ -288,6 +292,18 @@ int kmailbox_ioctl(int mbxid, unsigned request, ...)
 	va_end(args);
 
 	return (ret);
+}
+
+/*============================================================================*
+ * kmailbox_init()                                                            *
+ *============================================================================*/
+
+/**
+ * @details The kmailbox_init() Initializes mailbox system.
+ */
+PUBLIC void kmailbox_init(void)
+{
+	kprintf("[user][mailbox] Initializes mailbox module");
 }
 
 #else

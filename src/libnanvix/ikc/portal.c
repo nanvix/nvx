@@ -24,7 +24,7 @@
 
 #include <nanvix/kernel/kernel.h>
 
-#if __TARGET_HAS_PORTAL
+#if __TARGET_HAS_PORTAL && !__NANVIX_IKC_USES_ONLY_MAILBOX
 
 #include <nanvix/sys/noc.h>
 #include <posix/errno.h>
@@ -181,9 +181,9 @@ int kportal_close(int portalid)
  * @details The kportal_aread() asynchronously read @p size bytes of
  * data pointed to by @p buffer from the input portal @p portalid.
  */
-int kportal_aread(int portalid, void * buffer, size_t size)
+ssize_t kportal_aread(int portalid, void * buffer, size_t size)
 {
-	int ret;
+	ssize_t ret;
 
 	/* Invalid buffer. */
 	if (buffer == NULL)
@@ -213,9 +213,9 @@ int kportal_aread(int portalid, void * buffer, size_t size)
  * @details The kportal_awrite() asynchronously write @p size bytes
  * of data pointed to by @p buffer to the output portal @p portalid.
  */
-int kportal_awrite(int portalid, const void * buffer, size_t size)
+ssize_t kportal_awrite(int portalid, const void * buffer, size_t size)
 {
-	int ret;
+	ssize_t ret;
 
 	/* Invalid buffer. */
 	if (buffer == NULL)
@@ -401,6 +401,18 @@ int kportal_ioctl(int portalid, unsigned request, ...)
 	return (ret);
 }
 
+/*============================================================================*
+ * kportal_init()                                                             *
+ *============================================================================*/
+
+/**
+ * @details The kportal_init() Initializes portal system.
+ */
+PUBLIC void kportal_init(void)
+{
+	kprintf("[user][portal] Initializes portal module");
+}
+
 #else
 extern int make_iso_compilers_happy;
-#endif /* __TARGET_HAS_PORTAL */
+#endif /* __TARGET_HAS_PORTAL && !__NANVIX_IKC_USES_ONLY_MAILBOX */

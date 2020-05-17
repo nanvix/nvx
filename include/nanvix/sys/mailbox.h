@@ -34,6 +34,19 @@
 	#include <posix/sys/types.h>
 
 	/**
+	 * @brief If the configuration of IKC systems is missing, then disable
+	 * the implementation that uses only mailboxes.
+	 */
+	#ifndef __NANVIX_IKC_USES_ONLY_MAILBOX
+	#define __NANVIX_IKC_USES_ONLY_MAILBOX 0
+	#endif
+
+	/**
+	 * @brief Initializes the user-side of the mailbox system.
+	 */
+	extern void kmailbox_init(void);
+
+	/**
 	 * @brief Creates an input mailbox.
 	 *
 	 * @param local Target local NoC node.

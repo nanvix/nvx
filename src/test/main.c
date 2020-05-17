@@ -104,6 +104,9 @@ void ___start(int argc, const char *argv[])
 	int index;
 	int nodenum;
 
+	/* Required. */
+	knoc_init();
+
 	((void) argc);
 	((void) argv);
 

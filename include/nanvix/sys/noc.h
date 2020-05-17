@@ -39,6 +39,7 @@
 	extern int knode_get_num(void);
 	extern int kcluster_get_num(void);
 	extern int kcomm_get_port(int, int);
+	extern void knoc_init(void);
 	/**@}*/
 
 #endif /* NANVIX_SYS_NOC_H_ */

@@ -23,6 +23,9 @@
  */
 
 #include <nanvix/kernel/kernel.h>
+#include <nanvix/sys/mailbox.h>
+#include <nanvix/sys/portal.h>
+#include <nanvix/sys/sync.h>
 #include <posix/errno.h>
 
 /*============================================================================*
@@ -78,6 +81,11 @@ int kcomm_get_port(int id, int type)
 	if ((type != COMM_TYPE_MAILBOX) && (type != COMM_TYPE_PORTAL))
 		return (-EINVAL);
 
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+	if (type == COMM_TYPE_PORTAL)
+		return (kportal_get_port(id));
+#endif
+
 	ret = kcall2(
 		NR_comm_get_port,
 		(word_t) id,
@@ -85,4 +93,28 @@ int kcomm_get_port(int id, int type)
 	);
 
 	return (ret);
+}
+
+/*============================================================================*
+ * knoc_init()                                                                *
+ *============================================================================*/
+
+/**
+ * @details The knoc_init() Initializes underlying noc systems.
+ */
+PUBLIC void knoc_init(void)
+{
+    kprintf("[user][noc] initializing the noc system");
+
+	#if __TARGET_HAS_PORTAL || (__TARGET_HAS_MAILBOX && __NANVIX_IKC_USES_ONLY_MAILBOX)
+		kportal_init();
+	#endif
+
+	#if __TARGET_HAS_SYNC || (__TARGET_HAS_MAILBOX && __NANVIX_IKC_USES_ONLY_MAILBOX)
+		ksync_init();
+	#endif
+
+	#if __TARGET_HAS_MAILBOX
+		kmailbox_init();
+	#endif
 }

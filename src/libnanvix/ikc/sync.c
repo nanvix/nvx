@@ -24,7 +24,7 @@
 
 #include <nanvix/kernel/kernel.h>
 
-#if __TARGET_HAS_SYNC
+#if __TARGET_HAS_SYNC && !__NANVIX_IKC_USES_ONLY_MAILBOX
 
 #include <nanvix/sys/noc.h>
 #include <posix/errno.h>
@@ -178,6 +178,18 @@ int ksync_unlink(int syncid)
 	return (ret);
 }
 
+/*============================================================================*
+ * ksync_init()                                                               *
+ *============================================================================*/
+
+/**
+ * @details The ksync_init() Initializes sync system.
+ */
+PUBLIC void ksync_init(void)
+{
+	kprintf("[user][sync] Initializes sync module");
+}
+
 #else
 extern int make_iso_compilers_happy;
-#endif /* __TARGET_HAS_MAILBOX */
+#endif /* __TARGET_HAS_SYNC && !__NANVIX_IKC_USES_ONLY_MAILBOX */

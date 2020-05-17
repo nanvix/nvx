@@ -34,6 +34,14 @@
 	#include <posix/sys/types.h>
 
 	/**
+	 * @brief If the configuration of IKC systems is missing, then disable
+	 * the implementation that uses only mailboxes.
+	 */
+	#ifndef __NANVIX_IKC_USES_ONLY_MAILBOX
+	#define __NANVIX_IKC_USES_ONLY_MAILBOX 0
+	#endif
+
+	/**
 	 * @brief Initializes the user-side of the synchronization system.
 	 */
 	extern void ksync_init(void);

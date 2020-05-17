@@ -35,6 +35,14 @@
 	#include <posix/stdint.h>
 
 	/**
+	 * @brief If the configuration of IKC systems is missing, then disable
+	 * the implementation that uses only mailboxes.
+	 */
+	#ifndef __NANVIX_IKC_USES_ONLY_MAILBOX
+		#define __NANVIX_IKC_USES_ONLY_MAILBOX 0
+	#endif /* __NANVIX_IKC_USES_ONLY_MAILBOX */
+
+	/**
 	 * @brief Initializes the user-side of the portal system.
 	 */
 	extern void kportal_init(void);
@@ -164,6 +172,19 @@
 	 * a negative error code is returned instead.
 	 */
 	extern int kportal_ioctl(int portalid, unsigned request, ...);
+
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+
+	/**
+	 * @brief Gets local port attached to a portal.
+	 *
+	 * @param portalid Portal ID
+	 *
+	 * @returns Upon successful completion, local port attached to portalid.
+	 */
+	extern int kportal_get_port(int portalid);
+
+#endif /* __NANVIX_IKC_USES_ONLY_MAILBOX */
 
 #endif /* NANVIX_SYS_PORTAL_H_ */
 

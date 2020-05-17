@@ -24,7 +24,7 @@
 
 #include <nanvix/kernel/kernel.h>
 
-#if __TARGET_HAS_PORTAL
+#if __TARGET_HAS_PORTAL && !__NANVIX_IKC_USES_ONLY_MAILBOX
 
 #include <nanvix/sys/noc.h>
 #include <posix/errno.h>
@@ -415,4 +415,4 @@ PUBLIC void kportal_init(void)
 
 #else
 extern int make_iso_compilers_happy;
-#endif /* __TARGET_HAS_PORTAL */
+#endif /* __TARGET_HAS_PORTAL && !__NANVIX_IKC_USES_ONLY_MAILBOX */

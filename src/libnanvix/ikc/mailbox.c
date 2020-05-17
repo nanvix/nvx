@@ -40,6 +40,11 @@ int kmailbox_create(int local, int port)
 {
 	int ret;
 
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+	if (!WITHIN(port, 0, KMAILBOX_PORT_NR))
+		return (-EINVAL);
+#endif /* __NANVIX_IKC_USES_ONLY_MAILBOX */
+
 	ret = kcall2(
 		NR_mailbox_create,
 		(word_t) local,
@@ -60,6 +65,11 @@ int kmailbox_create(int local, int port)
 int kmailbox_open(int remote, int remote_port)
 {
 	int ret;
+
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+	if (!WITHIN(remote_port, 0, KMAILBOX_PORT_NR))
+		return (-EINVAL);
+#endif /* __NANVIX_IKC_USES_ONLY_MAILBOX */
 
 	ret = kcall2(
 		NR_mailbox_open,

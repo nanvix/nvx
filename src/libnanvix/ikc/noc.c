@@ -81,6 +81,11 @@ int kcomm_get_port(int id, int type)
 	if ((type != COMM_TYPE_MAILBOX) && (type != COMM_TYPE_PORTAL))
 		return (-EINVAL);
 
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+	if (type == COMM_TYPE_PORTAL)
+		return (kportal_get_port(id));
+#endif
+
 	ret = kcall2(
 		NR_comm_get_port,
 		(word_t) id,
@@ -101,11 +106,11 @@ PUBLIC void knoc_init(void)
 {
     kprintf("[user][noc] initializing the noc system");
 
-	#if __TARGET_HAS_PORTAL
+	#if __TARGET_HAS_PORTAL || (__TARGET_HAS_MAILBOX && __NANVIX_IKC_USES_ONLY_MAILBOX)
 		kportal_init();
 	#endif
 
-	#if __TARGET_HAS_SYNC
+	#if __TARGET_HAS_SYNC || (__TARGET_HAS_MAILBOX && __NANVIX_IKC_USES_ONLY_MAILBOX)
 		ksync_init();
 	#endif
 

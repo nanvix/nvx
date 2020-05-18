@@ -120,6 +120,116 @@ void test_api_sync_open_close(void)
 }
 
 /*============================================================================*
+ * API Test: Get latency                                                      *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Sync Get latency
+ */
+static void test_api_sync_get_latency(void)
+{
+	int tmp;
+	int syncin;
+	int syncout;
+	uint64_t latency;
+	int nodes[NR_NODES];
+
+	nodes[0] = knode_get_num();
+
+	for (int i = 0, j = 1; i < NR_NODES; i++)
+	{
+		if (nodenums[i] == nodes[0])
+			continue;
+
+		nodes[j++] = nodenums[i];
+	}
+
+	test_assert((syncin = ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
+	test_assert((syncout = ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
+
+		test_assert(ksync_ioctl(syncin, KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency == 0);
+		test_assert(ksync_ioctl(syncout, KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency == 0);
+
+	test_assert(ksync_close(syncout) == 0);
+	test_assert(ksync_unlink(syncin) == 0);
+
+	tmp = nodes[0];
+	nodes[0] = nodes[1];
+	nodes[1] = tmp;
+
+	test_assert((syncin = ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
+	test_assert((syncout = ksync_open(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
+
+		test_assert(ksync_ioctl(syncin, KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency == 0);
+		test_assert(ksync_ioctl(syncout, KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency == 0);
+
+	test_assert(ksync_close(syncout) == 0);
+	test_assert(ksync_unlink(syncin) == 0);
+}
+
+/*============================================================================*
+ * API Test: Get counters                                                     *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Sync Get latency
+ */
+static void test_api_sync_get_counters(void)
+{
+	int syncin;
+	int syncout;
+	uint64_t c0;
+	uint64_t c1;
+	int nodes[NR_NODES];
+
+	nodes[0] = knode_get_num();
+
+	for (int i = 0, j = 1; i < NR_NODES; i++)
+	{
+		if (nodenums[i] == nodes[0])
+			continue;
+
+		nodes[j++] = nodenums[i];
+	}
+
+	test_assert((syncin = ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
+
+		test_assert(ksync_ioctl(syncin, KSYNC_IOCTL_GET_NCREATES, &c0) == 0);
+		test_assert(c0 == 5);
+		test_assert(ksync_ioctl(syncin, KSYNC_IOCTL_GET_NOPENS, &c1) == 0);
+		test_assert(c1 == 4);
+		test_assert(ksync_ioctl(syncin, KSYNC_IOCTL_GET_NCLOSES, &c1) == 0);
+		test_assert(c1 == 4);
+
+	test_assert((syncout = ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
+
+		test_assert(ksync_ioctl(syncin, KSYNC_IOCTL_GET_NCREATES, &c0) == 0);
+		test_assert(c0 == 5);
+		test_assert(ksync_ioctl(syncin, KSYNC_IOCTL_GET_NOPENS, &c0) == 0);
+		test_assert(c0 == 5);
+		test_assert(ksync_ioctl(syncin, KSYNC_IOCTL_GET_NUNLINKS, &c1) == 0);
+		test_assert(c1 == 4);
+		test_assert(ksync_ioctl(syncin, KSYNC_IOCTL_GET_NCLOSES, &c1) == 0);
+		test_assert(c1 == 4);
+
+		test_assert(ksync_ioctl(syncin, KSYNC_IOCTL_GET_NWAITS, &c1) == 0);
+		test_assert(c1 == 0);
+		test_assert(ksync_ioctl(syncin, KSYNC_IOCTL_GET_NSIGNALS, &c1) == 0);
+		test_assert(c1 == 0);
+
+	test_assert(ksync_close(syncout) == 0);
+
+		test_assert(ksync_ioctl(syncin, KSYNC_IOCTL_GET_NCLOSES, &c1) == 0);
+		test_assert(c1 == 5);
+
+	test_assert(ksync_unlink(syncin) == 0);
+}
+
+/*============================================================================*
  * API Test: Virtualization                                                   *
  *============================================================================*/
 
@@ -187,6 +297,8 @@ void test_api_sync_signal_wait(void)
 	int syncout;
 	int nodenum;
 	int nodes[NR_NODES];
+	uint64_t latency;
+	uint64_t counter;
 
 	nodenum = knode_get_num();
 	nodes[0] = MASTER_NODENUM;
@@ -204,7 +316,17 @@ void test_api_sync_signal_wait(void)
 		test_assert((syncin = ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
 		test_assert((syncout = ksync_open(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
 
-		for (int i = 1; i < NITERATIONS; i++)
+		test_assert(ksync_ioctl(syncin, KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency == 0);
+		test_assert(ksync_ioctl(syncout, KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency == 0);
+
+		test_assert(ksync_ioctl(syncout, KSYNC_IOCTL_GET_NWAITS, &counter) == 0);
+		test_assert(counter == 0);
+		test_assert(ksync_ioctl(syncout, KSYNC_IOCTL_GET_NSIGNALS, &counter) == 0);
+		test_assert(counter == 0);
+
+		for (int i = 0; i < NITERATIONS; i++)
 		{
 			test_assert(ksync_wait(syncin) == 0);
 			test_assert(ksync_signal(syncout) == 0);
@@ -215,12 +337,32 @@ void test_api_sync_signal_wait(void)
 		test_assert((syncin = ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
 		test_assert((syncout = ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
 
-		for (int i = 1; i < NITERATIONS; i++)
+		test_assert(ksync_ioctl(syncin, KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency == 0);
+		test_assert(ksync_ioctl(syncout, KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency == 0);
+
+		test_assert(ksync_ioctl(syncout, KSYNC_IOCTL_GET_NWAITS, &counter) == 0);
+		test_assert(counter == 0);
+		test_assert(ksync_ioctl(syncout, KSYNC_IOCTL_GET_NSIGNALS, &counter) == 0);
+		test_assert(counter == 0);
+
+		for (int i = 0; i < NITERATIONS; i++)
 		{
 			test_assert(ksync_signal(syncout) == 0);
 			test_assert(ksync_wait(syncin) == 0);
 		}
 	}
+
+	test_assert(ksync_ioctl(syncin, KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency > 0);
+	test_assert(ksync_ioctl(syncout, KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency > 0);
+
+	test_assert(ksync_ioctl(syncout, KSYNC_IOCTL_GET_NWAITS, &counter) == 0);
+	test_assert(counter == NITERATIONS);
+	test_assert(ksync_ioctl(syncout, KSYNC_IOCTL_GET_NSIGNALS, &counter) == 0);
+	test_assert(counter == NITERATIONS);
 
 	test_assert(ksync_close(syncout) == 0);
 	test_assert(ksync_unlink(syncin) == 0);
@@ -239,6 +381,7 @@ void test_api_sync_multiplexation(void)
 	int syncout[2];
 	int nodenum;
 	int nodes[NR_NODES];
+	uint64_t latency;
 
 	nodenum = knode_get_num();
 	nodes[0] = (nodenum == MASTER_NODENUM) ? MASTER_NODENUM : SLAVE_NODENUM;
@@ -255,6 +398,11 @@ void test_api_sync_multiplexation(void)
 	test_assert((syncin[1] = ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
 	test_assert((syncout[0] = ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
 
+	test_assert(ksync_ioctl(syncin[1], KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency == 0);
+	test_assert(ksync_ioctl(syncout[0], KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency == 0);
+
 	nodes[NR_NODES - 1] = (nodenum == MASTER_NODENUM) ? MASTER_NODENUM : SLAVE_NODENUM;
 
 	for (int i = 0, j = 0; i < NR_NODES; i++)
@@ -267,6 +415,11 @@ void test_api_sync_multiplexation(void)
 
 	test_assert((syncin[0] = ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
 	test_assert((syncout[1] = ksync_open(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
+
+	test_assert(ksync_ioctl(syncin[0], KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency == 0);
+	test_assert(ksync_ioctl(syncout[1], KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
+	test_assert(latency == 0);
 
 	if (nodenum != MASTER_NODENUM)
 	{
@@ -294,6 +447,11 @@ void test_api_sync_multiplexation(void)
 	/* Destroy the used synchronization points. */
 	for (int i = 0; i < 2; ++i)
 	{
+		test_assert(ksync_ioctl(syncin[i], KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency > 0);
+		test_assert(ksync_ioctl(syncout[i], KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
+		test_assert(latency > 0);
+
 		test_assert(ksync_close(syncout[i]) == 0);
 		test_assert(ksync_unlink(syncin[i]) == 0);
 	}
@@ -824,6 +982,44 @@ void test_fault_sync_bad_syncid(void)
 }
 
 /*============================================================================*
+ * Fault Test: Invalid ioctl                                                  *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Invalid ioctl
+ */
+static void test_fault_sync_invalid_ioctl(void)
+{
+	int syncid;
+	int nodenum;
+	uint64_t latency;
+	int nodes[NR_NODES];
+
+	nodenum = knode_get_num();
+	nodes[0] = nodenum;
+
+	/* Build nodes list. */
+	for (int i = 0, j = 1; i < NR_NODES; i++)
+	{
+		if (nodenums[i] == nodenum)
+			continue;
+
+		nodes[j++] = nodenums[i];
+	}
+
+	test_assert(ksync_ioctl(-1, KSYNC_IOCTL_GET_LATENCY, &latency) == -EINVAL);
+	test_assert(ksync_ioctl(KSYNC_MAX, KSYNC_IOCTL_GET_LATENCY, &latency) == -EINVAL);
+
+	test_assert((syncid = ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
+
+		test_assert(ksync_ioctl(syncid, -1, &latency) == -ENOTSUP);
+		test_assert(ksync_ioctl(syncid, KSYNC_IOCTL_GET_LATENCY, NULL) == -EFAULT);
+
+	test_assert(ksync_unlink(syncid) == 0);
+}
+
+
+/*============================================================================*
  * Test Driver                                                                *
  *============================================================================*/
 
@@ -833,6 +1029,8 @@ void test_fault_sync_bad_syncid(void)
 static struct test sync_tests_api[] = {
 	{ test_api_sync_create_unlink,  "[test][sync][api] sync create/unlink  [passed]" },
 	{ test_api_sync_open_close,     "[test][sync][api] sync open/close     [passed]" },
+	{ test_api_sync_get_latency,    "[test][sync][api] sync get latency    [passed]" },
+	{ test_api_sync_get_counters,   "[test][sync][api] sync get counters   [passed]" },
 	{ test_api_sync_virtualization, "[test][sync][api] sync virtualization [passed]" },
 	{ test_api_sync_signal_wait,    "[test][sync][api] sync wait           [passed]" },
 	{ test_api_sync_multiplexation, "[test][sync][api] sync multiplexation [passed]" },
@@ -843,22 +1041,23 @@ static struct test sync_tests_api[] = {
  * @brief Fault tests.
  */
 static struct test sync_tests_fault[] = {
-	{ test_fault_sync_invalid_create, "[test][sync][api] sync invalid create [passed]" },
-	{ test_fault_sync_bad_create,     "[test][sync][api] sync bad create     [passed]" },
-	{ test_fault_sync_invalid_open,   "[test][sync][api] sync invalid open   [passed]" },
-	{ test_fault_sync_bad_open,       "[test][sync][api] sync bad open       [passed]" },
-	{ test_fault_sync_invalid_unlink, "[test][sync][api] sync invalid unlink [passed]" },
-	{ test_fault_sync_bad_unlink,     "[test][sync][api] sync bad unlink     [passed]" },
-	{ test_fault_sync_double_unlink,  "[test][sync][api] sync double unlink  [passed]" },
-	{ test_fault_sync_invalid_close,  "[test][sync][api] sync invalid close  [passed]" },
-	{ test_fault_sync_bad_close,      "[test][sync][api] sync bad close      [passed]" },
-	{ test_fault_sync_double_close,   "[test][sync][api] sync double close   [passed]" },
-	{ test_fault_sync_invalid_signal, "[test][sync][api] sync invalid signal [passed]" },
-	{ test_fault_sync_bad_signal,     "[test][sync][api] sync bad signal     [passed]" },
-	{ test_fault_sync_invalid_wait,   "[test][sync][api] sync invalid wait   [passed]" },
-	{ test_fault_sync_bad_wait,       "[test][sync][api] sync bad wait       [passed]" },
-	{ test_fault_sync_bad_syncid,     "[test][sync][api] sync bad syncid     [passed]" },
-	{ NULL,                            NULL                                            },
+	{ test_fault_sync_invalid_create, "[test][sync][fault] sync invalid create [passed]" },
+	{ test_fault_sync_bad_create,     "[test][sync][fault] sync bad create     [passed]" },
+	{ test_fault_sync_invalid_open,   "[test][sync][fault] sync invalid open   [passed]" },
+	{ test_fault_sync_bad_open,       "[test][sync][fault] sync bad open       [passed]" },
+	{ test_fault_sync_invalid_unlink, "[test][sync][fault] sync invalid unlink [passed]" },
+	{ test_fault_sync_bad_unlink,     "[test][sync][fault] sync bad unlink     [passed]" },
+	{ test_fault_sync_double_unlink,  "[test][sync][fault] sync double unlink  [passed]" },
+	{ test_fault_sync_invalid_close,  "[test][sync][fault] sync invalid close  [passed]" },
+	{ test_fault_sync_bad_close,      "[test][sync][fault] sync bad close      [passed]" },
+	{ test_fault_sync_double_close,   "[test][sync][fault] sync double close   [passed]" },
+	{ test_fault_sync_invalid_signal, "[test][sync][fault] sync invalid signal [passed]" },
+	{ test_fault_sync_bad_signal,     "[test][sync][fault] sync bad signal     [passed]" },
+	{ test_fault_sync_invalid_wait,   "[test][sync][fault] sync invalid wait   [passed]" },
+	{ test_fault_sync_bad_wait,       "[test][sync][fault] sync bad wait       [passed]" },
+	{ test_fault_sync_bad_syncid,     "[test][sync][fault] sync bad syncid     [passed]" },
+	{ test_fault_sync_invalid_ioctl,  "[test][sync][fault] sync invalid ioctl  [passed]" },
+	{ NULL,                            NULL                                              },
 };
 
 /**

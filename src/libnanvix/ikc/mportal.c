@@ -23,6 +23,7 @@
  */
 
 #define __NEED_RESOURCE
+#define __NANVIX_MICROKERNEL
 
 #include <nanvix/kernel/kernel.h>
 
@@ -89,6 +90,23 @@ PRIVATE struct resource write_channels[PROCESSOR_NOC_NODES_NUM] = {
 PRIVATE bool remote_is_allowed[PROCESSOR_NOC_NODES_NUM] = {
 	[0 ... (PROCESSOR_NOC_NODES_NUM - 1)] = false
 };
+
+/*============================================================================*
+ * Counters structure.                                                        *
+ *============================================================================*/
+
+/**
+ * @brief Communicator counters.
+ */
+PRIVATE struct
+{
+	uint64_t ncreates; /**< Number of creates. */
+	uint64_t nunlinks; /**< Number of unlinks. */
+	uint64_t nopens;   /**< Number of opens.   */
+	uint64_t ncloses;  /**< Number of closes.  */
+	uint64_t nreads;   /**< Number of reads.   */
+	uint64_t nwrites;  /**< Number of writes.  */
+} mportal_counters;
 
 /*============================================================================*
  * Portal configuration                                                       *
@@ -672,6 +690,8 @@ PUBLIC int kportal_create(int local, int local_port)
 			mportals[portalid].latency  = 0ULL;
 			mportals[portalid].config   = config;
 			resource_set_rdonly(&mportals[portalid].resource);
+			
+			mportal_counters.ncreates++;
 		}
 
 	spinlock_unlock(&global_lock);
@@ -804,6 +824,8 @@ PUBLIC int kportal_open(int local, int remote, int remote_port)
 			mportals[portalid].latency  = 0;
 			mportals[portalid].config   = config;
 			resource_set_wronly(&mportals[portalid].resource);
+
+			mportal_counters.nopens++;
 		}
 
 error:
@@ -860,8 +882,10 @@ PUBLIC int kportal_unlink(int portalid)
 			mportals[portalid].mdata  = -1;
 			mportals[portalid].config = MPORTAL_CONFIG_NULL;
 			resource_free(&mportalpool, portalid);
+
 		}
 
+		mportal_counters.nunlinks++;
 		ret = (0);
 
 error:
@@ -920,6 +944,7 @@ PUBLIC int kportal_close(int portalid)
 			resource_free(&mportalpool, portalid);
 		}
 
+		mportal_counters.ncloses++;
 		ret = (0);
 
 error:
@@ -1027,7 +1052,7 @@ again:
 				goto release;
 
 			/* Sanity check. */
-			KASSERT(!message.header);			
+			KASSERT(!message.header);
 
 			if (!buffering)
 			{
@@ -1204,7 +1229,7 @@ PUBLIC ssize_t kportal_aread(int portalid, void * buffer, size_t size)
 
 		if (ret >= 0)
 		{
-			kmailbox_ioctl(mportals[portalid].mdata, MAILBOX_IOCTL_GET_LATENCY, &latency);
+			kmailbox_ioctl(mportals[portalid].mdata, KMAILBOX_IOCTL_GET_LATENCY, &latency);
 			mportals[portalid].latency += latency;
 		}
 	}
@@ -1215,6 +1240,9 @@ PUBLIC ssize_t kportal_aread(int portalid, void * buffer, size_t size)
 		mportals[portalid].mdata              = -1;
 		mportals[portalid].config.remote      = -1;
 		mportals[portalid].config.remote_port = -1;
+
+		if (ret >= 0)
+			mportal_counters.nreads++;
 
 		resource_set_notbusy(&mportals[portalid].resource);
 error:
@@ -1484,12 +1512,15 @@ PUBLIC ssize_t kportal_awrite(int portalid, const void * buffer, size_t size)
 
 		if (ret >= 0)
 		{
-			kmailbox_ioctl(mportals[portalid].mdata, MAILBOX_IOCTL_GET_LATENCY, &latency);
+			kmailbox_ioctl(mportals[portalid].mdata, KMAILBOX_IOCTL_GET_LATENCY, &latency);
 			mportals[portalid].latency += latency;
 		}
 	}
 
 	spinlock_lock(&global_lock);
+		if (ret >= 0)
+			mportal_counters.nwrites++;
+
 		resource_set_notbusy(&mportals[portalid].resource);
 error:
 	spinlock_unlock(&global_lock);
@@ -1565,6 +1596,11 @@ PUBLIC ssize_t kportal_write(int portalid, const void * buffer, size_t size)
  * kportal_ioctl()                                                            *
  *============================================================================*/
 
+PRIVATE int kportal_ioctl_valid(void * ptr, size_t size)
+{
+	return ((ptr != NULL) && mm_check_area(VADDR(ptr), size, UMEM_AREA));
+}
+
 /**
  * @details The kportal_ioctl() reads the measurement parameter associated
  * with the request id @p request of the portal @p portalid.
@@ -1583,51 +1619,101 @@ PUBLIC int kportal_ioctl(int portalid, unsigned request, ...)
 
 		/* Bad sync. */
 		if (!resource_is_used(&mportals[portalid].resource))
-			goto error;
+			goto error0;
 
 		ret = (-EBUSY);
 
 		/* Busy sync. */
 		if (resource_is_busy(&mportals[portalid].resource))
-			goto error;
+			goto error0;
 
-		ret = 0;
+		ret = (-EFAULT);
 
 		va_start(args, request);
 
-		/* Parse request. */
-		switch (request)
-		{
-			/* Get the amount of data transferred so far. */
-			case KPORTAL_IOCTL_GET_VOLUME:
+			/* Parse request. */
+			switch (request)
 			{
-				size_t *volume;
-				volume = va_arg(args, size_t *);
-				*volume = mportals[portalid].volume;
-			} break;
+				/* Get the amount of data transferred so far. */
+				case KPORTAL_IOCTL_GET_VOLUME:
+				{
+					size_t * volume = va_arg(args, size_t *);
 
-			/* Get the cumulative transfer latency. */
-			case KPORTAL_IOCTL_GET_LATENCY:
-			{
-				uint64_t *latency;
-				latency = va_arg(args, uint64_t *);
-				*latency = mportals[portalid].latency;
-			} break;
+					/* Bad buffer. */
+					if (!kportal_ioctl_valid(volume, sizeof(size_t)))
+						goto error1;
 
-			/* Operation not supported. */
-			default:
-				ret = (-ENOTSUP);
-				break;
-		}
+					*volume = mportals[portalid].volume;
+					ret = 0;
+				} break;
 
+				/* Get uint64_t parameter. */
+				case KPORTAL_IOCTL_GET_LATENCY:
+				case KPORTAL_IOCTL_GET_NCREATES:
+				case KPORTAL_IOCTL_GET_NUNLINKS:
+				case KPORTAL_IOCTL_GET_NOPENS:
+				case KPORTAL_IOCTL_GET_NCLOSES:
+				case KPORTAL_IOCTL_GET_NREADS:
+				case KPORTAL_IOCTL_GET_NWRITES:
+				{
+					uint64_t * var = va_arg(args, uint64_t *);
+
+					/* Bad buffer. */
+					if (!kportal_ioctl_valid(var, sizeof(uint64_t)))
+						goto error1;
+
+					ret = 0;
+
+					switch(request)
+					{
+						case KPORTAL_IOCTL_GET_LATENCY:
+							*var = mportals[portalid].latency;
+							break;
+
+						case KPORTAL_IOCTL_GET_NCREATES:
+							*var = mportal_counters.ncreates;
+							break;
+
+						case KPORTAL_IOCTL_GET_NUNLINKS:
+							*var = mportal_counters.nunlinks;
+							break;
+
+						case KPORTAL_IOCTL_GET_NOPENS:
+							*var = mportal_counters.nopens;
+							break;
+
+						case KPORTAL_IOCTL_GET_NCLOSES:
+							*var = mportal_counters.ncloses;
+							break;
+
+						case KPORTAL_IOCTL_GET_NREADS:
+							*var = mportal_counters.nreads;
+							break;
+
+						case KPORTAL_IOCTL_GET_NWRITES:
+							*var = mportal_counters.nwrites;
+							break;
+
+						/* Operation not supported. */
+						default:
+							ret = (-ENOTSUP);
+							break;
+					}
+				} break;
+
+				/* Operation not supported. */
+				default:
+					ret = (-ENOTSUP);
+					break;
+			}
+
+error1:
 		va_end(args);
-
-error:
+error0:
 	spinlock_unlock(&global_lock);
 
 	return (ret);
 }
-
 
 /*============================================================================*
  * kportal_write()                                                            *
@@ -1672,6 +1758,13 @@ PUBLIC void kportal_init(void)
 	unsigned local = knode_get_num();
 
 	kprintf("[user][portal] Initializes portal module (mailbox implementation)");
+
+	mportal_counters.ncreates = 0ULL;
+	mportal_counters.nunlinks = 0ULL;
+	mportal_counters.nopens   = 0ULL;
+	mportal_counters.ncloses  = 0ULL;
+	mportal_counters.nreads   = 0ULL;
+	mportal_counters.nwrites  = 0ULL;
 
 	/* Create input mailbox. */
 	KASSERT(

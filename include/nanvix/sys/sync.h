@@ -114,6 +114,18 @@
 	 */
 	extern int ksync_signal(int syncid);
 
+	/**
+	 * @brief Performs control operations in a sync.
+	 *
+	 * @param syncid  Target sync.
+	 * @param request Request.
+	 * @param ...     Additional arguments.
+	 *
+	 * @param Upon successful completion, zero is returned. Upon failure,
+	 * a negative error code is returned instead.
+	 */
+	extern int ksync_ioctl(int syncid, unsigned request, ...);
+
 #endif /* NANVIX_SYS_SYNC_H_ */
 
 /**@}*/

@@ -22,11 +22,48 @@
  * SOFTWARE.
  */
 
+#define __NANVIX_MICROKERNEL
+
 #include <nanvix/kernel/kernel.h>
 
 #if __TARGET_HAS_MAILBOX
 
 #include <posix/errno.h>
+
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+
+#include <nanvix/sys/noc.h>
+
+/**
+ * @brief Protections.
+ */
+PRIVATE spinlock_t global_lock = SPINLOCK_UNLOCKED;
+
+/**
+ * @brief Counter control.
+ */
+PRIVATE bool user_mailboxes[KMAILBOX_MAX] = {
+	[0 ... (KMAILBOX_MAX - 1)] = false
+};
+
+/*============================================================================*
+ * Counters structure.                                                        *
+ *============================================================================*/
+
+/**
+ * @brief Communicator counters.
+ */
+PRIVATE struct
+{
+	uint64_t ncreates; /**< Number of creates. */
+	uint64_t nunlinks; /**< Number of unlinks. */
+	uint64_t nopens;   /**< Number of opens.   */
+	uint64_t ncloses;  /**< Number of closes.  */
+	uint64_t nreads;   /**< Number of reads.   */
+	uint64_t nwrites;  /**< Number of writes.  */
+} mailbox_counters;
+
+#endif /* __NANVIX_IKC_USES_ONLY_MAILBOX */
 
 /*============================================================================*
  * kmailbox_create()                                                          *
@@ -50,6 +87,17 @@ int kmailbox_create(int local, int port)
 		(word_t) local,
 		(word_t) port
 	);
+
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+	if (ret >= 0)
+	{
+		spinlock_lock(&global_lock);
+			mailbox_counters.ncreates++;
+		spinlock_unlock(&global_lock);
+
+		user_mailboxes[ret] = true;
+	}
+#endif /* __NANVIX_IKC_USES_ONLY_MAILBOX */
 
 	return (ret);
 }
@@ -77,6 +125,17 @@ int kmailbox_open(int remote, int remote_port)
 		(word_t) remote_port
 	);
 
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+	if (ret >= 0)
+	{
+		spinlock_lock(&global_lock);
+			mailbox_counters.nopens++;
+		spinlock_unlock(&global_lock);
+
+		user_mailboxes[ret] = true;
+	}
+#endif /* __NANVIX_IKC_USES_ONLY_MAILBOX */
+
 	return (ret);
 }
 
@@ -97,6 +156,17 @@ int kmailbox_unlink(int mbxid)
 		(word_t) mbxid
 	);
 
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+	if (ret >= 0)
+	{
+		spinlock_lock(&global_lock);
+			mailbox_counters.nunlinks++;
+		spinlock_unlock(&global_lock);
+
+		user_mailboxes[mbxid] = false;
+	}
+#endif /* __NANVIX_IKC_USES_ONLY_MAILBOX */
+
 	return (ret);
 }
 
@@ -116,6 +186,17 @@ int kmailbox_close(int mbxid)
 		NR_mailbox_close,
 		(word_t) mbxid
 	);
+
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+	if (ret >= 0)
+	{
+		spinlock_lock(&global_lock);
+			mailbox_counters.ncloses++;
+		spinlock_unlock(&global_lock);
+
+		user_mailboxes[mbxid] = false;
+	}
+#endif /* __NANVIX_IKC_USES_ONLY_MAILBOX */
 
 	return (ret);
 }
@@ -226,6 +307,13 @@ ssize_t kmailbox_write(int mbxid, const void * buffer, size_t size)
 	if ((ret = kmailbox_wait(mbxid)) < 0)
 		return (ret);
 
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+	spinlock_lock(&global_lock);
+		if (user_mailboxes[mbxid])
+			mailbox_counters.nwrites++;
+	spinlock_unlock(&global_lock);
+#endif /* __NANVIX_IKC_USES_ONLY_MAILBOX */
+
 	return (size);
 }
 
@@ -260,12 +348,24 @@ ssize_t kmailbox_read(int mbxid, void * buffer, size_t size)
 	if (ret < 0)
 		return (ret);
 
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+	spinlock_lock(&global_lock);
+		if (user_mailboxes[mbxid])
+			mailbox_counters.nreads++;
+	spinlock_unlock(&global_lock);
+#endif /* __NANVIX_IKC_USES_ONLY_MAILBOX */
+
 	return (size);
 }
 
 /*============================================================================*
  * kmailbox_ioctl()                                                           *
  *============================================================================*/
+
+PRIVATE int kmailbox_ioctl_valid(void * ptr, size_t size)
+{
+	return ((ptr != NULL) && mm_check_area(VADDR(ptr), size, UMEM_AREA));
+}
 
 /**
  * @details The kmailbox_ioctl() reads the measurement parameter associated
@@ -278,16 +378,98 @@ int kmailbox_ioctl(int mbxid, unsigned request, ...)
 
 	va_start(args, request);
 
-		dcache_invalidate();
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+	spinlock_lock(&global_lock);
 
-		ret = kcall3(
-			NR_mailbox_ioctl,
-			(word_t) mbxid,
-			(word_t) request,
-			(word_t) &args
-		);
+		/* Parse request. */
+		switch (request)
+		{
+			/* Get the amount of data transferred so far. */
+			case KMAILBOX_IOCTL_GET_VOLUME:
+			case KMAILBOX_IOCTL_GET_LATENCY:
+			{
+#endif /* __NANVIX_IKC_USES_ONLY_MAILBOX */
 
-		dcache_invalidate();
+				dcache_invalidate();
+
+				ret = kcall3(
+					NR_mailbox_ioctl,
+					(word_t) mbxid,
+					(word_t) request,
+					(word_t) &args
+				);
+
+				dcache_invalidate();
+
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+			} break;
+
+			case KMAILBOX_IOCTL_GET_NCREATES:
+			case KMAILBOX_IOCTL_GET_NUNLINKS:
+			case KMAILBOX_IOCTL_GET_NOPENS:
+			case KMAILBOX_IOCTL_GET_NCLOSES:
+			case KMAILBOX_IOCTL_GET_NREADS:
+			case KMAILBOX_IOCTL_GET_NWRITES:
+			{
+				ret = (-EINVAL);
+
+				/* Bad mailbox. */
+				if ((ret = kcomm_get_port(mbxid, COMM_TYPE_MAILBOX)) < 0)
+					goto error;
+
+				uint64_t * var = va_arg(args, uint64_t *);
+
+				ret = (-EFAULT);
+
+				/* Bad buffer. */
+				if (!kmailbox_ioctl_valid(var, sizeof(uint64_t)))
+					goto error;
+
+				ret = 0;
+
+				switch(request)
+				{
+					case KMAILBOX_IOCTL_GET_NCREATES:
+						*var = mailbox_counters.ncreates;
+						break;
+
+					case KMAILBOX_IOCTL_GET_NUNLINKS:
+						*var = mailbox_counters.nunlinks;
+						break;
+
+					case KMAILBOX_IOCTL_GET_NOPENS:
+						*var = mailbox_counters.nopens;
+						break;
+
+					case KMAILBOX_IOCTL_GET_NCLOSES:
+						*var = mailbox_counters.ncloses;
+						break;
+
+					case KMAILBOX_IOCTL_GET_NREADS:
+						*var = mailbox_counters.nreads;
+						break;
+
+					case KMAILBOX_IOCTL_GET_NWRITES:
+						*var = mailbox_counters.nwrites;
+						break;
+
+					/* Operation not supported. */
+					default:
+						ret = (-ENOTSUP);
+						break;
+				}
+
+			} break;
+
+			/* Operation not supported. */
+			default:
+				ret = (-ENOTSUP);
+				break;
+		}
+
+error:
+	spinlock_unlock(&global_lock);
+#endif /* __NANVIX_IKC_USES_ONLY_MAILBOX */
 
 	va_end(args);
 
@@ -304,6 +486,15 @@ int kmailbox_ioctl(int mbxid, unsigned request, ...)
 PUBLIC void kmailbox_init(void)
 {
 	kprintf("[user][mailbox] Initializes mailbox module");
+
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+	mailbox_counters.ncreates = 0ULL;
+	mailbox_counters.nunlinks = 0ULL;
+	mailbox_counters.nopens   = 0ULL;
+	mailbox_counters.ncloses  = 0ULL;
+	mailbox_counters.nreads   = 0ULL;
+	mailbox_counters.nwrites  = 0ULL;
+#endif /* __NANVIX_IKC_USES_ONLY_MAILBOX */
 }
 
 #else

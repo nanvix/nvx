@@ -179,6 +179,37 @@ int ksync_unlink(int syncid)
 }
 
 /*============================================================================*
+ * ksync_ioctl()                                                              *
+ *============================================================================*/
+
+/**
+ * @details The ksync_ioctl() reads the measurement parameter associated
+ * with the request id @p request of the sync @p syncid.
+ */
+int ksync_ioctl(int syncid, unsigned request, ...)
+{
+	int ret;
+	va_list args;
+
+	va_start(args, request);
+
+		dcache_invalidate();
+
+		ret = kcall3(
+			NR_sync_ioctl,
+			(word_t) syncid,
+			(word_t) request,
+			(word_t) &args
+		);
+
+		dcache_invalidate();
+
+	va_end(args);
+
+	return (ret);
+}
+
+/*============================================================================*
  * ksync_init()                                                               *
  *============================================================================*/
 

@@ -23,11 +23,13 @@
  */
 
 #define __NEED_RESOURCE
+#define __NANVIX_MICROKERNEL
 
 #include <nanvix/kernel/kernel.h>
 
 #if __TARGET_HAS_MAILBOX && __NANVIX_IKC_USES_ONLY_MAILBOX
 
+#include <nanvix/sys/perf.h>
 #include <nanvix/sys/noc.h>
 #include <nanvix/sys/mailbox.h>
 #include <posix/errno.h>
@@ -55,6 +57,23 @@ PRIVATE int outboxes[PROCESSOR_NOC_NODES_NUM] = {
 	[0 ... (PROCESSOR_NOC_NODES_NUM - 1)] = -1,
 };
 /**@}*/
+
+/*============================================================================*
+ * Counters structure.                                                        *
+ *============================================================================*/
+
+/**
+ * @brief Communicator counters.
+ */
+PRIVATE struct
+{
+	uint64_t ncreates; /**< Number of creates. */
+	uint64_t nunlinks; /**< Number of unlinks. */
+	uint64_t nopens;   /**< Number of opens.   */
+	uint64_t ncloses;  /**< Number of closes.  */
+	uint64_t nwaits;   /**< Number of watis.   */
+	uint64_t nsignals; /**< Number of signals. */
+} msync_counters;
 
 /*============================================================================*
  * Sync hash                                                                  *
@@ -97,12 +116,14 @@ PRIVATE struct msync
 	int refcount;             /**< Counter of references.        */
 	int nbarriers;            /**< Counter of barriers.          */
 	struct msync_hash hash;   /**< Sync hash.                    */
+	uint64_t latency;         /**< Latency counter.              */
 } ALIGN(sizeof(dword_t)) msyncs[(SYNC_CREATE_MAX + SYNC_OPEN_MAX)] = {
 	[0 ... (SYNC_CREATE_MAX + SYNC_OPEN_MAX - 1)] = {
 		.resource  = RESOURCE_INITIALIZER,
 		.refcount  = 0,
 		.nbarriers = 0,
 		.hash      = MSYNC_HASH_NULL,
+		.latency   = 0ULL,
 	},
 };
 
@@ -274,10 +295,18 @@ PRIVATE int do_ksync_alloc(const int * nodes, int nnodes, int type, int input)
 				msyncs[syncid].refcount  = 1;
 				msyncs[syncid].nbarriers = 0;
 				msyncs[syncid].hash      = hash;
+				msyncs[syncid].latency   = 0ULL;
+
 				if (input)
+				{
 					resource_set_rdonly(&msyncs[syncid].resource);
+					msync_counters.ncreates++;
+				}
 				else
+				{
 					resource_set_wronly(&msyncs[syncid].resource);
+					msync_counters.nopens++;
+				}
 			}
 		}
 
@@ -356,6 +385,11 @@ PRIVATE int do_ksync_release(int syncid, int input)
 			resource_free(&msyncpool, syncid);
 			msyncs[syncid].hash = MSYNC_HASH_NULL;
 		}
+
+		if (input)
+			msync_counters.nunlinks++;
+		else
+			msync_counters.ncloses++;
 
 		ret = (0);
 
@@ -511,7 +545,9 @@ release:
  */
 PUBLIC int ksync_wait(int syncid)
 {
-	int ret; /* Return value. */
+	int ret;     /* Return value. */
+	uint64_t t0; /* Clock value.  */
+	uint64_t t1; /* Clock value.  */
 
 	/* Invalid syncid. */
 	if (!WITHIN(syncid, 0, SYNC_CREATE_MAX + SYNC_OPEN_MAX))
@@ -539,9 +575,16 @@ PUBLIC int ksync_wait(int syncid)
 
 	spinlock_unlock(&global_lock);
 
-	while ((ret = do_ksync_wait(&msyncs[syncid])) > 0);
+	kclock(&t0);
+		while ((ret = do_ksync_wait(&msyncs[syncid])) > 0);
+	kclock(&t1);
 
 	spinlock_lock(&global_lock);
+		if (ret >= 0)
+		{
+			msyncs[syncid].latency += (t1 - t0);
+			msync_counters.nwaits++;
+		}
 		resource_set_notbusy(&msyncs[syncid].resource);
 error:
 	spinlock_unlock(&global_lock);
@@ -597,7 +640,9 @@ PRIVATE int do_ksync_signal(int syncid)
  */
 PUBLIC int ksync_signal(int syncid)
 {
-	int ret; /* Return value. */
+	int ret;     /* Return value. */
+	uint64_t t0; /* Clock value.  */
+	uint64_t t1; /* Clock value.  */
 
 	/* Invalid syncid. */
 	if (!WITHIN(syncid, 0, SYNC_CREATE_MAX + SYNC_OPEN_MAX))
@@ -625,14 +670,114 @@ PUBLIC int ksync_signal(int syncid)
 
 	spinlock_unlock(&global_lock);
 
-	ret = do_ksync_signal(syncid);
+	kclock(&t0);
+		ret = do_ksync_signal(syncid);
+	kclock(&t1);
 
 	spinlock_lock(&global_lock);
+		if (ret >= 0)
+		{
+			msyncs[syncid].latency += (t1 - t0);
+			msync_counters.nsignals++;
+		}
 		resource_set_notbusy(&msyncs[syncid].resource);
 error:
 	spinlock_unlock(&global_lock);
 
 	return (ret < 0) ? (ret) : (0);
+}
+
+/*============================================================================*
+ * ksync_ioctl()                                                            *
+ *============================================================================*/
+
+PRIVATE int ksync_ioctl_valid(void * ptr, size_t size)
+{
+	return ((ptr != NULL) && mm_check_area(VADDR(ptr), size, UMEM_AREA));
+}
+
+/**
+ * @details The ksync_ioctl() reads the measurement parameter associated
+ * with the request id @p request of the sync @p syncid.
+ */
+PUBLIC int ksync_ioctl(int syncid, unsigned request, ...)
+{
+	int ret;        /* Return value.              */
+	va_list args;   /* Argument list.             */
+	uint64_t * var; /* Auxiliar variable pointer. */
+
+	if (!WITHIN(syncid, 0, SYNC_CREATE_MAX + SYNC_OPEN_MAX))
+		return (-EINVAL);
+
+	spinlock_lock(&global_lock);
+
+		ret = (-EBADF);
+
+		/* Bad sync. */
+		if (!resource_is_used(&msyncs[syncid].resource))
+			goto error0;
+
+		ret = (-EBUSY);
+
+		/* Busy sync. */
+		if (resource_is_busy(&msyncs[syncid].resource))
+			goto error0;
+
+		ret = (-EFAULT);
+
+		va_start(args, request);
+
+			var = va_arg(args, uint64_t *);
+
+			/* Bad buffer. */
+			if (!ksync_ioctl_valid(var, sizeof(uint64_t)))
+				goto error1;
+
+			ret = 0;
+
+			/* Parse request. */
+			switch (request)
+			{
+				case KSYNC_IOCTL_GET_LATENCY:
+					*var = msyncs[syncid].latency;
+					break;
+
+				case KSYNC_IOCTL_GET_NCREATES:
+					*var = msync_counters.ncreates;
+					break;
+
+				case KSYNC_IOCTL_GET_NUNLINKS:
+					*var = msync_counters.nunlinks;
+					break;
+
+				case KSYNC_IOCTL_GET_NOPENS:
+					*var = msync_counters.nopens;
+					break;
+
+				case KSYNC_IOCTL_GET_NCLOSES:
+					*var = msync_counters.ncloses;
+					break;
+
+				case KSYNC_IOCTL_GET_NWAITS:
+					*var = msync_counters.nwaits;
+					break;
+
+				case KSYNC_IOCTL_GET_NSIGNALS:
+					*var = msync_counters.nsignals;
+					break;
+
+				/* Operation not supported. */
+				default:
+					ret = (-ENOTSUP);
+					break;
+			}
+
+error1:
+		va_end(args);
+error0:
+	spinlock_unlock(&global_lock);
+
+	return (ret);
 }
 
 /*============================================================================*
@@ -649,6 +794,13 @@ PUBLIC void ksync_init(void)
 	kprintf("[user][sync] Initializes sync module (mailbox implementation)");
 
 	local = knode_get_num();
+
+	msync_counters.ncreates = 0ULL;
+	msync_counters.nunlinks = 0ULL;
+	msync_counters.nopens   = 0ULL;
+	msync_counters.ncloses  = 0ULL;
+	msync_counters.nwaits   = 0ULL;
+	msync_counters.nsignals = 0ULL;
 
 	/* Create input mailbox. */
 	KASSERT(

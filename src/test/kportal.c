@@ -140,6 +140,58 @@ static void test_api_portal_get_latency(void)
 }
 
 /*============================================================================*
+ * API Test: Get counters                                                     *
+ *============================================================================*/
+
+/**
+ * @brief API Test: Portal Get latency
+ */
+static void test_api_portal_get_counters(void)
+{
+	int local;
+	int remote;
+	int portal_in;
+	int portal_out;
+	uint64_t c0;
+	uint64_t c1;
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((portal_in = kportal_create(local, 0)) >= 0);
+
+		test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_NCREATES, &c0) == 0);
+		test_assert(c0 == 5);
+		test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_NOPENS, &c1) == 0);
+		test_assert(c1 == 3);
+		test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_NCLOSES, &c1) == 0);
+		test_assert(c1 == 3);
+
+	test_assert((portal_out = kportal_open(local, remote, 0)) >= 0);
+
+		test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_NCREATES, &c0) == 0);
+		test_assert(c0 == 5);
+		test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_NOPENS, &c0) == 0);
+		test_assert(c0 == 4);
+		test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_NUNLINKS, &c1) == 0);
+		test_assert(c1 == 4);
+		test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_NCLOSES, &c1) == 0);
+		test_assert(c1 == 3);
+
+		test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_NREADS, &c1) == 0);
+		test_assert(c1 == 0);
+		test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_NWRITES, &c1) == 0);
+		test_assert(c1 == 0);
+
+	test_assert(kportal_close(portal_out) == 0);
+
+		test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_NCLOSES, &c1) == 0);
+		test_assert(c1 == 4);
+
+	test_assert(kportal_unlink(portal_in) == 0);
+}
+
+/*============================================================================*
  * API Test: Read Write                                                       *
  *============================================================================*/
 
@@ -154,6 +206,7 @@ static void test_api_portal_read_write(void)
 	int portal_out;
 	size_t volume;
 	uint64_t latency;
+	uint64_t counter;
 
 	local  = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
@@ -170,6 +223,11 @@ static void test_api_portal_read_write(void)
 	test_assert(volume == 0);
 	test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
 	test_assert(latency == 0);
+
+	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_NREADS, &counter) == 0);
+	test_assert(counter == 0);
+	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_NWRITES, &counter) == 0);
+	test_assert(counter == 0);
 
 	if (local == MASTER_NODENUM)
 	{
@@ -215,6 +273,11 @@ static void test_api_portal_read_write(void)
 	test_assert(volume == (NITERATIONS * PORTAL_SIZE));
 	test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
 	test_assert(latency > 0);
+
+	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_NREADS, &counter) == 0);
+	test_assert(counter == NITERATIONS);
+	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_NWRITES, &counter) == 0);
+	test_assert(counter == NITERATIONS);
 
 	test_assert(kportal_close(portal_out) == 0);
 	test_assert(kportal_unlink(portal_in) == 0);
@@ -1543,6 +1606,8 @@ static void test_fault_portal_invalid_ioctl(void)
 	test_assert((portalid = kportal_create(local, 0)) >=  0);
 
 		test_assert(kportal_ioctl(portalid, -1, &volume) == -ENOTSUP);
+		test_assert(kportal_ioctl(portalid, KPORTAL_IOCTL_GET_VOLUME, NULL) == -EFAULT);
+		test_assert(kportal_ioctl(portalid, KPORTAL_IOCTL_GET_LATENCY, NULL) == -EFAULT);
 
 	test_assert(kportal_unlink(portalid) == 0);
 }
@@ -2414,6 +2479,7 @@ static struct test portal_tests_api[] = {
 	{ test_api_portal_open_close,             "[test][portal][api] portal open close             [passed]" },
 	{ test_api_portal_get_volume,             "[test][portal][api] portal get volume             [passed]" },
 	{ test_api_portal_get_latency,            "[test][portal][api] portal get latency            [passed]" },
+	{ test_api_portal_get_counters,           "[test][portal][api] portal get counters           [passed]" },
 	{ test_api_portal_read_write,             "[test][portal][api] portal read write             [passed]" },
 	{ test_api_portal_read_write_large,       "[test][portal][api] portal read write large       [passed]" },
 	{ test_api_portal_virtualization,         "[test][portal][api] portal virtualization         [passed]" },

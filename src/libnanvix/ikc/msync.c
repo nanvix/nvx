@@ -112,11 +112,12 @@ PRIVATE struct msync
 	/*
 	 * XXX: Don't Touch! This Must Come First!
 	 */
-	struct resource resource; /**< Generic resource information. */
-	int refcount;             /**< Counter of references.        */
-	int nbarriers;            /**< Counter of barriers.          */
-	struct msync_hash hash;   /**< Sync hash.                    */
-	uint64_t latency;         /**< Latency counter.              */
+	struct resource resource;               /**< Generic resource information. */
+	int refcount;                           /**< Counter of references.        */
+	int nbarriers;                          /**< Counter of barriers.          */
+	struct msync_hash hash;                 /**< Sync hash.                    */
+	int nreceived[PROCESSOR_NOC_NODES_NUM]; /**< Number of signals received.   */
+	uint64_t latency;                       /**< Latency counter.              */
 } ALIGN(sizeof(dword_t)) msyncs[(SYNC_CREATE_MAX + SYNC_OPEN_MAX)] = {
 	[0 ... (SYNC_CREATE_MAX + SYNC_OPEN_MAX - 1)] = {
 		.resource  = RESOURCE_INITIALIZER,
@@ -296,6 +297,7 @@ PRIVATE int do_ksync_alloc(const int * nodes, int nnodes, int type, int input)
 				msyncs[syncid].nbarriers = 0;
 				msyncs[syncid].hash      = hash;
 				msyncs[syncid].latency   = 0ULL;
+				kmemset(msyncs[syncid].nreceived, 0, PROCESSOR_NOC_NODES_NUM * sizeof(int));
 
 				if (input)
 				{
@@ -440,7 +442,7 @@ PRIVATE void ksync_ignore_signal(char * message, struct msync_hash * hash)
 	int master    = hash->master;
 	int nodeslist = hash->nodeslist;
 
-	kprintf("[sync] %s (source:%d, type:%d, master:%d, nodeslist:%d)",
+	kprintf("[sync] Dropping signal: %s | hash = (source:%d, type:%d, master:%d, nodeslist:%d)",
 		message,
 		source,
 		type,
@@ -471,6 +473,47 @@ PRIVATE int ksync_barrier_is_complete(struct msync * rx)
 	return (received == expected);
 }
 
+/*============================================================================*
+ * ksync_barrier_reset()                                                      *
+ *============================================================================*/
+
+PRIVATE void ksync_barrier_reset(struct msync * rx)
+{
+	for (unsigned i = 0; i < PROCESSOR_NOC_NODES_NUM; ++i)
+	{
+		if (rx->hash.barrier & (1 << i))
+		{
+			/**
+			 * Consume a signals and reset barrier if there are no
+			 * signals from that node.
+			 **/
+			if ((--rx->nreceived[i]) == 0)
+				rx->hash.barrier &= ~(1 << i);
+		}
+	}
+}
+
+/*============================================================================*
+ * ksync_barrier_consume()                                                    *
+ *============================================================================*/
+
+PRIVATE int ksync_barrier_consume(struct msync * sync)
+{
+	int consumed; /* Indicates if the barrier is consumed. */
+
+	spinlock_lock(&global_lock);
+
+		consumed = sync->nbarriers;
+
+		/* Is the barrier complete? */
+		if (consumed)
+			sync->nbarriers--;
+
+	spinlock_unlock(&global_lock);
+
+	return (consumed);
+}
+
 /*----------------------------------------------------------------------------*
  * do_ksync_wait()                                                            *
  *----------------------------------------------------------------------------*/
@@ -480,26 +523,20 @@ PRIVATE int do_ksync_wait(struct msync * sync)
 	int syncid;             /* Synchronization point. */
 	struct msync_hash hash; /* Hash buffer.           */
 
-	spinlock_lock(&global_lock);
-		/* Complete a synchronization. */
-		if (sync->nbarriers)
-		{
-			sync->nbarriers--;
-			spinlock_unlock(&global_lock);
-
-			/* Success. */
-			return (0);
-		}
-	spinlock_unlock(&global_lock);
+	/* Is the previous wait released me? */
+	if (ksync_barrier_consume(sync))
+		return (0);
 
 	spinlock_lock(&wait_lock);
 
-		spinlock_lock(&global_lock);
-			/* Did the last message release me? */
-			if (sync->nbarriers)
-				goto release;
-		spinlock_unlock(&global_lock);
+		/* Is other core released me? */
+		if (ksync_barrier_consume(sync))
+		{
+			spinlock_unlock(&wait_lock);
+			return (0);
+		}
 
+		/* Reads a signal. */ 
 		if (kmailbox_read(inbox, &hash, MSYNC_HASH_SIZE) != MSYNC_HASH_SIZE)
 		{
 			spinlock_unlock(&wait_lock);
@@ -508,23 +545,24 @@ PRIVATE int do_ksync_wait(struct msync * sync)
 
 		spinlock_lock(&global_lock);
 
-			if ((syncid = ksync_search(&hash, true)) < 0)
+			if (!node_is_valid(hash.source))
 			{
-				ksync_ignore_signal("Drop signal", &hash);
+				ksync_ignore_signal("Invalid Source", &hash);
 				goto release;
 			}
 
-			if (msyncs[syncid].hash.barrier & (1 << hash.source))
+			if ((syncid = ksync_search(&hash, true)) < 0)
 			{
-				ksync_ignore_signal("Double signal", &hash);
+				ksync_ignore_signal("Sync point not found.", &hash);
 				goto release;
 			}
 
 			msyncs[syncid].hash.barrier |= (1 << hash.source);
+			msyncs[syncid].nreceived[hash.source]++;
 
 			if (ksync_barrier_is_complete(&msyncs[syncid]))
 			{
-				msyncs[syncid].hash.barrier = 0;
+				ksync_barrier_reset(&msyncs[syncid]);
 				msyncs[syncid].nbarriers++;
 			}
 

@@ -150,31 +150,31 @@ void ___start(int argc, const char *argv[])
 			* the stdsync must be cleanup before call the barruer_setup
 			* because it uses the same local resources.
 			*/
-			barrier_nodes_setup(_nodenums, NR_NODES, (index == 0));
+			test_barrier_nodes_setup(_nodenums, NR_NODES, (index == 0));
 
-				barrier_nodes();
+				test_barrier_nodes();
 
 				#if __TARGET_HAS_MAILBOX
 					test_mailbox();
 				#endif
 
-				barrier_nodes();
+				test_barrier_nodes();
 
 				#if __TARGET_HAS_PORTAL
 					test_portal();
 				#endif
 
-				barrier_nodes();
+				test_barrier_nodes();
 
 				#if __TARGET_HAS_MAILBOX && __TARGET_HAS_PORTAL
 					test_ikc();
 				#endif
 
 				/* Waits everyone finishes the routines. */
-				barrier_nodes();
+				test_barrier_nodes();
 
 			/* Destroy barrier. */
-			barrier_nodes_cleanup();
+			test_barrier_nodes_cleanup();
 		#endif /* __TARGET_HAS_SYNC */
 	}
 

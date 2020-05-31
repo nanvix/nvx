@@ -65,7 +65,7 @@
 	/**
 	 * @brief Number of iterations in stress tests.
 	 */
-	#define NITERATIONS 1000
+	#define NITERATIONS 10
 
 	/**
 	 * @brief Number of threads to spawn in stress tests.
@@ -96,9 +96,10 @@
      * @name Barrier functions
      */
     /**@{*/
-    extern void barrier_nodes_setup(const int * nodes, int nnodes, int is_master);
-    extern void barrier_nodes(void);
-    extern void barrier_nodes_cleanup(void);
+	extern void test_delay(int times, uint64_t cycles);
+    extern void test_barrier_nodes_setup(const int * nodes, int nnodes, int is_master);
+    extern void test_barrier_nodes(void);
+    extern void test_barrier_nodes_cleanup(void);
     /**@}*/
 #endif /* __TARGET_HAS_SYNC */
 

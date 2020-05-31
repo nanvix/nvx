@@ -22,24 +22,50 @@
  * SOFTWARE.
  */
 
-#include <posix/errno.h>
+#include <nanvix/sys/perf.h>
 #include <nanvix/sys/sync.h>
 #include <nanvix/sys/noc.h>
+#include <posix/errno.h>
 
 #if (__TARGET_HAS_SYNC)
+
+/*----------------------------------------------------------------------------*
+ * Delay                                                                      *
+ *----------------------------------------------------------------------------*/
+
+/**
+ * @brief Forces a platform-independent delay.
+ *
+ * @param cycles Delay in cycles.
+ *
+ * @author João Vicente Souto
+ */
+PUBLIC void test_delay(int times, uint64_t cycles)
+{
+	uint64_t t0, t1;
+
+	for (int i = 0; i < times; ++i)
+	{
+		kclock(&t0);
+
+		do
+			kclock(&t1);
+		while ((t1 - t0) < cycles);
+	}
+}
 
 /*----------------------------------------------------------------------------*
  * Nodes                                                                      *
  *----------------------------------------------------------------------------*/
 
-static int _syncin         = -1;
-static int _syncout        = -1;
-static int _node_is_master = 0;
+PRIVATE int _syncin         = -1;
+PRIVATE int _syncout        = -1;
+PRIVATE int _node_is_master = 0;
 
 /**
  * @brief Barrier setup function.
  */
-void barrier_nodes_setup(const int * nodes, int nnodes, int is_master)
+PUBLIC void test_barrier_nodes_setup(const int * nodes, int nnodes, int is_master)
 {
 	KASSERT((nodes != NULL) && (nnodes > 0));
 
@@ -52,6 +78,8 @@ void barrier_nodes_setup(const int * nodes, int nnodes, int is_master)
 	}
 	else
 	{
+		test_delay(1, CLUSTER_FREQ);
+
 		_syncout = ksync_open(nodes, nnodes, SYNC_ALL_TO_ONE);
 		_syncin  = ksync_create(nodes, nnodes, SYNC_ONE_TO_ALL);
 	}
@@ -62,7 +90,7 @@ void barrier_nodes_setup(const int * nodes, int nnodes, int is_master)
 /**
  * @brief Barrier function.
  */
-void barrier_nodes(void)
+PUBLIC void test_barrier_nodes(void)
 {
 	if (_node_is_master)
 	{
@@ -79,7 +107,7 @@ void barrier_nodes(void)
 /**
  * @brief Barrier cleanup function.
  */
-void barrier_nodes_cleanup(void)
+PUBLIC void test_barrier_nodes_cleanup(void)
 {
 	ksync_unlink(_syncin);
 	ksync_close(_syncout);

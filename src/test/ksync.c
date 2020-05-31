@@ -347,6 +347,8 @@ void test_api_sync_signal_wait(void)
 		test_assert(ksync_ioctl(syncout, KSYNC_IOCTL_GET_NSIGNALS, &counter) == 0);
 		test_assert(counter == 0);
 
+		test_delay(1, CLUSTER_FREQ);
+
 		for (int i = 0; i < NITERATIONS; i++)
 		{
 			test_assert(ksync_signal(syncout) == 0);
@@ -434,6 +436,8 @@ void test_api_sync_multiplexation(void)
 	}
 	else
 	{
+		test_delay(1, CLUSTER_FREQ);
+
 		for (int i = 1; i < NITERATIONS; i++)
 		{
 			test_assert(ksync_signal(syncout[0]) == 0);

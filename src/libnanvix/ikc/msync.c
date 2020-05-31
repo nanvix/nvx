@@ -118,12 +118,12 @@ PRIVATE struct msync
 	struct msync_hash hash;                 /**< Sync hash.                    */
 	int nreceived[PROCESSOR_NOC_NODES_NUM]; /**< Number of signals received.   */
 	uint64_t latency;                       /**< Latency counter.              */
-} ALIGN(sizeof(dword_t)) msyncs[(SYNC_CREATE_MAX + SYNC_OPEN_MAX)] = {
-	[0 ... (SYNC_CREATE_MAX + SYNC_OPEN_MAX - 1)] = {
-		.resource  = RESOURCE_INITIALIZER,
+} ALIGN(sizeof(dword_t)) msyncs[(KSYNC_MAX)] = {
+	[0 ... (KSYNC_MAX - 1)] = {
+		.resource  = {0, },
 		.refcount  = 0,
 		.nbarriers = 0,
-		.hash      = MSYNC_HASH_NULL,
+		.hash      = {-1, 0, -1, 0, 0, 0},
 		.latency   = 0ULL,
 	},
 };
@@ -132,7 +132,7 @@ PRIVATE struct msync
  * @brief Resource pool.
  */
 PRIVATE const struct resource_pool msyncpool = {
-	msyncs, (SYNC_CREATE_MAX + SYNC_OPEN_MAX), sizeof(struct msync)
+	msyncs, (KSYNC_MAX), sizeof(struct msync)
 };
 
 /*============================================================================*
@@ -155,7 +155,7 @@ PRIVATE int ksync_build_nodeslist(const int * nodes, int nnodes)
 
 PRIVATE int ksync_search(struct msync_hash * hash, int input)
 {
-	for (unsigned i = 0; i < (SYNC_CREATE_MAX + SYNC_OPEN_MAX); ++i)
+	for (unsigned i = 0; i < (KSYNC_MAX); ++i)
 	{
 		if (!resource_is_used(&msyncs[i].resource))
 			continue;
@@ -354,7 +354,7 @@ PRIVATE int do_ksync_release(int syncid, int input)
 	int ret; /* Return value. */
 
 	/* Invalid syncid. */
-	if (!WITHIN(syncid, 0, SYNC_CREATE_MAX + SYNC_OPEN_MAX))
+	if (!WITHIN(syncid, 0, KSYNC_MAX))
 		return (-EINVAL);
 
 	spinlock_lock(&global_lock);
@@ -588,7 +588,7 @@ PUBLIC int ksync_wait(int syncid)
 	uint64_t t1; /* Clock value.  */
 
 	/* Invalid syncid. */
-	if (!WITHIN(syncid, 0, SYNC_CREATE_MAX + SYNC_OPEN_MAX))
+	if (!WITHIN(syncid, 0, KSYNC_MAX))
 		return (-EINVAL);
 
 	spinlock_lock(&global_lock);
@@ -683,7 +683,7 @@ PUBLIC int ksync_signal(int syncid)
 	uint64_t t1; /* Clock value.  */
 
 	/* Invalid syncid. */
-	if (!WITHIN(syncid, 0, SYNC_CREATE_MAX + SYNC_OPEN_MAX))
+	if (!WITHIN(syncid, 0, KSYNC_MAX))
 		return (-EINVAL);
 
 	spinlock_lock(&global_lock);
@@ -744,7 +744,7 @@ PUBLIC int ksync_ioctl(int syncid, unsigned request, ...)
 	va_list args;   /* Argument list.             */
 	uint64_t * var; /* Auxiliar variable pointer. */
 
-	if (!WITHIN(syncid, 0, SYNC_CREATE_MAX + SYNC_OPEN_MAX))
+	if (!WITHIN(syncid, 0, KSYNC_MAX))
 		return (-EINVAL);
 
 	spinlock_lock(&global_lock);

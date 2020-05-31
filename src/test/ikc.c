@@ -33,6 +33,10 @@
 
 #if __TARGET_HAS_MAILBOX && __TARGET_HAS_PORTAL
 
+PRIVATE char message[PORTAL_SIZE_LARGE];
+PRIVATE char message_in[THREAD_MAX][PORTAL_SIZE];
+PRIVATE char message_out[PORTAL_SIZE];
+
 /*============================================================================*
  * Stress Tests                                                               *
  *============================================================================*/
@@ -102,14 +106,13 @@ PRIVATE void test_stress_ikc_broadcast(void)
 	int remote;
 	int mbxid;
 	int portalid;
-	char message[PORTAL_SIZE];
 	
 	local = knode_get_num();
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	if (local == MASTER_NODENUM)
 	{
-		message[0] = local;
+		kmemset(message, (char) local, PORTAL_SIZE);
 
 		for (int i = 0; i < NSETUPS; ++i)
 		{
@@ -135,14 +138,16 @@ PRIVATE void test_stress_ikc_broadcast(void)
 
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
 			{
-				message[0] = local;
+				kmemset(message, (char) local, MAILBOX_SIZE);
 				test_assert(kmailbox_read(mbxid, message, MAILBOX_SIZE) == MAILBOX_SIZE);
-				test_assert(message[0] == remote);
+				for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+					test_assert(message[l] == remote);
 
-				message[0] = local;
+				kmemset(message, (char) local, PORTAL_SIZE);
 				test_assert(kportal_allow(portalid, remote, 0) >= 0);
 				test_assert(kportal_read(portalid, message, PORTAL_SIZE) == PORTAL_SIZE);
-				test_assert(message[0] == remote);
+				for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+					test_assert(message[l] == remote);
 			}
 
 			test_assert(kportal_unlink(portalid) == 0);
@@ -164,14 +169,13 @@ PRIVATE void test_stress_ikc_gather(void)
 	int remote;
 	int mbxid;
 	int portalid;
-	char message[PORTAL_SIZE];
 
 	local = knode_get_num();
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	if (local == SLAVE_NODENUM)
 	{
-		message[0] = local;
+		kmemset(message, (char) local, PORTAL_SIZE);
 
 		for (int i = 0; i < NSETUPS; ++i)
 		{
@@ -197,14 +201,16 @@ PRIVATE void test_stress_ikc_gather(void)
 
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
 			{
-				message[0] = local;
+				kmemset(message, (char) local, MAILBOX_SIZE);
 				test_assert(kmailbox_read(mbxid, message, MAILBOX_SIZE) == MAILBOX_SIZE);
-				test_assert(message[0] == remote);
+				for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+					test_assert(message[l] == remote);
 
-				message[0] = local;
+				kmemset(message, (char) local, PORTAL_SIZE);
 				test_assert(kportal_allow(portalid, remote, 0) >= 0);
 				test_assert(kportal_read(portalid, message, PORTAL_SIZE) == PORTAL_SIZE);
-				test_assert(message[0] == remote);
+				for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+					test_assert(message[l] == remote);
 			}
 
 			test_assert(kportal_unlink(portalid) == 0);
@@ -228,13 +234,11 @@ PRIVATE void test_stress_ikc_pingpong(void)
 	int outbox;
 	int inportal;
 	int outportal;
-	char msg_in[PORTAL_SIZE];
-	char msg_out[PORTAL_SIZE];
 
 	local = knode_get_num();
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	msg_out[0] = local;
+	kmemset(message_out, (char) local, PORTAL_SIZE);
 
 	for (int i = 0; i < NSETUPS; ++i)
 	{
@@ -247,36 +251,40 @@ PRIVATE void test_stress_ikc_pingpong(void)
 		{
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
 			{
-				msg_in[0] = local;
-				test_assert(kmailbox_read(inbox, msg_in, MAILBOX_SIZE) == MAILBOX_SIZE);
-				test_assert(msg_in[0] == remote);
+				kmemset(message, (char) local, MAILBOX_SIZE);
+				test_assert(kmailbox_read(inbox, message, MAILBOX_SIZE) == MAILBOX_SIZE);
+				for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+					test_assert(message[l] == remote);
 
-				msg_in[0] = local;
+				kmemset(message, (char) local, PORTAL_SIZE);
 				test_assert(kportal_allow(inportal, remote, 0) >= 0);
-				test_assert(kportal_read(inportal, msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-				test_assert(msg_in[0] == remote);
+				test_assert(kportal_read(inportal, message, PORTAL_SIZE) == PORTAL_SIZE);
+				for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+					test_assert(message[l] == remote);
 
-				test_assert(kmailbox_write(outbox, msg_out, MAILBOX_SIZE) == MAILBOX_SIZE);
+				test_assert(kmailbox_write(outbox, message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
 
-				test_assert(kportal_write(outportal, msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+				test_assert(kportal_write(outportal, message_out, PORTAL_SIZE) == PORTAL_SIZE);
 			}
 		}
 		else
 		{
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
 			{
-				test_assert(kmailbox_write(outbox, msg_out, MAILBOX_SIZE) == MAILBOX_SIZE);
+				test_assert(kmailbox_write(outbox, message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
 
-				test_assert(kportal_write(outportal, msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+				test_assert(kportal_write(outportal, message_out, PORTAL_SIZE) == PORTAL_SIZE);
 
-				msg_in[0] = local;
-				test_assert(kmailbox_read(inbox, msg_in, MAILBOX_SIZE) == MAILBOX_SIZE);
-				test_assert(msg_in[0] == remote);
+				kmemset(message, (char) local, MAILBOX_SIZE);
+				test_assert(kmailbox_read(inbox, message, MAILBOX_SIZE) == MAILBOX_SIZE);
+				for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+					test_assert(message[l] == remote);
 
-				msg_in[0] = local;
+				kmemset(message, (char) local, PORTAL_SIZE);
 				test_assert(kportal_allow(inportal, remote, 0) >= 0);
-				test_assert(kportal_read(inportal, msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-				test_assert(msg_in[0] == remote);
+				test_assert(kportal_read(inportal, message, PORTAL_SIZE) == PORTAL_SIZE);
+				for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+					test_assert(message[l] == remote);
 			}
 		}
 
@@ -303,13 +311,11 @@ PRIVATE void test_stress_ikc_pingpong_reverse(void)
 	int outbox;
 	int inportal;
 	int outportal;
-	char msg_in[PORTAL_SIZE];
-	char msg_out[PORTAL_SIZE];
 
 	local = knode_get_num();
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	msg_out[0] = local;
+	kmemset(message_out, (char) local, PORTAL_SIZE);
 
 	for (int i = 0; i < NSETUPS; ++i)
 	{
@@ -322,36 +328,40 @@ PRIVATE void test_stress_ikc_pingpong_reverse(void)
 		{
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
 			{
-				msg_in[0] = local;
-				test_assert(kmailbox_read(inbox, msg_in, MAILBOX_SIZE) == MAILBOX_SIZE);
-				test_assert(msg_in[0] == remote);
+				kmemset(message, (char) local, MAILBOX_SIZE);
+				test_assert(kmailbox_read(inbox, message, MAILBOX_SIZE) == MAILBOX_SIZE);
+				for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+					test_assert(message[l] == remote);
 
-				test_assert(kportal_write(outportal, msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+				test_assert(kportal_write(outportal, message_out, PORTAL_SIZE) == PORTAL_SIZE);
 
-				test_assert(kmailbox_write(outbox, msg_out, MAILBOX_SIZE) == MAILBOX_SIZE);
+				test_assert(kmailbox_write(outbox, message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
 
-				msg_in[0] = local;
+				kmemset(message, (char) local, PORTAL_SIZE);
 				test_assert(kportal_allow(inportal, remote, 0) >= 0);
-				test_assert(kportal_read(inportal, msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-				test_assert(msg_in[0] == remote);
+				test_assert(kportal_read(inportal, message, PORTAL_SIZE) == PORTAL_SIZE);
+				for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+					test_assert(message[l] == remote);
 			}
 		}
 		else
 		{
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
 			{
-				test_assert(kmailbox_write(outbox, msg_out, MAILBOX_SIZE) == MAILBOX_SIZE);
+				test_assert(kmailbox_write(outbox, message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
 
-				msg_in[0] = local;
+				kmemset(message, (char) local, PORTAL_SIZE);
 				test_assert(kportal_allow(inportal, remote, 0) >= 0);
-				test_assert(kportal_read(inportal, msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-				test_assert(msg_in[0] == remote);
+				test_assert(kportal_read(inportal, message, PORTAL_SIZE) == PORTAL_SIZE);
+				for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+					test_assert(message[l] == remote);
 
-				msg_in[0] = local;
-				test_assert(kmailbox_read(inbox, msg_in, MAILBOX_SIZE) == MAILBOX_SIZE);
-				test_assert(msg_in[0] == remote);
+				kmemset(message, (char) local, MAILBOX_SIZE);
+				test_assert(kmailbox_read(inbox, message, MAILBOX_SIZE) == MAILBOX_SIZE);
+				for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+					test_assert(message[l] == remote);
 
-				test_assert(kportal_write(outportal, msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+				test_assert(kportal_write(outportal, message_out, PORTAL_SIZE) == PORTAL_SIZE);
 			}
 		}
 
@@ -375,14 +385,13 @@ PRIVATE void test_stress_ikc_multiplexing_broadcast(void)
 	int remote;
 	int mbxids[TEST_THREAD_NPORTS];
 	int portalids[TEST_THREAD_NPORTS];
-	char message[PORTAL_SIZE];
 
 	local = knode_get_num();
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	if (local == MASTER_NODENUM)
 	{
-		message[0] = local;
+		kmemset(message, (char) local, PORTAL_SIZE);
 
 		for (int i = 0; i < NSETUPS; ++i)
 		{
@@ -420,14 +429,16 @@ PRIVATE void test_stress_ikc_multiplexing_broadcast(void)
 			{
 				for (int k = 0; k < TEST_THREAD_NPORTS; ++k)
 				{
-					message[0] = local;
+					kmemset(message, (char) local, MAILBOX_SIZE);
 					test_assert(kmailbox_read(mbxids[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(message[0] == remote);
+					for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+						test_assert(message[l] == remote);
 
-					message[0] = local;
+					kmemset(message, (char) local, PORTAL_SIZE);
 					test_assert(kportal_allow(portalids[k], remote, k) >= 0);
 					test_assert(kportal_read(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(message[0] == remote);
+					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(message[l] == remote);
 				}
 			}
 
@@ -453,14 +464,13 @@ PRIVATE void test_stress_ikc_multiplexing_gather(void)
 	int remote;
 	int mbxids[TEST_THREAD_NPORTS];
 	int portalids[TEST_THREAD_NPORTS];
-	char message[PORTAL_SIZE];
 
 	local = knode_get_num();
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	if (local == SLAVE_NODENUM)
 	{
-		message[0] = local;
+		kmemset(message, (char) local, PORTAL_SIZE);
 
 		for (int i = 0; i < NSETUPS; ++i)
 		{
@@ -498,14 +508,16 @@ PRIVATE void test_stress_ikc_multiplexing_gather(void)
 			{
 				for (int k = 0; k < TEST_THREAD_NPORTS; ++k)
 				{
-					message[0] = local;
+					kmemset(message, (char) local, MAILBOX_SIZE);
 					test_assert(kmailbox_read(mbxids[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(message[0] == remote);
+					for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+						test_assert(message[l] == remote);
 
-					message[0] = local;
+					kmemset(message, (char) local, PORTAL_SIZE);
 					test_assert(kportal_allow(portalids[k], remote, k) >= 0);
 					test_assert(kportal_read(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(message[0] == remote);
+					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(message[l] == remote);
 				}
 			}
 
@@ -533,13 +545,11 @@ PRIVATE void test_stress_ikc_multiplexing_pingpong(void)
 	int outboxes[TEST_THREAD_NPORTS];
 	int inportals[TEST_THREAD_NPORTS];
 	int outportals[TEST_THREAD_NPORTS];
-	char msg_in[PORTAL_SIZE];
-	char msg_out[PORTAL_SIZE];
 
 	local = knode_get_num();
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	msg_out[0] = local;
+	kmemset(message_out, (char) local, PORTAL_SIZE);
 
 	for (int i = 0; i < NSETUPS; ++i)
 	{
@@ -557,18 +567,20 @@ PRIVATE void test_stress_ikc_multiplexing_pingpong(void)
 			{
 				for (int k = 0; k < TEST_THREAD_NPORTS; ++k)
 				{
-					msg_in[0] = local;
-					test_assert(kmailbox_read(inboxes[k], msg_in, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(msg_in[0] == remote);
+					kmemset(message, (char) local, MAILBOX_SIZE);
+					test_assert(kmailbox_read(inboxes[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
+					for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+						test_assert(message[l] == remote);
 
-					msg_in[0] = local;
+					kmemset(message, (char) local, PORTAL_SIZE);
 					test_assert(kportal_allow(inportals[k], remote, k) >= 0);
-					test_assert(kportal_read(inportals[k], msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(msg_in[0] == remote);
+					test_assert(kportal_read(inportals[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(message[l] == remote);
 
-					test_assert(kmailbox_write(outboxes[k], msg_out, MAILBOX_SIZE) == MAILBOX_SIZE);
+					test_assert(kmailbox_write(outboxes[k], message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
 
-					test_assert(kportal_write(outportals[k], msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kportal_write(outportals[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 				}
 			}
 		}
@@ -578,18 +590,20 @@ PRIVATE void test_stress_ikc_multiplexing_pingpong(void)
 			{
 				for (int k = 0; k < TEST_THREAD_NPORTS; ++k)
 				{
-					test_assert(kmailbox_write(outboxes[k], msg_out, MAILBOX_SIZE) == MAILBOX_SIZE);
+					test_assert(kmailbox_write(outboxes[k], message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
 
-					test_assert(kportal_write(outportals[k], msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kportal_write(outportals[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 
-					msg_in[0] = local;
-					test_assert(kmailbox_read(inboxes[k], msg_in, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(msg_in[0] == remote);
+					kmemset(message, (char) local, MAILBOX_SIZE);
+					test_assert(kmailbox_read(inboxes[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
+					for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+						test_assert(message[l] == remote);
 
-					msg_in[0] = local;
+					kmemset(message, (char) local, PORTAL_SIZE);
 					test_assert(kportal_allow(inportals[k], remote, k) >= 0);
-					test_assert(kportal_read(inportals[k], msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(msg_in[0] == remote);
+					test_assert(kportal_read(inportals[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(message[l] == remote);
 				}
 			}
 		}
@@ -619,13 +633,11 @@ PRIVATE void test_stress_ikc_multiplexing_pingpong_reverse(void)
 	int outboxes[TEST_THREAD_NPORTS];
 	int inportals[TEST_THREAD_NPORTS];
 	int outportals[TEST_THREAD_NPORTS];
-	char msg_in[PORTAL_SIZE];
-	char msg_out[PORTAL_SIZE];
 
 	local = knode_get_num();
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
 
-	msg_out[0] = local;
+	kmemset(message_out, (char) local, PORTAL_SIZE);
 
 	for (int i = 0; i < NSETUPS; ++i)
 	{
@@ -643,18 +655,20 @@ PRIVATE void test_stress_ikc_multiplexing_pingpong_reverse(void)
 			{
 				for (int k = 0; k < TEST_THREAD_NPORTS; ++k)
 				{
-					msg_in[0] = local;
-					test_assert(kmailbox_read(inboxes[k], msg_in, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(msg_in[0] == remote);
+					kmemset(message, (char) local, MAILBOX_SIZE);
+					test_assert(kmailbox_read(inboxes[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
+					for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+						test_assert(message[l] == remote);
 
-					test_assert(kportal_write(outportals[k], msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kportal_write(outportals[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 
-					test_assert(kmailbox_write(outboxes[k], msg_out, MAILBOX_SIZE) == MAILBOX_SIZE);
+					test_assert(kmailbox_write(outboxes[k], message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
 
-					msg_in[0] = local;
+					kmemset(message, (char) local, PORTAL_SIZE);
 					test_assert(kportal_allow(inportals[k], remote, k) >= 0);
-					test_assert(kportal_read(inportals[k], msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(msg_in[0] == remote);
+					test_assert(kportal_read(inportals[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(message[l] == remote);
 				}
 			}
 		}
@@ -664,18 +678,20 @@ PRIVATE void test_stress_ikc_multiplexing_pingpong_reverse(void)
 			{
 				for (int k = 0; k < TEST_THREAD_NPORTS; ++k)
 				{
-					test_assert(kmailbox_write(outboxes[k], msg_out, MAILBOX_SIZE) == MAILBOX_SIZE);
+					test_assert(kmailbox_write(outboxes[k], message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
 
-					msg_in[0] = local;
+					kmemset(message, (char) local, PORTAL_SIZE);
 					test_assert(kportal_allow(inportals[k], remote, k) >= 0);
-					test_assert(kportal_read(inportals[k], msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(msg_in[0] == remote);
+					test_assert(kportal_read(inportals[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(message[l] == remote);
 
-					msg_in[0] = local;
-					test_assert(kmailbox_read(inboxes[k], msg_in, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(msg_in[0] == remote);
+					kmemset(message, (char) local, MAILBOX_SIZE);
+					test_assert(kmailbox_read(inboxes[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
+					for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+						test_assert(message[l] == remote);
 
-					test_assert(kportal_write(outportals[k], msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kportal_write(outportals[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 				}
 			}
 		}
@@ -766,17 +782,16 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
 	int nports;
 	int mbxids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
 	int portalids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	char message[PORTAL_SIZE];
+	char * msg;
 
 	tid = ((int)(intptr_t) arg);
+	msg = message_in[tid];
 
 	local = knode_get_num();
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	if (local == MASTER_NODENUM)
 	{
-		message[0] = local;
-
 		for (int i = 0; i < NSETUPS; ++i)
 		{
 			nports = 0;
@@ -796,8 +811,8 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					test_assert(kmailbox_write(mbxids[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(kportal_write(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kmailbox_write(mbxids[k], message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
+					test_assert(kportal_write(portalids[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 				}
 
 				fence(&_fence);
@@ -833,14 +848,16 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					message[0] = local;
-					test_assert(kmailbox_read(mbxids[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(message[0] == remote);
+					kmemset(msg, (char) local, MAILBOX_SIZE);
+					test_assert(kmailbox_read(mbxids[k], msg, MAILBOX_SIZE) == MAILBOX_SIZE);
+					for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+						test_assert(msg[l] == remote);
 
-					message[0] = local;
+					kmemset(msg, (char) local, PORTAL_SIZE);
 					test_assert(kportal_allow(portalids[k], remote, (tid + k * THREAD_MAX)) >= 0);
-					test_assert(kportal_read(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(message[0] == remote);
+					test_assert(kportal_read(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(msg[l] == remote);
 				}
 
 				fence(&_fence);
@@ -866,6 +883,7 @@ PRIVATE void test_stress_ikc_thread_multiplexing_broadcast(void)
 {
 	kthread_t tid[THREAD_MAX - 1];
 
+	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
 	fence_init(&_fence, THREAD_MAX);
 
 	/* Create threads. */
@@ -894,17 +912,16 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
 	int remote;
 	int mbxids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
 	int portalids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	char message[PORTAL_SIZE];
+	char * msg;
 
 	tid = ((int)(intptr_t) arg);
+	msg = message_in[tid];
 
 	local = knode_get_num();
 	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
 
 	if (local == SLAVE_NODENUM)
 	{
-		message[0] = local;
-
 		for (int i = 0; i < NSETUPS; ++i)
 		{
 			nports = 0;
@@ -924,8 +941,8 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					test_assert(kmailbox_write(mbxids[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(kportal_write(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kmailbox_write(mbxids[k], message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
+					test_assert(kportal_write(portalids[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 				}
 
 				fence(&_fence);
@@ -961,14 +978,16 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					message[0] = local;
-					test_assert(kmailbox_read(mbxids[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(message[0] == remote);
+					kmemset(msg, (char) local, MAILBOX_SIZE);
+					test_assert(kmailbox_read(mbxids[k], msg, MAILBOX_SIZE) == MAILBOX_SIZE);
+					for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+						test_assert(msg[l] == remote);
 
-					message[0] = local;
+					kmemset(msg, (char) local, PORTAL_SIZE);
 					test_assert(kportal_allow(portalids[k], remote, (tid + k * THREAD_MAX)) >= 0);
-					test_assert(kportal_read(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(message[0] == remote);
+					test_assert(kportal_read(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(msg[l] == remote);
 				}
 
 				fence(&_fence);
@@ -994,6 +1013,7 @@ PRIVATE void test_stress_ikc_thread_multiplexing_gather(void)
 {
 	kthread_t tid[THREAD_MAX - 1];
 
+	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
 	fence_init(&_fence, THREAD_MAX);
 
 	/* Create threads. */
@@ -1024,15 +1044,13 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 	int outboxes[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
 	int inportals[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
 	int outportals[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	char msg_in[PORTAL_SIZE];
-	char msg_out[PORTAL_SIZE];
+	char * msg;
 
 	tid = ((int)(intptr_t) arg);
+	msg = message_in[tid];
 
 	local = knode_get_num();
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
-
-	msg_out[0] = local;
 
 	for (int i = 0; i < NSETUPS; ++i)
 	{
@@ -1057,18 +1075,20 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					msg_in[0] = local;
-					test_assert(kmailbox_read(inboxes[k], msg_in, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(msg_in[0] == remote);
+					kmemset(msg, (char) local, MAILBOX_SIZE);
+					test_assert(kmailbox_read(inboxes[k], msg, MAILBOX_SIZE) == MAILBOX_SIZE);
+					for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+						test_assert(msg[l] == remote);
 
-					msg_in[0] = local;
+					kmemset(msg, (char) local, PORTAL_SIZE);
 					test_assert(kportal_allow(inportals[k], remote, (tid + k * THREAD_MAX)) >= 0);
-					test_assert(kportal_read(inportals[k], msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(msg_in[0] == remote);
+					test_assert(kportal_read(inportals[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(msg[l] == remote);
 
-					test_assert(kmailbox_write(outboxes[k], msg_out, MAILBOX_SIZE) == MAILBOX_SIZE);
+					test_assert(kmailbox_write(outboxes[k], message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
 
-					test_assert(kportal_write(outportals[k], msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kportal_write(outportals[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 				}
 
 				fence(&_fence);
@@ -1080,18 +1100,20 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					test_assert(kmailbox_write(outboxes[k], msg_out, MAILBOX_SIZE) == MAILBOX_SIZE);
+					test_assert(kmailbox_write(outboxes[k], message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
 
-					test_assert(kportal_write(outportals[k], msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kportal_write(outportals[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 
-					msg_in[0] = local;
-					test_assert(kmailbox_read(inboxes[k], msg_in, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(msg_in[0] == remote);
+					kmemset(msg, (char) local, MAILBOX_SIZE);
+					test_assert(kmailbox_read(inboxes[k], msg, MAILBOX_SIZE) == MAILBOX_SIZE);
+					for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+						test_assert(msg[l] == remote);
 
-					msg_in[0] = local;
+					kmemset(msg, (char) local, PORTAL_SIZE);
 					test_assert(kportal_allow(inportals[k], remote, (tid + k * THREAD_MAX)) >= 0);
-					test_assert(kportal_read(inportals[k], msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(msg_in[0] == remote);
+					test_assert(kportal_read(inportals[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(msg[l] == remote);
 				}
 
 				fence(&_fence);
@@ -1119,6 +1141,7 @@ PRIVATE void test_stress_ikc_thread_multiplexing_pingpong(void)
 {
 	kthread_t tid[THREAD_MAX - 1];
 
+	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
 	fence_init(&_fence, THREAD_MAX);
 
 	/* Create threads. */
@@ -1149,15 +1172,13 @@ PRIVATE void * do_thread_multiplexing_pingpong_reverse(void * arg)
 	int outboxes[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
 	int inportals[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
 	int outportals[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	char msg_in[PORTAL_SIZE];
-	char msg_out[PORTAL_SIZE];
+	char * msg;
 
 	tid = ((int)(intptr_t) arg);
+	msg = message_in[tid];
 
 	local = knode_get_num();
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
-
-	msg_out[0] = local;
 
 	for (int i = 0; i < NSETUPS; ++i)
 	{
@@ -1182,18 +1203,20 @@ PRIVATE void * do_thread_multiplexing_pingpong_reverse(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					msg_in[0] = local;
-					test_assert(kmailbox_read(inboxes[k], msg_in, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(msg_in[0] == remote);
+					kmemset(msg, (char) local, MAILBOX_SIZE);
+					test_assert(kmailbox_read(inboxes[k], msg, MAILBOX_SIZE) == MAILBOX_SIZE);
+					for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+						test_assert(msg[l] == remote);
 
-					test_assert(kportal_write(outportals[k], msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kportal_write(outportals[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 
-					test_assert(kmailbox_write(outboxes[k], msg_out, MAILBOX_SIZE) == MAILBOX_SIZE);
+					test_assert(kmailbox_write(outboxes[k], message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
 
-					msg_in[0] = local;
+					kmemset(msg, (char) local, PORTAL_SIZE);
 					test_assert(kportal_allow(inportals[k], remote, (tid + k * THREAD_MAX)) >= 0);
-					test_assert(kportal_read(inportals[k], msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(msg_in[0] == remote);
+					test_assert(kportal_read(inportals[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(msg[l] == remote);
 				}
 
 				fence(&_fence);
@@ -1205,18 +1228,20 @@ PRIVATE void * do_thread_multiplexing_pingpong_reverse(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					test_assert(kmailbox_write(outboxes[k], msg_out, MAILBOX_SIZE) == MAILBOX_SIZE);
+					test_assert(kmailbox_write(outboxes[k], message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
 
-					msg_in[0] = local;
+					kmemset(msg, (char) local, PORTAL_SIZE);
 					test_assert(kportal_allow(inportals[k], remote, (tid + k * THREAD_MAX)) >= 0);
-					test_assert(kportal_read(inportals[k], msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(msg_in[0] == remote);
+					test_assert(kportal_read(inportals[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(msg[l] == remote);
 
-					msg_in[0] = local;
-					test_assert(kmailbox_read(inboxes[k], msg_in, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(msg_in[0] == remote);
+					kmemset(msg, (char) local, MAILBOX_SIZE);
+					test_assert(kmailbox_read(inboxes[k], msg, MAILBOX_SIZE) == MAILBOX_SIZE);
+					for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+						test_assert(msg[l] == remote);
 
-					test_assert(kportal_write(outportals[k], msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kportal_write(outportals[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 				}
 
 				fence(&_fence);
@@ -1244,6 +1269,7 @@ PRIVATE void test_stress_ikc_thread_multiplexing_pingpong_reverse(void)
 {
 	kthread_t tid[THREAD_MAX - 1];
 
+	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
 	fence_init(&_fence, THREAD_MAX);
 
 	/* Create threads. */
@@ -1268,16 +1294,15 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 	int nports;
 	int mbxids[TEST_THREAD_NPORTS];
 	int portalids[TEST_THREAD_NPORTS];
-	char message[PORTAL_SIZE];
+	char * msg;
 
 	tid = ((int)(intptr_t) arg);
+	msg = message_in[tid];
 
 	local = knode_get_num();
 
 	if (tid == 0)
 	{
-		message[0] = 1;
-
 		for (int i = 0; i < NSETUPS; ++i)
 		{
 			nports = 0;
@@ -1294,8 +1319,8 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					test_assert(kmailbox_write(mbxids[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(kportal_write(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kmailbox_write(mbxids[k], message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
+					test_assert(kportal_write(portalids[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 				}
 
 				fence(&_fence);
@@ -1331,14 +1356,16 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					message[0] = 0;
-					test_assert(kmailbox_read(mbxids[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(message[0] == 1);
+					kmemset(msg, 0, MAILBOX_SIZE);
+					test_assert(kmailbox_read(mbxids[k], msg, MAILBOX_SIZE) == MAILBOX_SIZE);
+					for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+						test_assert(msg[l] == 1);
 
-					message[0] = 0;
+					kmemset(msg, 0, PORTAL_SIZE);
 					test_assert(kportal_allow(portalids[k], local, ((tid - 1) + k * (THREAD_MAX - 1))) >= 0);
-					test_assert(kportal_read(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(message[0] == 1);
+					test_assert(kportal_read(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(msg[l] == 1);
 				}
 
 				fence(&_fence);
@@ -1364,6 +1391,7 @@ PRIVATE void test_stress_ikc_thread_multiplexing_broadcast_local(void)
 {
 	kthread_t tid[THREAD_MAX - 1];
 
+	kmemset(message_out, 1, PORTAL_SIZE);
 	fence_init(&_fence, THREAD_MAX);
 
 	/* Create threads. */
@@ -1391,16 +1419,15 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 	int nports;
 	int mbxids[TEST_THREAD_NPORTS];
 	int portalids[TEST_THREAD_NPORTS];
-	char message[PORTAL_SIZE];
+	char * msg;
 
 	tid = ((int)(intptr_t) arg);
+	msg = message_in[tid];
 
 	local = knode_get_num();
 
 	if (tid != 0)
 	{
-		message[0] = 1;
-
 		for (int i = 0; i < NSETUPS; ++i)
 		{
 			nports = 0;
@@ -1420,8 +1447,8 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					test_assert(kmailbox_write(mbxids[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(kportal_write(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kmailbox_write(mbxids[k], message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
+					test_assert(kportal_write(portalids[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 				}
 
 				fence(&_fence);
@@ -1454,14 +1481,16 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					message[0] = 0;
-					test_assert(kmailbox_read(mbxids[k], message, MAILBOX_SIZE) == MAILBOX_SIZE);
-					test_assert(message[0] == 1);
+					kmemset(msg, 0, MAILBOX_SIZE);
+					test_assert(kmailbox_read(mbxids[k], msg, MAILBOX_SIZE) == MAILBOX_SIZE);
+					for (unsigned l = 0; l < MAILBOX_SIZE; ++l)
+						test_assert(msg[l] == 1);
 
-					message[0] = 0;
+					kmemset(msg, 0, PORTAL_SIZE);
 					test_assert(kportal_allow(portalids[k], local, k) >= 0);
-					test_assert(kportal_read(portalids[k], message, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(message[0] == 1);
+					test_assert(kportal_read(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(msg[l] == 1);
 				}
 
 				fence(&_fence);
@@ -1487,6 +1516,7 @@ PRIVATE void test_stress_ikc_thread_multiplexing_gather_local(void)
 {
 	kthread_t tid[THREAD_MAX - 1];
 
+	kmemset(message_out, 1, PORTAL_SIZE);
 	fence_init(&_fence, THREAD_MAX);
 
 	/* Create threads. */
@@ -1511,12 +1541,6 @@ PRIVATE struct test ikc_tests_stress[] = {
 	/* Intra-Cluster API Tests */
 	{ test_stress_ikc_create_unlink,                        "[test][ikc][stress] IKC create unlink                         [passed]" },
 	{ test_stress_ikc_open_close,                           "[test][ikc][stress] IKC open close                            [passed]" },
-	{ test_stress_ikc_thread_multiplexing_broadcast,        "[test][ikc][stress] IKC thread multiplexing broadcast         [passed]" },
-	{ test_stress_ikc_thread_multiplexing_gather,           "[test][ikc][stress] IKC thread multiplexing gather            [passed]" },
-	{ test_stress_ikc_thread_multiplexing_pingpong,         "[test][ikc][stress] IKC thread multiplexing ping-pong         [passed]" },
-	{ test_stress_ikc_thread_multiplexing_pingpong_reverse, "[test][ikc][stress] IKC thread multiplexing ping-pong reverse [passed]" },
-	{ test_stress_ikc_thread_multiplexing_broadcast_local,  "[test][ikc][stress] IKC thread multiplexing broadcast local   [passed]" },
-	{ test_stress_ikc_thread_multiplexing_gather_local,     "[test][ikc][stress] IKC thread multiplexing gather local      [passed]" },
 	{ test_stress_ikc_broadcast,                            "[test][ikc][stress] IKC broadcast                             [passed]" },
 	{ test_stress_ikc_gather,                               "[test][ikc][stress] IKC gather                                [passed]" },
 	{ test_stress_ikc_pingpong,                             "[test][ikc][stress] IKC ping-pong                             [passed]" },
@@ -1525,6 +1549,12 @@ PRIVATE struct test ikc_tests_stress[] = {
 	{ test_stress_ikc_multiplexing_gather,                  "[test][ikc][stress] IKC multiplexing gather                   [passed]" },
 	{ test_stress_ikc_multiplexing_pingpong,                "[test][ikc][stress] IKC multiplexing ping-pong                [passed]" },
 	{ test_stress_ikc_multiplexing_pingpong_reverse,        "[test][ikc][stress] IKC multiplexing ping-pong reverse        [passed]" },
+	{ test_stress_ikc_thread_multiplexing_broadcast,        "[test][ikc][stress] IKC thread multiplexing broadcast         [passed]" },
+	{ test_stress_ikc_thread_multiplexing_gather,           "[test][ikc][stress] IKC thread multiplexing gather            [passed]" },
+	{ test_stress_ikc_thread_multiplexing_pingpong,         "[test][ikc][stress] IKC thread multiplexing ping-pong         [passed]" },
+	{ test_stress_ikc_thread_multiplexing_pingpong_reverse, "[test][ikc][stress] IKC thread multiplexing ping-pong reverse [passed]" },
+	{ test_stress_ikc_thread_multiplexing_broadcast_local,  "[test][ikc][stress] IKC thread multiplexing broadcast local   [passed]" },
+	{ test_stress_ikc_thread_multiplexing_gather_local,     "[test][ikc][stress] IKC thread multiplexing gather local      [passed]" },
 	{ NULL,                                                  NULL                                                                    },
 };
 
@@ -1548,7 +1578,7 @@ void test_ikc(void)
 		{
 			ikc_tests_stress[i].test_fn();
 
-			barrier_nodes();
+			test_barrier_nodes();
 
 			if (local == MASTER_NODENUM)
 				nanvix_puts(ikc_tests_stress[i].name);

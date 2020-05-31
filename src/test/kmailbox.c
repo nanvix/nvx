@@ -2176,17 +2176,17 @@ PRIVATE struct test mailbox_tests_stress[] = {
 	/* Intra-Cluster API Tests */
 	{ test_stress_mailbox_create_unlink,                       "[test][mailbox][stress] mailbox create unlink                       [passed]" },
 	{ test_stress_mailbox_open_close,                          "[test][mailbox][stress] mailbox open close                          [passed]" },
-	{ test_stress_mailbox_thread_multiplexing_broadcast,       "[test][mailbox][stress] mailbox thread multiplexing broadcast       [passed]" },
-	{ test_stress_mailbox_thread_multiplexing_gather,          "[test][mailbox][stress] mailbox thread multiplexing gather          [passed]" },
-	{ test_stress_mailbox_thread_multiplexing_pingpong,        "[test][mailbox][stress] mailbox thread multiplexing ping-pong       [passed]" },
-	{ test_stress_mailbox_thread_multiplexing_broadcast_local, "[test][mailbox][stress] mailbox thread multiplexing broadcast local [passed]" },
-	{ test_stress_mailbox_thread_multiplexing_gather_local,    "[test][mailbox][stress] mailbox thread multiplexing gather local    [passed]" },
 	{ test_stress_mailbox_broadcast,                           "[test][mailbox][stress] mailbox broadcast                           [passed]" },
 	{ test_stress_mailbox_gather,                              "[test][mailbox][stress] mailbox gather                              [passed]" },
 	{ test_stress_mailbox_pingpong,                            "[test][mailbox][stress] mailbox ping-pong                           [passed]" },
 	{ test_stress_mailbox_multiplexing_broadcast,              "[test][mailbox][stress] mailbox multiplexing broadcast              [passed]" },
 	{ test_stress_mailbox_multiplexing_gather,                 "[test][mailbox][stress] mailbox multiplexing gather                 [passed]" },
 	{ test_stress_mailbox_multiplexing_pingpong,               "[test][mailbox][stress] mailbox multiplexing ping-pong              [passed]" },
+	{ test_stress_mailbox_thread_multiplexing_broadcast,       "[test][mailbox][stress] mailbox thread multiplexing broadcast       [passed]" },
+	{ test_stress_mailbox_thread_multiplexing_gather,          "[test][mailbox][stress] mailbox thread multiplexing gather          [passed]" },
+	{ test_stress_mailbox_thread_multiplexing_pingpong,        "[test][mailbox][stress] mailbox thread multiplexing ping-pong       [passed]" },
+	{ test_stress_mailbox_thread_multiplexing_broadcast_local, "[test][mailbox][stress] mailbox thread multiplexing broadcast local [passed]" },
+	{ test_stress_mailbox_thread_multiplexing_gather_local,    "[test][mailbox][stress] mailbox thread multiplexing gather local    [passed]" },
 	{ NULL,                                                     NULL                                                                          },
 };
 
@@ -2210,6 +2210,8 @@ void test_mailbox(void)
 		{
 			mailbox_tests_api[i].test_fn();
 
+			test_barrier_nodes();
+
 			if (nodenum == MASTER_NODENUM)
 				nanvix_puts(mailbox_tests_api[i].name);
 		}
@@ -2232,7 +2234,7 @@ void test_mailbox(void)
 		{
 			mailbox_tests_stress[i].test_fn();
 
-			barrier_nodes();
+			test_barrier_nodes();
 
 			if (nodenum == MASTER_NODENUM)
 				nanvix_puts(mailbox_tests_stress[i].name);

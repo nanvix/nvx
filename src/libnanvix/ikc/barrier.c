@@ -26,9 +26,35 @@
 
 #if __TARGET_HAS_SYNC
 
+#include <nanvix/sys/perf.h>
 #include <nanvix/sys/thread.h>
 #include <nanvix/runtime/stdikc.h>
 #include <nanvix/runtime/barrier.h>
+
+#ifndef __unix64__
+
+/**
+ * @brief Forces a platform-independent delay.
+ *
+ * @param cycles Delay in cycles.
+ *
+ * @author João Vicente Souto
+ */
+static void barrier_delay(int times, uint64_t cycles)
+{
+	uint64_t t0, t1;
+
+	for (int i = 0; i < times; ++i)
+	{
+		kclock(&t0);
+
+		do
+			kclock(&t1);
+		while ((t1 - t0) < cycles);
+	}
+}
+
+#endif /* !__unix64__ */
 
 /**
  * The barrier_create() function creates a barrier between the nodes
@@ -64,16 +90,21 @@ barrier_t barrier_create(const int *nodes, int nnodes)
 	/* Follower. */
 	else
 	{
-		barrier.syncs[0] = ksync_open(
-			nodes,
-			nnodes,
-			SYNC_ALL_TO_ONE
-		);
 		barrier.syncs[1] = ksync_create(
 			nodes,
 			nnodes,
 			SYNC_ONE_TO_ALL
 		);
+		barrier.syncs[0] = ksync_open(
+			nodes,
+			nnodes,
+			SYNC_ALL_TO_ONE
+		);
+
+#ifndef __unix64__
+		/* Waits 10 seconds (Maybe it can be smaller).*/
+		barrier_delay(10, CLUSTER_FREQ);
+#endif /* !__unix64__ */
 	}
 
 	barrier.leader = nodes[0];

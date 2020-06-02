@@ -77,10 +77,10 @@ PRIVATE int mdata_outs[PROCESSOR_NOC_NODES_NUM] = {
  */
 /**@{*/
 PRIVATE struct resource read_channels[PROCESSOR_NOC_NODES_NUM] = {
-	[0 ... (PROCESSOR_NOC_NODES_NUM - 1)] = RESOURCE_INITIALIZER
+	[0 ... (PROCESSOR_NOC_NODES_NUM - 1)] = {0, }
 };
 PRIVATE struct resource write_channels[PROCESSOR_NOC_NODES_NUM] = {
-	[0 ... (PROCESSOR_NOC_NODES_NUM - 1)] = RESOURCE_INITIALIZER
+	[0 ... (PROCESSOR_NOC_NODES_NUM - 1)] = {0, }
 };
 /**@}*/
 
@@ -164,13 +164,13 @@ PRIVATE struct mportal
 	/**@}*/
 } ALIGN(sizeof(dword_t)) mportals[KPORTAL_MAX] = {
 	[0 ... (KPORTAL_MAX - 1)] = {
-		.resource  = RESOURCE_INITIALIZER,
+		.resource  = {0, },
 		.refcount  = 0,
 		.mallow    = -1,
 		.mdata     = -1,
 		.volume    = 0ULL,
 		.latency   = 0ULL,
-		.config    = MPORTAL_CONFIG_NULL,
+		.config    = {-1, -1, -1, -1},
 	},
 };
 
@@ -240,7 +240,7 @@ PRIVATE struct mportal_port
 } mports[HAL_PORTAL_OPEN_MAX][KPORTAL_PORT_NR] = {
 	[0 ... (HAL_PORTAL_OPEN_MAX - 1)] = {
 		[0 ... (KPORTAL_PORT_NR - 1)] = {
-			.resource = RESOURCE_INITIALIZER,
+			.resource = {0, },
 		},
 	},
 };
@@ -321,7 +321,7 @@ PRIVATE struct mportal_buffer
 	 */
 	/**@{*/
 	uint64_t age;                   /**< Buffer age.                      */
-	size_t seq;                     /**< Sequence number.                 */
+	uint64_t seq;                   /**< Sequence number.                 */
 	size_t size;                    /**< Valid data size.                 */
 	struct mportal_config config;   /**< Configuration                    */
 	struct mportal_buffer * next;   /**< Next buffer of the sequence.     */
@@ -331,15 +331,15 @@ PRIVATE struct mportal_buffer
 	 * @brief Data.
 	 */
 	char data[MPORTAL_BUFFER_SIZE]; /**< Data buffer.                     */
-} mbuffers[MPORTAL_BUFFER_MAX] = {
+} mpbuffers[MPORTAL_BUFFER_MAX] = {
 	[0 ... (MPORTAL_BUFFER_MAX - 1)] = {
-		.resource = RESOURCE_INITIALIZER,
-		.age    = ~(0ULL),
-		.seq    = ~(0ULL),
-		.size   = 0ULL,
-		.next   = NULL,
-		.config = MPORTAL_CONFIG_NULL,
-		.data   = {0, },
+		.resource = {0, },
+		.age      = ~(0ULL),
+		.seq      = ~(0ULL),
+		.size     = 0,
+		.next     = NULL,
+		.config   = {-1, -1, -1, -1},
+		.data     = {0, },
 	},
 };
 
@@ -368,17 +368,18 @@ PRIVATE struct mportal_buffer * kportal_buffer_alloc(
 
 		for (size_t i = 0; i < MPORTAL_BUFFER_MAX; ++i)
 		{
-			if (resource_is_used(&mbuffers[i].resource))
+			if (resource_is_used(&mpbuffers[i].resource))
 				continue;
 
-			buf = &mbuffers[i];
+			buf = &mpbuffers[i];
 
 			if (previous == NULL)
-				buf->seq = 0;
+				buf->seq = 0ULL;
 			else
 			{
-				buf->seq = previous->seq + 1;
+				buf->seq       = previous->seq + 1;
 				previous->next = buf;
+				resource_set_notbusy(&previous->resource);
 			}
 
 			buf->config = *config;
@@ -386,6 +387,7 @@ PRIVATE struct mportal_buffer * kportal_buffer_alloc(
 			buf->next   = NULL;
 			buf->age    = mbuffer_next_age++;
 			resource_set_used(&buf->resource);
+			resource_set_busy(&buf->resource);
 
 			break;
 		}
@@ -412,7 +414,7 @@ PRIVATE struct mportal_buffer * do_kportal_buffer_release(struct mportal_buffer 
 	next = buf->next;
 
 	buf->config = MPORTAL_CONFIG_NULL;
-	buf->seq    = -1;
+	buf->seq    = ~(0ULL);
 	buf->size   = 0ULL;
 	buf->next   = NULL;
 	buf->age    = ~(0ULL);
@@ -448,7 +450,7 @@ PRIVATE struct mportal_buffer * do_kportal_buffer_search(struct mportal * portal
 	struct mportal_buffer * buf; /* Auxiliar buffer pointer. */
 
 	if (!node_is_local(portal->config.local))
-		kportal_print_message("kportal_search failed", &portal->config);
+		kportal_print_message("kportal_buffer_search failed", &portal->config);
 
 	/* Sanity checks. */
 	KASSERT(node_is_local(portal->config.local));
@@ -457,32 +459,35 @@ PRIVATE struct mportal_buffer * do_kportal_buffer_search(struct mportal * portal
 
 	for (size_t i = 0; i < MPORTAL_BUFFER_MAX; ++i)
 	{
-		if (!resource_is_used(&mbuffers[i].resource))
+		if (!resource_is_used(&mpbuffers[i].resource))
 			continue;
 
-		if (portal->config.local != mbuffers[i].config.remote)
+		if (portal->config.local != mpbuffers[i].config.remote)
 			continue;
 
-		if (portal->config.local_port != mbuffers[i].config.remote_port)
+		if (portal->config.local_port != mpbuffers[i].config.remote_port)
 			continue;
 
 		/* Is it a read operation? */
 		if (portal->config.remote != -1)
 		{
-			if (portal->config.remote != mbuffers[i].config.local)
+			if (portal->config.remote != mpbuffers[i].config.local)
 				continue;
 
-			if (portal->config.remote_port != mbuffers[i].config.local_port)
+			if (portal->config.remote_port != mpbuffers[i].config.local_port)
 				continue;
 
-			if (mbuffers[i].seq != 0)
+			if (mpbuffers[i].seq != 0)
 				continue;
 
-			if (buf != NULL && buf->age < mbuffers[i].age)
+			if (buf != NULL && buf->age < mpbuffers[i].age)
+				continue;
+
+			if (resource_is_busy(&mpbuffers[i].resource))
 				continue;
 		}
 
-		buf = &mbuffers[i];
+		buf = &mpbuffers[i];
 
 		/* Is it a find the first operation? */
 		if (portal->config.remote == -1)
@@ -538,6 +543,9 @@ PRIVATE ssize_t kportal_buffer_read(
 
 		while (buf)
 		{
+			if (resource_is_busy(&buf->resource))
+				break;
+
 			/* Sanity check. */
 			if (buf->size > *remainder)
 			{
@@ -547,6 +555,8 @@ PRIVATE ssize_t kportal_buffer_read(
 				 **/
 				if (buf->seq > 0)
 				{
+					kportal_print_message("kportal_buffer_read failed: Discarting buffers...", &buf->config);
+
 					while (do_kportal_buffer_release(buf));
 
 					if (*previous)
@@ -690,7 +700,7 @@ PUBLIC int kportal_create(int local, int local_port)
 			mportals[portalid].latency  = 0ULL;
 			mportals[portalid].config   = config;
 			resource_set_rdonly(&mportals[portalid].resource);
-			
+
 			mportal_counters.ncreates++;
 		}
 
@@ -882,7 +892,6 @@ PUBLIC int kportal_unlink(int portalid)
 			mportals[portalid].mdata  = -1;
 			mportals[portalid].config = MPORTAL_CONFIG_NULL;
 			resource_free(&mportalpool, portalid);
-
 		}
 
 		mportal_counters.nunlinks++;
@@ -963,31 +972,37 @@ error:
 
 PRIVATE ssize_t do_kportal_aread(struct mportal * portal, void * buffer, size_t size)
 {
-	ssize_t ret;                    /* Return value.                           */
-	void * data;                    /* Auxiliar buffer pointer.                */
-	bool buffering;                 /* Define where the data will be store.    */
-	bool valid;                     /* Define if the messages will be ignored. */
-	size_t received;                /* Received data counter.                  */
-	struct mportal_buffer * buf;    /* Auxiliar buffer pointer.                */
-	struct mportal_message message; /* Message buffer.                         */
-	struct mportal_config config;   /* Configuration pointer.                  */
+	ssize_t ret;                    /* Return value.                            */
+	void * data;                    /* Auxiliar buffer pointer.                 */
+	bool buffering;                 /* Define where the data will be store.     */
+	bool valid;                     /* Define if the messages will be ignored.  */
+	bool has_dropped;               /* Nofifies one time when ignore a message. */
+	size_t received;                /* Received data counter.                   */
+	struct mportal_buffer * buf;    /* Auxiliar buffer pointer.                 */
+	struct mportal_message message; /* Message buffer.                          */
+	struct mportal_config config;   /* Configuration pointer.                   */
 
 	/* Valid portal. */
 	KASSERT(portal && node_is_valid(portal->config.remote));
 
-again:
-	spinlock_lock(&read_lock[portal->config.remote]);
+	buffering = true;
 
+again:
+	if (buffering)
+	{
 		buf       = NULL;
 		valid     = true;
 		buffering = false;
 		received  = size;
+	}
+
+	spinlock_lock(&read_lock[portal->config.remote]);
 
 		/* Reads buffered message. */
 		if ((ret = kportal_buffer_read(portal, &buffer, &received, &buf)) != 0)
 		{
 			/* Is it copied correctly? */
-			ret = (ret == ((ssize_t) size)) ? ((ssize_t) size) : (-EINVAL);
+			ret = (ret < 0) ? (ret) : ((received != 0) ? (ret) : (ssize_t)(size));
 			goto exit;
 		}
 
@@ -1001,13 +1016,23 @@ again:
 		/* Set channel busy. */
 		resource_set_busy(&read_channels[portal->config.remote]);
 
+	spinlock_unlock(&read_lock[portal->config.remote]);
+
 		/* Allows. */
 		if ((ret = kmailbox_write(portal->mallow, &portal->config, MPORTAL_CONFIG_SIZE)) < 0)
+		{
+			spinlock_lock(&read_lock[portal->config.remote]);
 			goto release;
+		}
 
 		/* Reads header. */
 		if ((ret = kmailbox_read(portal->mdata, &message, MPORTAL_MESSAGE_SIZE)) < 0)
+		{
+			spinlock_lock(&read_lock[portal->config.remote]);
 			goto release;
+		}
+
+	spinlock_lock(&read_lock[portal->config.remote]);
 
 		/* Sanity check. */
 		KASSERT(message.header || !message.eof);
@@ -1018,6 +1043,7 @@ again:
 		config.remote      = message._.config.local;
 		config.remote_port = message._.config.local_port;
 		valid              = (kportal_search(&config, true) >= 0);
+		has_dropped        = false;
 
 		/* Is the message to the current port? */
 		buffering = valid && (portal->config.remote_port != message._.config.local_port);
@@ -1048,7 +1074,11 @@ again:
 		while (!message.eof)
 		{
 			/* Reads a piece of the message. */
-			if ((ret = kmailbox_read(portal->mdata, &message, MPORTAL_MESSAGE_SIZE)) < 0)
+			spinlock_unlock(&read_lock[portal->config.remote]);
+				ret = kmailbox_read(portal->mdata, &message, MPORTAL_MESSAGE_SIZE);
+			spinlock_lock(&read_lock[portal->config.remote]);
+
+			if (ret < 0)
 				goto release;
 
 			/* Sanity check. */
@@ -1059,6 +1089,13 @@ again:
 				/* Isn't it ok read the message? */
 				if (!valid || ((received + message.size) > size))
 				{
+					/* Notifies when detecting a message drop. */
+					if (!has_dropped)
+					{
+						has_dropped = true;
+						kprintf("kportal_aread dropping invalid message (Portal not opened)");
+					}
+
 					/* Reads entire message and discart it. */
 					ret = valid ? (-EINVAL) : (0);
 					continue;
@@ -1069,6 +1106,7 @@ again:
 				/* Keeps previous buffer and alloc a new one. */
 				if ((received + message.size) > MPORTAL_BUFFER_SIZE)
 				{
+					/* Complete the buffer. */
 					kmemcpy(data, message._.data, (MPORTAL_BUFFER_SIZE - received));
 					buf->size += (MPORTAL_BUFFER_SIZE - received);
 
@@ -1088,6 +1126,7 @@ again:
 						message.size - (MPORTAL_BUFFER_SIZE - received)
 					);
 
+					/* Copies the rest of the message in the new buffer. */
 					received  = (message.size - (MPORTAL_BUFFER_SIZE - received));
 					buf->size = received;
 					data      = (buf->data + received);
@@ -1104,6 +1143,14 @@ again:
 			received  += message.size;
 		}
 
+		/* Makes buffer available. */
+		if (buf)
+		{
+			spinlock_lock(&buffer_lock);
+				resource_set_notbusy(&buf->resource);
+			spinlock_unlock(&buffer_lock);
+		}
+
 		ret = (ret >= 0) ? ((ssize_t) size) : (ret);
 
 release:
@@ -1113,7 +1160,7 @@ exit:
 
 	if (ret >= 0)
 	{
-		if (!valid || buffering)
+		if (!valid || buffering || (ret != ((ssize_t) size)))
 			goto again;
 
 		portal->volume += size;
@@ -1148,10 +1195,10 @@ again:
 
 		/* Successfully readed. */
 		if (remainder == 0)
-			portal->volume += size;
+			portal->volume += (ret = size);
 
 		/* Still reading. */
-		else if ((remainder == size) || previous)
+		else if (ret >= 0)
 		{
 			spinlock_unlock(&local_lock);
 			goto again;
@@ -1447,6 +1494,14 @@ again:
 			remainder -= n;
 			buffer    += n;
 			buf->size += n;
+		}
+
+		/* Makes buffer available. */
+		if (buf)
+		{
+			spinlock_lock(&buffer_lock);
+				resource_set_notbusy(&buf->resource);
+			spinlock_unlock(&buffer_lock);
 		}
 
 	spinlock_unlock(&local_lock);

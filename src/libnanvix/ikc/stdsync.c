@@ -35,33 +35,12 @@
  * @brief Kernel standard sync.
  */
 static barrier_t __stdbarrier[THREAD_MAX + 1] = {
-	[0 ... (THREAD_MAX)] = BARRIER_NULL,
+	[0 ... (THREAD_MAX)] = {
+		.leader = -1,
+		.syncs[0] = -1,
+		.syncs[1] = -1
+	},
 };
-
-#ifndef __unix64__
-
-/**
- * @brief Forces a platform-independent delay.
- *
- * @param cycles Delay in cycles.
- *
- * @author João Vicente Souto
- */
-static void delay(uint64_t cycles)
-{
-	uint64_t t0, t1;
-
-	for (int i = 0; i < PROCESSOR_CLUSTERS_NUM; ++i)
-	{
-		kclock(&t0);
-
-		do
-			kclock(&t1);
-		while ((t1 - t0) < cycles);
-	}
-}
-
-#endif /* !__unix64__ */
 
 /*
  * Build a list of the node IDs

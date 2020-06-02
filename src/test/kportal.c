@@ -32,6 +32,8 @@
 #if __TARGET_HAS_PORTAL
 
 PRIVATE char message[PORTAL_SIZE_LARGE];
+PRIVATE char message_in[THREAD_MAX][PORTAL_SIZE];
+PRIVATE char message_out[PORTAL_SIZE];
 
 /*============================================================================*
  * API Test: Create Unlink                                                    *
@@ -1977,6 +1979,7 @@ PRIVATE void fence_init(struct fence *b, int ncores)
 {
 	b->ncores   = ncores;
 	b->nreached = 0;
+	b->release  = 0;
 }
 
 /**
@@ -2002,16 +2005,13 @@ PRIVATE void fence(struct fence *b)
 
 	spinlock_unlock(&b->lock);
 
-	exit = 0;
-	while (!exit)
+	do
 	{
-		exit = 100;
-		while (exit--);
-
 		spinlock_lock(&b->lock);
 			exit = (local_release == b->release);
 		spinlock_unlock(&b->lock);
 	}
+	while (!exit);
 }
 
 /*============================================================================*
@@ -2022,9 +2022,6 @@ PRIVATE void test_stress_do_sender_thread(int tid, int local, int remote)
 {
 	int nports;
 	int portalids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	char msg[PORTAL_SIZE];
-
-	msg[0] = local;
 
 	for (int i = 0; i < NSETUPS; ++i)
 	{
@@ -2040,7 +2037,7 @@ PRIVATE void test_stress_do_sender_thread(int tid, int local, int remote)
 		for (int j = 0; j < NCOMMUNICATIONS; ++j)
 		{
 			for (int k = 0; k < nports; ++k)
-				test_assert(kportal_write(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+				test_assert(kportal_write(portalids[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 
 			fence(&_fence);
 		}
@@ -2056,7 +2053,9 @@ PRIVATE void test_stress_do_receiver_thread(int tid, int local, int remote)
 {
 	int nports;
 	int portalids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	char msg[PORTAL_SIZE];
+	char * msg;
+
+	msg = message_in[tid];
 
 	for (int i = 0; i < NSETUPS; ++i)
 	{
@@ -2073,10 +2072,11 @@ PRIVATE void test_stress_do_receiver_thread(int tid, int local, int remote)
 		{
 			for (int k = 0; k < nports; ++k)
 			{
-				msg[0] = local;
+				kmemset(msg, -1, PORTAL_SIZE);
 				test_assert(kportal_allow(portalids[k], remote, (tid + k * THREAD_MAX)) >= 0);
 				test_assert(kportal_read(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
-				test_assert(msg[0] == remote);
+				for (int l = 0; l < PORTAL_SIZE; ++l)
+					test_assert(msg[l] == remote);
 			}
 
 			fence(&_fence);
@@ -2106,6 +2106,7 @@ PRIVATE void test_stress_portal_thread_multiplexing_broadcast(void)
 {
 	kthread_t tid[THREAD_MAX - 1];
 
+	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
 	fence_init(&_fence, THREAD_MAX);
 
 	/* Create threads. */
@@ -2143,6 +2144,7 @@ PRIVATE void test_stress_portal_thread_multiplexing_gather(void)
 {
 	kthread_t tid[THREAD_MAX - 1];
 
+	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
 	fence_init(&_fence, THREAD_MAX);
 
 	/* Create threads. */
@@ -2171,15 +2173,13 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 	int nports;
 	int inportals[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
 	int outportals[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	char msg_in[PORTAL_SIZE];
-	char msg_out[PORTAL_SIZE];
+	char * msg;
 
 	tid = ((int)(intptr_t) arg);
+	msg = message_in[tid];
 
-	local = knode_get_num();
+	local  = knode_get_num();
 	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
-
-	msg_out[0] = local;
 
 	for (int i = 0; i < NSETUPS; ++i)
 	{
@@ -2202,12 +2202,13 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					msg_in[0] = local;
+					kmemset(msg, -1, PORTAL_SIZE);
 					test_assert(kportal_allow(inportals[k], remote, (tid + k * THREAD_MAX)) >= 0);
-					test_assert(kportal_read(inportals[k], msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(msg_in[0] == remote);
+					test_assert(kportal_read(inportals[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+					for (int l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(msg[l] == remote);
 
-					test_assert(kportal_write(outportals[k], msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kportal_write(outportals[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 				}
 
 				fence(&_fence);
@@ -2219,12 +2220,13 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					test_assert(kportal_write(outportals[k], msg_out, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kportal_write(outportals[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 
-					msg_in[0] = local;
+					kmemset(msg, -1, PORTAL_SIZE);
 					test_assert(kportal_allow(inportals[k], remote, (tid + k * THREAD_MAX)) >= 0);
-					test_assert(kportal_read(inportals[k], msg_in, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(msg_in[0] == remote);
+					test_assert(kportal_read(inportals[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+					for (int l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(msg[l] == remote);
 				}
 
 				fence(&_fence);
@@ -2250,6 +2252,7 @@ PRIVATE void test_stress_portal_thread_multiplexing_pingpong(void)
 {
 	kthread_t tid[THREAD_MAX - 1];
 
+	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
 	fence_init(&_fence, THREAD_MAX);
 
 	/* Create threads. */
@@ -2273,16 +2276,15 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 	int local;
 	int nports;
 	int portalids[TEST_THREAD_NPORTS];
-	char msg[PORTAL_SIZE];
+	char * msg;
 
 	tid = ((int)(intptr_t) arg);
+	msg = message_in[tid];
 
 	local = knode_get_num();
 
 	if (tid == 0)
 	{
-		msg[0] = 1;
-
 		for (int i = 0; i < NSETUPS; ++i)
 		{
 			nports = 0;
@@ -2296,7 +2298,7 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
 			{
 				for (int k = 0; k < nports; ++k)
-					test_assert(kportal_write(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kportal_write(portalids[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 
 				fence(&_fence);
 			}
@@ -2324,10 +2326,11 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					msg[0] = 0;
+					kmemset(msg, -1, PORTAL_SIZE);
 					test_assert(kportal_allow(portalids[k], local, ((tid - 1) + k * (THREAD_MAX - 1))) >= 0);
 					test_assert(kportal_read(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(msg[0] == 1);
+					for (int l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(msg[l] == 1);
 				}
 
 				fence(&_fence);
@@ -2350,6 +2353,7 @@ PRIVATE void test_stress_portal_thread_multiplexing_broadcast_local(void)
 {
 	kthread_t tid[THREAD_MAX - 1];
 
+	kmemset(message_out, 1, PORTAL_SIZE);
 	fence_init(&_fence, THREAD_MAX);
 
 	/* Create threads. */
@@ -2376,16 +2380,15 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 	int local;
 	int nports;
 	int portalids[TEST_THREAD_NPORTS];
-	char msg[PORTAL_SIZE];
+	char * msg;
 
 	tid = ((int)(intptr_t) arg);
+	msg = message_in[tid];
 
 	local = knode_get_num();
 
 	if (tid != 0)
 	{
-		msg[0] = 1;
-
 		for (int i = 0; i < NSETUPS; ++i)
 		{
 			nports = 0;
@@ -2400,7 +2403,7 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
 			{
 				for (int k = 0; k < nports; ++k)
-					test_assert(kportal_write(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+					test_assert(kportal_write(portalids[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 
 				fence(&_fence);
 			}
@@ -2427,11 +2430,11 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 				{
-					msg[0] = 0;
+					kmemset(msg, -1, PORTAL_SIZE);
 					test_assert(kportal_allow(portalids[k], local, k) >= 0);
 					test_assert(kportal_read(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
-					test_assert(msg[0] == 1);
-
+					for (int l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(msg[l] == 1);
 				}
 
 				fence(&_fence);
@@ -2454,6 +2457,7 @@ PRIVATE void test_stress_portal_thread_multiplexing_gather_local(void)
 {
 	kthread_t tid[THREAD_MAX - 1];
 
+	kmemset(message_out, 1, PORTAL_SIZE);
 	fence_init(&_fence, THREAD_MAX);
 
 	/* Create threads. */
@@ -2533,17 +2537,17 @@ PRIVATE struct test portal_tests_stress[] = {
 	/* Intra-Cluster API Tests */
 	{ test_stress_portal_create_unlink,                       "[test][portal][stress] portal create unlink                       [passed]" },
 	{ test_stress_portal_open_close,                          "[test][portal][stress] portal open close                          [passed]" },
-	{ test_stress_portal_thread_multiplexing_broadcast,       "[test][portal][stress] portal thread multiplexing broadcast       [passed]" },
-	{ test_stress_portal_thread_multiplexing_gather,          "[test][portal][stress] portal thread multiplexing gather          [passed]" },
-	{ test_stress_portal_thread_multiplexing_pingpong,        "[test][portal][stress] portal thread multiplexing ping-pong       [passed]" },
-	{ test_stress_portal_thread_multiplexing_broadcast_local, "[test][portal][stress] portal thread multiplexing broadcast local [passed]" },
-	{ test_stress_portal_thread_multiplexing_gather_local,    "[test][portal][stress] portal thread multiplexing gather local    [passed]" },
 	{ test_stress_portal_broadcast,                           "[test][portal][stress] portal broadcast                           [passed]" },
 	{ test_stress_portal_gather,                              "[test][portal][stress] portal gather                              [passed]" },
 	{ test_stress_portal_pingpong,                            "[test][portal][stress] portal ping-pong                           [passed]" },
 	{ test_stress_portal_multiplexing_broadcast,              "[test][portal][stress] portal multiplexing broadcast              [passed]" },
 	{ test_stress_portal_multiplexing_gather,                 "[test][portal][stress] portal multiplexing gather                 [passed]" },
 	{ test_stress_portal_multiplexing_pingpong,               "[test][portal][stress] portal multiplexing ping-pong              [passed]" },
+	{ test_stress_portal_thread_multiplexing_broadcast,       "[test][portal][stress] portal thread multiplexing broadcast       [passed]" },
+	{ test_stress_portal_thread_multiplexing_gather,          "[test][portal][stress] portal thread multiplexing gather          [passed]" },
+	{ test_stress_portal_thread_multiplexing_pingpong,        "[test][portal][stress] portal thread multiplexing ping-pong       [passed]" },
+	{ test_stress_portal_thread_multiplexing_broadcast_local, "[test][portal][stress] portal thread multiplexing broadcast local [passed]" },
+	{ test_stress_portal_thread_multiplexing_gather_local,    "[test][portal][stress] portal thread multiplexing gather local    [passed]" },
 	{ NULL,                                                    NULL                                                                        },
 };
 
@@ -2558,6 +2562,8 @@ void test_portal(void)
 
 	local = knode_get_num();
 
+	kmemset(message_out, (char) local, PORTAL_SIZE);
+
 	if (local == MASTER_NODENUM || local == SLAVE_NODENUM)
 	{
 		/* API Tests */
@@ -2566,6 +2572,8 @@ void test_portal(void)
 		for (unsigned i = 0; portal_tests_api[i].test_fn != NULL; i++)
 		{
 			portal_tests_api[i].test_fn();
+
+			test_barrier_nodes();
 
 			if (local == MASTER_NODENUM)
 				nanvix_puts(portal_tests_api[i].name);
@@ -2589,7 +2597,7 @@ void test_portal(void)
 		{
 			portal_tests_stress[i].test_fn();
 
-			barrier_nodes();
+			test_barrier_nodes();
 
 			if (local == MASTER_NODENUM)
 				nanvix_puts(portal_tests_stress[i].name);

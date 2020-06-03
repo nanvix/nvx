@@ -44,7 +44,7 @@
 	 *
 	 * @param x Target barrier.
 	 */
-	#define BARRIER_IS_VALID(x) \
+	#define BARRIER_IS_VALID(barrier) \
 		(!((barrier.leader < 0) || (barrier.syncs[0] < 0 || (barrier.syncs[1] < 0))))
 
 	/**

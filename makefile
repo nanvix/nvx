@@ -40,6 +40,12 @@ export RELEASE ?= no
 # Installation Prefix
 export PREFIX ?= $(HOME)
 
+# Use Docker?
+export DOCKER ?= no
+
+# Stall regression tests?
+export SUPPRESS_TESTS ?= no
+
 #===============================================================================
 # Directories
 #===============================================================================
@@ -74,7 +80,7 @@ export EXEC := test-driver.$(TARGET)
 # Target-Specific Make Rules
 #===============================================================================
 
-include $(MAKEDIR)/makefile
+include $(MAKEDIR)/makefile.libnanvix
 
 #===============================================================================
 # Toolchain Configuration
@@ -132,7 +138,7 @@ distclean: distclean-target
 # Contrib Install and Uninstall Rules
 #===============================================================================
 
-include $(BUILDDIR)/makefile.contrib
+include $(BUILDDIR)/makefile.libnanvix
 
 #===============================================================================
 # Install and Uninstall Rules

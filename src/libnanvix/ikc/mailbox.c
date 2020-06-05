@@ -301,7 +301,7 @@ ssize_t kmailbox_write(int mbxid, const void * buffer, size_t size)
 	if ((size == 0) || (size > KMAILBOX_MESSAGE_SIZE))
 		return (-EINVAL);
 
-	if ((ret = kmailbox_awrite(mbxid, buffer, size)) < 0)
+	if ((ret = kmailbox_awrite(mbxid, buffer, size)) < 1)
 		return (ret);
 
 	if ((ret = kmailbox_wait(mbxid)) < 0)

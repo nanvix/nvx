@@ -281,13 +281,18 @@ PRIVATE int kportal_port_release(int remote, int portid)
 
 PRIVATE void kportal_print_message(char * message, struct mportal_config * config)
 {
-	kprintf("[portal] %s (local:%d, local_port:%d, remote:%d, remote_port:%d)",
-		message,
-		config->local,
-		config->local_port,
-		config->remote,
-		config->remote_port
-	);
+	if (!config)
+		kprintf("[portal] %s", message);
+	else
+	{
+		kprintf("[portal] %s (local:%d, local_port:%d, remote:%d, remote_port:%d)",
+			message,
+			config->local,
+			config->local_port,
+			config->remote,
+			config->remote_port
+		);
+	}
 }
 
 /*============================================================================*
@@ -421,6 +426,20 @@ PRIVATE struct mportal_buffer * do_kportal_buffer_release(struct mportal_buffer 
 	resource_set_unused(&buf->resource);
 
 	return (next);
+}
+
+/*----------------------------------------------------------------------------*
+ * kportal_buffer_release()                                                   *
+ *----------------------------------------------------------------------------*/
+
+PRIVATE void kportal_buffer_set_available(struct mportal_buffer * buf)
+{
+	if (buf)
+	{
+		spinlock_lock(&buffer_lock);
+			resource_set_notbusy(&buf->resource);
+		spinlock_unlock(&buffer_lock);
+	}
 }
 
 /*----------------------------------------------------------------------------*
@@ -966,6 +985,24 @@ error:
  * kportal_aread()                                                            *
  *============================================================================*/
 
+PRIVATE int do_aread_message_drop(int mbxid, struct mportal_config * config)
+{
+	int ret;                        /* Return value.    */
+	struct mportal_message message; /* Auxiliar buffer. */
+
+	if (config)
+		kportal_print_message("Aread dropping a message (Portal not opened)", config);
+	else
+		kportal_print_message("Aread dropping a message (read size < write size)", config);
+
+	/* Reads and discard the rest of the message. */
+	do
+		ret = kmailbox_read(mbxid, &message, MPORTAL_MESSAGE_SIZE);
+	while (!message.eof && ret > 0);
+
+	return (ret);
+}
+
 /*----------------------------------------------------------------------------*
  * do_kportal_aread()                                                         *
  *----------------------------------------------------------------------------*/
@@ -974,9 +1011,9 @@ PRIVATE ssize_t do_kportal_aread(struct mportal * portal, void * buffer, size_t 
 {
 	ssize_t ret;                    /* Return value.                            */
 	void * data;                    /* Auxiliar buffer pointer.                 */
-	bool buffering;                 /* Define where the data will be store.     */
+	int remote;
 	bool valid;                     /* Define if the messages will be ignored.  */
-	bool has_dropped;               /* Nofifies one time when ignore a message. */
+	bool buffering;                 /* Define where the data will be store.     */
 	size_t received;                /* Received data counter.                   */
 	struct mportal_buffer * buf;    /* Auxiliar buffer pointer.                 */
 	struct mportal_message message; /* Message buffer.                          */
@@ -986,6 +1023,7 @@ PRIVATE ssize_t do_kportal_aread(struct mportal * portal, void * buffer, size_t 
 	KASSERT(portal && node_is_valid(portal->config.remote));
 
 	buffering = true;
+	remote    = portal->config.remote;
 
 again:
 	if (buffering)
@@ -996,7 +1034,23 @@ again:
 		received  = size;
 	}
 
-	spinlock_lock(&read_lock[portal->config.remote]);
+	/* Reads buffered message. */
+	if ((ret = kportal_buffer_read(portal, &buffer, &received, &buf)) != 0)
+	{
+		/* Is it copied correctly? */
+		ret = (ret < 0) ? (ret) : ((received != 0) ? (ret) : (ssize_t)(size));
+
+		/* Is the read complete? */
+		if (ret < 0 || received == 0)
+			goto exit;
+	}
+
+	/* Intermediary read from buffers. */
+	if (buf)
+		goto again;
+
+again2:
+	spinlock_lock(&read_lock[remote]);
 
 		/* Reads buffered message. */
 		if ((ret = kportal_buffer_read(portal, &buffer, &received, &buf)) != 0)
@@ -1007,32 +1061,22 @@ again:
 		}
 
 		/* Is the channel busy? */
-		if (resource_is_busy(&read_channels[portal->config.remote]))
+		if (resource_is_busy(&read_channels[remote]))
 		{
-			spinlock_unlock(&read_lock[portal->config.remote]);
-			goto again;
+			spinlock_unlock(&read_lock[remote]);
+			goto again2;
 		}
 
 		/* Set channel busy. */
-		resource_set_busy(&read_channels[portal->config.remote]);
-
-	spinlock_unlock(&read_lock[portal->config.remote]);
+		resource_set_busy(&read_channels[remote]);
 
 		/* Allows. */
 		if ((ret = kmailbox_write(portal->mallow, &portal->config, MPORTAL_CONFIG_SIZE)) < 0)
-		{
-			spinlock_lock(&read_lock[portal->config.remote]);
 			goto release;
-		}
 
 		/* Reads header. */
 		if ((ret = kmailbox_read(portal->mdata, &message, MPORTAL_MESSAGE_SIZE)) < 0)
-		{
-			spinlock_lock(&read_lock[portal->config.remote]);
 			goto release;
-		}
-
-	spinlock_lock(&read_lock[portal->config.remote]);
 
 		/* Sanity check. */
 		KASSERT(message.header || !message.eof);
@@ -1042,25 +1086,24 @@ again:
 		config.local_port  = message._.config.remote_port;
 		config.remote      = message._.config.local;
 		config.remote_port = message._.config.local_port;
-		valid              = (kportal_search(&config, true) >= 0);
-		has_dropped        = false;
+		spinlock_lock(&global_lock);
+			valid          = (kportal_search(&config, true) >= 0);
+		spinlock_unlock(&global_lock);
+
+		if (!valid)
+		{
+			do_aread_message_drop(portal->mdata, &message._.config);
+			ret = (1);
+			goto release;
+		}
 
 		/* Is the message to the current port? */
-		buffering = valid && (portal->config.remote_port != message._.config.local_port);
+		buffering = (portal->config.remote_port != message._.config.local_port);
 
 		/* Buffering mode allocates a auxiliar buffer. */
-		if (valid && buffering)
+		if (buffering)
 		{
-			while ((buf = kportal_buffer_alloc(NULL, &message._.config)) == NULL)
-			{
-				spinlock_unlock(&read_lock[portal->config.remote]);
-					/**
-					 * Release read lock to another thread consumes
-					 * buffered messages and releases buffers.
-					 **/
-				spinlock_lock(&read_lock[portal->config.remote]);
-			}
-
+			while ((buf = kportal_buffer_alloc(NULL, &message._.config)) == NULL);
 			data = buf->data;
 		}
 
@@ -1068,17 +1111,13 @@ again:
 		else
 			data = buffer;
 
-		received  = 0ULL;
+		received = 0ULL;
 
 		/* Reads. */
 		while (!message.eof)
 		{
 			/* Reads a piece of the message. */
-			spinlock_unlock(&read_lock[portal->config.remote]);
-				ret = kmailbox_read(portal->mdata, &message, MPORTAL_MESSAGE_SIZE);
-			spinlock_lock(&read_lock[portal->config.remote]);
-
-			if (ret < 0)
+			if ((ret = kmailbox_read(portal->mdata, &message, MPORTAL_MESSAGE_SIZE)) < 0)
 				goto release;
 
 			/* Sanity check. */
@@ -1087,18 +1126,11 @@ again:
 			if (!buffering)
 			{
 				/* Isn't it ok read the message? */
-				if (!valid || ((received + message.size) > size))
+				if ((received + message.size) > size)
 				{
-					/* Notifies when detecting a message drop. */
-					if (!has_dropped)
-					{
-						has_dropped = true;
-						kprintf("kportal_aread dropping invalid message (Portal not opened)");
-					}
-
-					/* Reads entire message and discart it. */
-					ret = valid ? (-EINVAL) : (0);
-					continue;
+					do_aread_message_drop(portal->mdata, NULL);
+					ret = (-EINVAL);
+					goto release;
 				}
 			}
 			else
@@ -1110,26 +1142,21 @@ again:
 					kmemcpy(data, message._.data, (MPORTAL_BUFFER_SIZE - received));
 					buf->size += (MPORTAL_BUFFER_SIZE - received);
 
-					while ((buf = kportal_buffer_alloc(buf, &buf->config)) == NULL)
-					{
-						spinlock_unlock(&read_lock[portal->config.remote]);
-							/**
-							 * Release read lock to another thread consumes
-							 * buffered messages and releases buffers.
-							 **/
-						spinlock_lock(&read_lock[portal->config.remote]);
-					}
+					spinlock_unlock(&read_lock[remote]);
+						while ((buf = kportal_buffer_alloc(buf, &buf->config)) == NULL);
 
-					kmemcpy(
-						buf->data,
-						message._.data + (MPORTAL_BUFFER_SIZE - received),
-						message.size - (MPORTAL_BUFFER_SIZE - received)
-					);
+						kmemcpy(
+							buf->data,
+							message._.data + (MPORTAL_BUFFER_SIZE - received),
+							message.size - (MPORTAL_BUFFER_SIZE - received)
+						);
 
-					/* Copies the rest of the message in the new buffer. */
-					received  = (message.size - (MPORTAL_BUFFER_SIZE - received));
-					buf->size = received;
-					data      = (buf->data + received);
+						/* Copies the rest of the message in the new buffer. */
+						received  = (message.size - (MPORTAL_BUFFER_SIZE - received));
+						buf->size = received;
+						data      = (buf->data + received);
+					spinlock_lock(&read_lock[remote]);
+
 					continue;
 				}
 
@@ -1144,23 +1171,19 @@ again:
 		}
 
 		/* Makes buffer available. */
-		if (buf)
-		{
-			spinlock_lock(&buffer_lock);
-				resource_set_notbusy(&buf->resource);
-			spinlock_unlock(&buffer_lock);
-		}
+		kportal_buffer_set_available(buf);
 
-		ret = (ret >= 0) ? ((ssize_t) size) : (ret);
+		if (!buffering && (ret >= 0))
+			ret = (received == size) ? ((ssize_t)(size)) : (-EINVAL);
 
 release:
-		resource_set_notbusy(&read_channels[portal->config.remote]);
+		resource_set_notbusy(&read_channels[remote]);
 exit:
-	spinlock_unlock(&read_lock[portal->config.remote]);
+	spinlock_unlock(&read_lock[remote]);
 
 	if (ret >= 0)
 	{
-		if (!valid || buffering || (ret != ((ssize_t) size)))
+		if (!valid || buffering || (ret < (ssize_t)(size)))
 			goto again;
 
 		portal->volume += size;
@@ -1168,6 +1191,7 @@ exit:
 
 	return (ret);
 }
+
 
 /*----------------------------------------------------------------------------*
  * do_kportal_aread_local()                                                   *
@@ -1497,12 +1521,8 @@ again:
 		}
 
 		/* Makes buffer available. */
-		if (buf)
-		{
-			spinlock_lock(&buffer_lock);
-				resource_set_notbusy(&buf->resource);
-			spinlock_unlock(&buffer_lock);
-		}
+		kportal_buffer_set_available(buf);
+
 
 	spinlock_unlock(&local_lock);
 

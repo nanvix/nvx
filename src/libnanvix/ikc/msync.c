@@ -95,9 +95,9 @@ struct msync_hash
 	uint64_t source    :  5; /**< Source nodenum.   */
 	uint64_t type      :  1; /**< Type of the sync. */
 	uint64_t master    :  5; /**< Master nodenum.   */
-	uint64_t nodeslist : 20; /**< Nodes list.       */
-	uint64_t barrier   : 20; /**< Barrier variable. */
-	uint64_t unused    : 13; /**< Unused.           */
+	uint64_t nodeslist : 24; /**< Nodes list.       */
+	uint64_t barrier   : 24; /**< Barrier variable. */
+	uint64_t unused    :  5; /**< Unused.           */
 };
 
 /*============================================================================*
@@ -139,9 +139,9 @@ PRIVATE const struct resource_pool msyncpool = {
  * ksync_build_nodeslist()                                                    *
  *============================================================================*/
 
-PRIVATE int ksync_build_nodeslist(const int * nodes, int nnodes)
+PRIVATE uint64_t ksync_build_nodeslist(const int * nodes, int nnodes)
 {
-	int nodeslist = 0; /* Bit-stream of nodes. */
+	uint64_t nodeslist = 0ULL; /* Bit-stream of nodes. */
 
 	for (int j = 0; j < nnodes; j++)
 		nodeslist |= (1ULL << nodes[j]);
@@ -457,18 +457,18 @@ PRIVATE void ksync_ignore_signal(char * message, struct msync_hash * hash)
 
 PRIVATE int ksync_barrier_is_complete(struct msync * rx)
 {
-	int received; /* Received signals. */
-	int expected; /* Expected signals. */
+	uint64_t received; /* Received signals. */
+	uint64_t expected; /* Expected signals. */
 
 	received = rx->hash.barrier;
 
 	/* Does master notifies it? */
 	if (rx->hash.type == SYNC_ONE_TO_ALL)
-		expected = (rx->hash.nodeslist & (1 << rx->hash.master));
+		expected = (rx->hash.nodeslist & (1ULL << rx->hash.master));
 
 	/* Does slaves notifies it? */
 	else
-		expected = (rx->hash.nodeslist & ~(1 << rx->hash.master));
+		expected = (rx->hash.nodeslist & ~(1ULL << rx->hash.master));
 
 	return (received == expected);
 }
@@ -479,16 +479,20 @@ PRIVATE int ksync_barrier_is_complete(struct msync * rx)
 
 PRIVATE void ksync_barrier_reset(struct msync * rx)
 {
-	for (unsigned i = 0; i < PROCESSOR_NOC_NODES_NUM; ++i)
+	uint64_t mask;
+	for (uint64_t i = 0; i < PROCESSOR_NOC_NODES_NUM; ++i)
 	{
-		if (rx->hash.barrier & (1 << i))
+		mask = (1ULL << i);
+
+		if (rx->hash.barrier & mask)
 		{
 			/**
 			 * Consume a signals and reset barrier if there are no
 			 * signals from that node.
 			 **/
-			if ((--rx->nreceived[i]) == 0)
-				rx->hash.barrier &= ~(1 << i);
+			rx->nreceived[i] = (rx->nreceived[i] - 1);
+			if (rx->nreceived[i] == 0)
+				rx->hash.barrier &= (~mask);
 		}
 	}
 }
@@ -507,7 +511,7 @@ PRIVATE int ksync_barrier_consume(struct msync * sync)
 
 		/* Is the barrier complete? */
 		if (consumed)
-			sync->nbarriers--;
+			sync->nbarriers = (sync->nbarriers - 1);
 
 	spinlock_unlock(&global_lock);
 
@@ -557,7 +561,7 @@ PRIVATE int do_ksync_wait(struct msync * sync)
 				goto release;
 			}
 
-			msyncs[syncid].hash.barrier |= (1 << hash.source);
+			msyncs[syncid].hash.barrier |= (1ULL << hash.source);
 			msyncs[syncid].nreceived[hash.source]++;
 
 			if (ksync_barrier_is_complete(&msyncs[syncid]))
@@ -839,6 +843,18 @@ PUBLIC void ksync_init(void)
 	msync_counters.ncloses  = 0ULL;
 	msync_counters.nwaits   = 0ULL;
 	msync_counters.nsignals = 0ULL;
+
+	for (unsigned i = 0; i < KSYNC_MAX; i++)
+	{
+		msyncs[i].resource  = RESOURCE_INITIALIZER;
+		msyncs[i].refcount  = 0;
+		msyncs[i].nbarriers = 0;
+		msyncs[i].hash.source = -1;
+		msyncs[i].latency   = 0ULL;
+
+		for (unsigned j = 0; j < PROCESSOR_NOC_NODES_NUM; j++)
+			msyncs[i].nreceived[j] = 0;
+	}
 
 	/* Create input mailbox. */
 	KASSERT(

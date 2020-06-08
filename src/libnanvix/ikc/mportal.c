@@ -327,6 +327,7 @@ PRIVATE struct mportal_buffer
 	/**@{*/
 	uint64_t age;                   /**< Buffer age.                      */
 	uint64_t seq;                   /**< Sequence number.                 */
+	uint64_t latency;               /**< Latency.                         */
 	size_t size;                    /**< Valid data size.                 */
 	struct mportal_config config;   /**< Configuration                    */
 	struct mportal_buffer * next;   /**< Next buffer of the sequence.     */
@@ -341,6 +342,7 @@ PRIVATE struct mportal_buffer
 		.resource = {0, },
 		.age      = ~(0ULL),
 		.seq      = ~(0ULL),
+		.latency  = 0ULL,
 		.size     = 0,
 		.next     = NULL,
 		.config   = {-1, -1, -1, -1},
@@ -387,10 +389,11 @@ PRIVATE struct mportal_buffer * kportal_buffer_alloc(
 				resource_set_notbusy(&previous->resource);
 			}
 
-			buf->config = *config;
-			buf->size   = 0ULL;
-			buf->next   = NULL;
-			buf->age    = mbuffer_next_age++;
+			buf->config  = *config;
+			buf->size    = 0ULL;
+			buf->next    = NULL;
+			buf->age     = mbuffer_next_age++;
+			buf->latency = 0ULL;
 			resource_set_used(&buf->resource);
 			resource_set_busy(&buf->resource);
 
@@ -593,7 +596,7 @@ PRIVATE ssize_t kportal_buffer_read(
 			kclock(&t0);
 				kmemcpy(*buffer, buf->data, buf->size);
 			kclock(&t1);
-			portal->latency += (t1 - t0);
+			portal->latency += node_is_local(buf->config.local) ? (t1 - t0) : (buf->latency);
 
 			/* Updates parameters. */
 			copied     += buf->size;
@@ -1018,6 +1021,7 @@ PRIVATE ssize_t do_kportal_aread(struct mportal * portal, void * buffer, size_t 
 	struct mportal_buffer * buf;    /* Auxiliar buffer pointer.                 */
 	struct mportal_message message; /* Message buffer.                          */
 	struct mportal_config config;   /* Configuration pointer.                   */
+	uint64_t l0, l1;                /* Latency.                                 */
 
 	/* Valid portal. */
 	KASSERT(portal && node_is_valid(portal->config.remote));
@@ -1113,6 +1117,8 @@ again2:
 
 		received = 0ULL;
 
+		kmailbox_ioctl(portal->mdata, KMAILBOX_IOCTL_GET_LATENCY, &l0);
+
 		/* Reads. */
 		while (!message.eof)
 		{
@@ -1170,11 +1176,25 @@ again2:
 			received  += message.size;
 		}
 
-		/* Makes buffer available. */
-		kportal_buffer_set_available(buf);
+		kmailbox_ioctl(portal->mdata, KMAILBOX_IOCTL_GET_LATENCY, &l1);
 
-		if (!buffering && (ret >= 0))
-			ret = (received == size) ? ((ssize_t)(size)) : (-EINVAL);
+		if (buffering)
+		{
+			buf->latency += (l1 - l0);
+
+			/* Makes buffer available. */
+			kportal_buffer_set_available(buf);
+		}
+		else if (ret >= 0)
+		{
+			if (received == size)
+			{
+				portal->latency += (l1 - l0);
+				ret = ((ssize_t)(size));
+			}
+			else
+				ret = (-EINVAL);
+		}
 
 release:
 		resource_set_notbusy(&read_channels[remote]);
@@ -1249,7 +1269,6 @@ error:
 PUBLIC ssize_t kportal_aread(int portalid, void * buffer, size_t size)
 {
 	ssize_t ret;      /* Return value. */
-	uint64_t latency; /* Latency.      */
 
 	/* Invalid portalid. */
 	if (!WITHIN(portalid, 0, KPORTAL_MAX))
@@ -1298,11 +1317,6 @@ PUBLIC ssize_t kportal_aread(int portalid, void * buffer, size_t size)
 	{
 		ret = do_kportal_aread(&mportals[portalid], buffer, size);
 
-		if (ret >= 0)
-		{
-			kmailbox_ioctl(mportals[portalid].mdata, KMAILBOX_IOCTL_GET_LATENCY, &latency);
-			mportals[portalid].latency += latency;
-		}
 	}
 
 	spinlock_lock(&global_lock);
@@ -1542,7 +1556,7 @@ again:
 PUBLIC ssize_t kportal_awrite(int portalid, const void * buffer, size_t size)
 {
 	ssize_t ret;      /* Return value. */
-	uint64_t latency; /* Latency.      */
+	uint64_t l0, l1;   /* Latency.      */
 
 	/* Invalid portalid. */
 	if (!WITHIN(portalid, 0, KPORTAL_MAX))
@@ -1583,12 +1597,14 @@ PUBLIC ssize_t kportal_awrite(int portalid, const void * buffer, size_t size)
 		ret = do_kportal_awrite_local(&mportals[portalid], buffer, size);
 	else
 	{
+		kmailbox_ioctl(mportals[portalid].mdata, KMAILBOX_IOCTL_GET_LATENCY, &l0);
+
 		ret = do_kportal_awrite(&mportals[portalid], buffer, size);
 
 		if (ret >= 0)
 		{
-			kmailbox_ioctl(mportals[portalid].mdata, KMAILBOX_IOCTL_GET_LATENCY, &latency);
-			mportals[portalid].latency += latency;
+			kmailbox_ioctl(mportals[portalid].mdata, KMAILBOX_IOCTL_GET_LATENCY, &l1);
+			mportals[portalid].latency += (l1 - l0);
 		}
 	}
 

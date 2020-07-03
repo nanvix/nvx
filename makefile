@@ -46,6 +46,8 @@ export DOCKER ?= no
 # Stall regression tests?
 export SUPPRESS_TESTS ?= no
 
+export ADDONS ?=
+
 #===============================================================================
 # Directories
 #===============================================================================
@@ -73,9 +75,6 @@ export LIBHAL    := libhal-$(TARGET).a
 export LIBKERNEL := libkernel-$(TARGET).a
 export LIBNANVIX := libnanvix-$(TARGET).a
 
-# Binaries
-export EXEC := test-driver.$(TARGET)
-
 #===============================================================================
 # Target-Specific Make Rules
 #===============================================================================
@@ -97,6 +96,7 @@ export CFLAGS += -fno-stack-protector
 export CFLAGS += -Wno-unused-function
 export CFLAGS += -I $(INCDIR)
 export CFLAGS += -I $(ROOTDIR)/src/lwip/src/include
+export CFLAGS += $(ADDONS)
 
 # Enable sync and portal implementation that uses mailboxes
 export CFLAGS += -D__NANVIX_IKC_USES_ONLY_MAILBOX=0
@@ -110,10 +110,10 @@ export ARFLAGS = rc
 #===============================================================================
 
 # Image Source
-export IMGSRC = $(IMGDIR)/$(TARGET).img
+export IMGSRC ?= $(IMGDIR)/$(TARGET).img
 
 # Image Name
-export IMAGE = libnanvix-debug.img
+export IMAGE ?= libnanvix.img
 
 # Builds everything.
 all: | make-dirs image

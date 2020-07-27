@@ -1602,6 +1602,118 @@ PRIVATE void fence(struct fence *b)
 }
 
 /*============================================================================*
+ * Stress Test: Thread Specified Source                                       *
+ *============================================================================*/
+
+#define SPECIFIED_THREADS_TEST 3
+
+PRIVATE void * do_thread_specified_source(void * arg)
+{
+	int tid;
+	int local;
+	int remote;
+	int mbxid;
+	int nreads;
+	int nmessages;
+	char message[KMAILBOX_MESSAGE_SIZE];
+
+	tid = ((int)(intptr_t) arg);
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	if (local == SLAVE_NODENUM)
+	{
+		/* Opens all mailboxes in order. */
+		for (int i = 0; i < SPECIFIED_THREADS_TEST; ++i)
+		{
+			if (tid == i)
+				test_assert((mbxid = kmailbox_open(remote, 0)) >= 0);
+
+			fence(&_fence);
+		}
+
+		/* Send some messages to the master node. */
+		for (int i = 0; i < SPECIFIED_THREADS_TEST; ++i)
+		{
+			message[0] = tid;
+			message[1] = i;
+			test_assert(kmailbox_write(mbxid, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+		}
+
+		test_assert(kmailbox_close(mbxid) == 0);
+	}
+	else
+	{
+		nmessages = SPECIFIED_THREADS_TEST * SPECIFIED_THREADS_TEST;
+		nreads = 0;
+
+		test_assert((mbxid = kmailbox_create(local, 0)) >= 0);
+
+		/* Reads only messages from pair ports. */
+		for (int i = 0; i < SPECIFIED_THREADS_TEST; i += 2)
+		{
+			/* Reads all the messages of a single port first. */
+			for (int k = 0; k < SPECIFIED_THREADS_TEST; ++k)
+			{
+				message[0] = (-1);
+
+				/* Specifies the port from where to read. */
+				test_assert(kmailbox_ioctl(mbxid, KMAILBOX_IOCTL_SET_REMOTE, MAILBOX_ANY_SOURCE, i) == 0);
+
+				test_assert(kmailbox_read(mbxid, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+				test_assert((message[0] == i) && (message[1] == k));
+
+				nreads++;
+			}
+		}
+
+		/* Reads the restant messages. */
+		while (nreads < nmessages)
+		{
+			message[0] = 0;
+
+			test_assert(kmailbox_read(mbxid, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+			test_assert((message[0] % 2) == 1);
+
+			nreads++;
+		}
+
+		test_assert(kmailbox_unlink(mbxid) == 0);
+	}
+
+	return (NULL);
+}
+
+/**
+ * @brief Stress Test: Specified Thread Source
+ */
+static void test_stress_mailbox_thread_specified_source(void)
+{
+	int local;
+	kthread_t tid[SPECIFIED_THREADS_TEST - 1];
+
+	local = knode_get_num();
+
+	if (local == SLAVE_NODENUM)
+	{
+		fence_init(&_fence, SPECIFIED_THREADS_TEST);
+
+		/* Create threads. */
+		for (int i = 1; i < SPECIFIED_THREADS_TEST; ++i)
+			test_assert(kthread_create(&tid[i - 1], do_thread_specified_source, ((void *)(intptr_t) i)) == 0);
+
+		do_thread_specified_source(0);
+
+		/* Join threads. */
+		for (int i = 1; i < SPECIFIED_THREADS_TEST; ++i)
+			test_assert(kthread_join(tid[i - 1], NULL) == 0);
+	}
+	else if (local == MASTER_NODENUM)
+		do_thread_specified_source(0);
+}
+
+/*============================================================================*
  * Stress Test: Mailbox Thread Multiplexing Broadcast                         *
  *============================================================================*/
 
@@ -2182,6 +2294,7 @@ PRIVATE struct test mailbox_tests_stress[] = {
 	{ test_stress_mailbox_multiplexing_broadcast,              "[test][mailbox][stress] mailbox multiplexing broadcast              [passed]" },
 	{ test_stress_mailbox_multiplexing_gather,                 "[test][mailbox][stress] mailbox multiplexing gather                 [passed]" },
 	{ test_stress_mailbox_multiplexing_pingpong,               "[test][mailbox][stress] mailbox multiplexing ping-pong              [passed]" },
+	{ test_stress_mailbox_thread_specified_source,             "[test][mailbox][stress] mailbox thread specified source             [passed]" },
 	{ test_stress_mailbox_thread_multiplexing_broadcast,       "[test][mailbox][stress] mailbox thread multiplexing broadcast       [passed]" },
 	{ test_stress_mailbox_thread_multiplexing_gather,          "[test][mailbox][stress] mailbox thread multiplexing gather          [passed]" },
 	{ test_stress_mailbox_thread_multiplexing_pingpong,        "[test][mailbox][stress] mailbox thread multiplexing ping-pong       [passed]" },

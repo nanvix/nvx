@@ -269,12 +269,10 @@ static void test_api_portal_read_write(void)
 	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == (NITERATIONS * PORTAL_SIZE));
 	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
-	test_assert(latency > 0);
 
 	test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == (NITERATIONS * PORTAL_SIZE));
 	test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
-	test_assert(latency > 0);
 
 	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_NREADS, &counter) == 0);
 	test_assert(counter == NITERATIONS);
@@ -355,12 +353,10 @@ static void test_api_portal_read_write_large(void)
 	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == (NITERATIONS * PORTAL_SIZE_LARGE));
 	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
-	test_assert(latency > 0);
 
 	test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == (NITERATIONS * PORTAL_SIZE_LARGE));
 	test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
-	test_assert(latency > 0);
 
 	test_assert(kportal_close(portal_out) == 0);
 	test_assert(kportal_unlink(portal_in) == 0);
@@ -473,12 +469,10 @@ static void test_api_portal_multiplexation(void)
 		test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 		test_assert(volume == PORTAL_SIZE);
 		test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
-		test_assert(latency > 0);
 
 		test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 		test_assert(volume == PORTAL_SIZE);
 		test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
-		test_assert(latency > 0);
 
 		/* Deletion of the created virtual portals. */
 		test_assert(kportal_unlink(portal_in[i]) == 0);
@@ -582,7 +576,6 @@ static void test_api_portal_multiplexation_2(void)
 			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == PORTAL_SIZE);
 			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
-			test_assert(latency > 0);
 		}
 	}
 	else
@@ -596,7 +589,6 @@ static void test_api_portal_multiplexation_2(void)
 			test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == PORTAL_SIZE);
 			test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
-			test_assert(latency > 0);
 		}
 	}
 
@@ -684,7 +676,6 @@ static void test_api_portal_multiplexation_3(void)
 			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == PORTAL_SIZE);
 			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
-			test_assert(latency > 0);
 
 			/* Unlinks each vportal. */
 			test_assert(kportal_unlink(portal_in[i]) == 0);
@@ -753,7 +744,6 @@ static void test_api_portal_multiplexation_4(void)
 			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == (PORTAL_SIZE * TEST_MLTPX4_PORTAL_SELECT_MSG));
 			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
-			test_assert(latency > 0);
 
 			/* Unlinks the created vportals. */
 			test_assert(kportal_unlink(portal_in[i]) == 0);
@@ -825,7 +815,6 @@ static void test_api_portal_multiplexation_2_large(void)
 			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == PORTAL_SIZE_LARGE);
 			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
-			test_assert(latency > 0);
 		}
 	}
 	else
@@ -839,7 +828,6 @@ static void test_api_portal_multiplexation_2_large(void)
 			test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == PORTAL_SIZE_LARGE);
 			test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
-			test_assert(latency > 0);
 		}
 	}
 
@@ -923,7 +911,6 @@ static void test_api_portal_multiplexation_3_large(void)
 			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == PORTAL_SIZE_LARGE);
 			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
-			test_assert(latency > 0);
 
 			/* Unlinks each vportal. */
 			test_assert(kportal_unlink(portal_in[i]) == 0);
@@ -987,7 +974,6 @@ static void test_api_portal_multiplexation_4_large(void)
 			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == (PORTAL_SIZE_LARGE * TEST_MLTPX4_PORTAL_SELECT_MSG));
 			test_assert(kportal_ioctl(portal_in[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
-			test_assert(latency > 0);
 
 			/* Unlinks the created vportals. */
 			test_assert(kportal_unlink(portal_in[i]) == 0);
@@ -1059,7 +1045,6 @@ static void test_api_portal_pending_msg_unlink(void)
 			test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == PORTAL_SIZE);
 			test_assert(kportal_ioctl(portal_out[i], KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
-			test_assert(latency > 0);
 
 			/* Closes the opened vportals. */
 			test_assert(kportal_close(portal_out[i]) == 0);
@@ -1142,12 +1127,10 @@ static void test_api_portal_msg_forwarding(void)
 	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == (NITERATIONS * PORTAL_SIZE));
 	test_assert(kportal_ioctl(portal_in, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
-	test_assert(latency > 0);
 
 	test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == (NITERATIONS * PORTAL_SIZE));
 	test_assert(kportal_ioctl(portal_out, KPORTAL_IOCTL_GET_LATENCY, &latency) == 0);
-	test_assert(latency > 0);
 
 	test_assert(kportal_close(portal_out) == 0);
 	test_assert(kportal_unlink(portal_in) == 0);

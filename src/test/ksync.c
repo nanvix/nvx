@@ -357,9 +357,7 @@ void test_api_sync_signal_wait(void)
 	}
 
 	test_assert(ksync_ioctl(syncin, KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
-	test_assert(latency > 0);
 	test_assert(ksync_ioctl(syncout, KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
-	test_assert(latency > 0);
 
 	test_assert(ksync_ioctl(syncout, KSYNC_IOCTL_GET_NWAITS, &counter) == 0);
 	test_assert(counter == NITERATIONS);
@@ -452,9 +450,7 @@ void test_api_sync_multiplexation(void)
 	for (int i = 0; i < 2; ++i)
 	{
 		test_assert(ksync_ioctl(syncin[i], KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
-		test_assert(latency > 0);
 		test_assert(ksync_ioctl(syncout[i], KSYNC_IOCTL_GET_LATENCY, &latency) == 0);
-		test_assert(latency > 0);
 
 		test_assert(ksync_close(syncout[i]) == 0);
 		test_assert(ksync_unlink(syncin[i]) == 0);

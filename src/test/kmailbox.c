@@ -257,12 +257,10 @@ static void test_api_mailbox_read_write(void)
 	test_assert(kmailbox_ioctl(mbx_in, KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == (NITERATIONS * KMAILBOX_MESSAGE_SIZE));
 	test_assert(kmailbox_ioctl(mbx_in, KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
-	test_assert(latency > 0);
 
 	test_assert(kmailbox_ioctl(mbx_out, KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == (NITERATIONS * KMAILBOX_MESSAGE_SIZE));
 	test_assert(kmailbox_ioctl(mbx_out, KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
-	test_assert(latency > 0);
 
 	test_assert(kmailbox_ioctl(mbx_in, KMAILBOX_IOCTL_GET_NREADS, &counter) == 0);
 	test_assert(counter  == NITERATIONS);
@@ -384,12 +382,10 @@ static void test_api_mailbox_multiplexation(void)
 		test_assert(kmailbox_ioctl(mbx_in[i], KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
 		test_assert(volume == KMAILBOX_MESSAGE_SIZE);
 		test_assert(kmailbox_ioctl(mbx_in[i], KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
-		test_assert(latency > 0);
 
 		test_assert(kmailbox_ioctl(mbx_out[i], KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
 		test_assert(volume == KMAILBOX_MESSAGE_SIZE);
 		test_assert(kmailbox_ioctl(mbx_out[i], KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
-		test_assert(latency > 0);
 	}
 
 	/* Closes the used vmailboxes. */
@@ -444,7 +440,6 @@ static void test_api_mailbox_multiplexation_2(void)
 			test_assert(kmailbox_ioctl(mbx_out[i], KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == KMAILBOX_MESSAGE_SIZE);
 			test_assert(kmailbox_ioctl(mbx_out[i], KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
-			test_assert(latency > 0);
 		}
 	}
 	else if (local == SLAVE_NODENUM)
@@ -531,7 +526,6 @@ static void test_api_mailbox_multiplexation_3(void)
 			test_assert(kmailbox_ioctl(mbx_out[i], KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == KMAILBOX_MESSAGE_SIZE);
 			test_assert(kmailbox_ioctl(mbx_out[i], KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
-			test_assert(latency > 0);
 		}
 	}
 	else if (local == SLAVE_NODENUM)
@@ -617,7 +611,6 @@ static void test_api_mailbox_pending_msg_unlink(void)
 			test_assert(kmailbox_ioctl(mbx_out[i], KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
 			test_assert(volume == KMAILBOX_MESSAGE_SIZE);
 			test_assert(kmailbox_ioctl(mbx_out[i], KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
-			test_assert(latency > 0);
 
 			test_assert(kmailbox_close(mbx_out[i]) == 0);
 		}
@@ -705,12 +698,10 @@ static void test_api_mailbox_msg_forwarding(void)
 	test_assert(kmailbox_ioctl(mbx_in, KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == (NITERATIONS * KMAILBOX_MESSAGE_SIZE));
 	test_assert(kmailbox_ioctl(mbx_in, KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
-	test_assert(latency > 0);
 
 	test_assert(kmailbox_ioctl(mbx_out, KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == (NITERATIONS * KMAILBOX_MESSAGE_SIZE));
 	test_assert(kmailbox_ioctl(mbx_out, KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
-	test_assert(latency > 0);
 
 	test_assert(kmailbox_close(mbx_out) == 0);
 	test_assert(kmailbox_unlink(mbx_in) == 0);

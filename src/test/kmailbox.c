@@ -121,10 +121,8 @@ static void test_api_mailbox_get_latency(void)
 	test_assert((mbx_out = kmailbox_open(remote, 0)) >= 0);
 
 		test_assert(kmailbox_ioctl(mbx_in, KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
-		test_assert(latency == 0);
 
 		test_assert(kmailbox_ioctl(mbx_out, KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
-		test_assert(latency == 0);
 
 	test_assert(kmailbox_close(mbx_out) == 0);
 	test_assert(kmailbox_unlink(mbx_in) == 0);
@@ -209,12 +207,10 @@ static void test_api_mailbox_read_write(void)
 	test_assert(kmailbox_ioctl(mbx_in, KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == 0);
 	test_assert(kmailbox_ioctl(mbx_in, KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
-	test_assert(latency == 0);
 
 	test_assert(kmailbox_ioctl(mbx_out, KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == 0);
 	test_assert(kmailbox_ioctl(mbx_out, KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
-	test_assert(latency == 0);
 
 	test_assert(kmailbox_ioctl(mbx_in, KMAILBOX_IOCTL_GET_NREADS, &counter) == 0);
 	test_assert(counter  == 0);
@@ -674,12 +670,10 @@ static void test_api_mailbox_msg_forwarding(void)
 	test_assert(kmailbox_ioctl(mbx_in, KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == 0);
 	test_assert(kmailbox_ioctl(mbx_in, KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
-	test_assert(latency == 0);
 
 	test_assert(kmailbox_ioctl(mbx_out, KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == 0);
 	test_assert(kmailbox_ioctl(mbx_out, KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
-	test_assert(latency == 0);
 
 	for (unsigned i = 0; i < NITERATIONS; i++)
 	{

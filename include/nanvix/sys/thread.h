@@ -45,6 +45,7 @@
 	extern int kthread_create(kthread_t *, void *(*)(void*), void *);
 	extern int kthread_exit(void *);
 	extern int kthread_join(kthread_t, void **);
+	extern int kthread_yield(void);
 	/**@}*/
 
 	/**

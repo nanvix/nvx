@@ -42,7 +42,7 @@ static int __stdinportal[THREAD_MAX + 1] = {
  */
 int stdinportal_get_port(void)
 {
-	return (kthread_self());
+	return (kthread_self() - (SYS_THREAD_MAX - 1));
 }
 
 /**

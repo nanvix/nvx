@@ -31,8 +31,51 @@
 
 #if __TARGET_HAS_PORTAL
 
+/*============================================================================*
+ * Contants                                                                   *
+ *============================================================================*/
+
+/**
+ * @name Multiplexation
+ */
+/**{*/
+#define TEST_MULTIPLEXATION_PORTAL_PAIRS  KPORTAL_PORT_NR
+#define TEST_MULTIPLEXATION2_PORTAL_PAIRS 3
+
+/* @note Define an even number to this constant. */
+#define TEST_MULTIPLEXATION3_PORTAL_MSGS_NR   6
+#define TEST_MULTIPLEXATION3_PORTAL_SELECT_NR (TEST_MULTIPLEXATION3_PORTAL_MSGS_NR / 2)
+
+/* @note Define an even number to this constant. */
+#define TEST_MLTPX4_PORTAL_SEND_NR    4
+#define TEST_MLTPX4_PORTAL_SELECT_NR  (TEST_MLTPX4_PORTAL_SEND_NR / 2)
+#define TEST_MLTPX4_PORTAL_SELECT_MSG (TEST_MLTPX4_PORTAL_SEND_NR / TEST_MLTPX4_PORTAL_SELECT_NR)
+/**}*/
+
+/**
+ * @brief Virtualization
+ */
+#define TEST_VIRTUALIZATION_PORTALS_NR   KPORTAL_PORT_NR
+
+/**
+ * @brief Pending Messages - Unlink
+ */
+#define TEST_PENDING_UNLINK_PORTAL_PAIRS 2
+
+/**
+ * @name Threads 
+ */
+/**{*/
+#define TEST_THREAD_MAX          (CORES_NUM - 1)
+#define TEST_THREAD_PORTALID_NUM ((TEST_THREAD_NPORTS / TEST_THREAD_MAX) + 1)
+/**}*/
+
+/*============================================================================*
+ * Global variables                                                           *
+ *============================================================================*/
+
 PRIVATE char message[PORTAL_SIZE_LARGE];
-PRIVATE char message_in[THREAD_MAX][PORTAL_SIZE];
+PRIVATE char message_in[TEST_THREAD_MAX][PORTAL_SIZE];
 PRIVATE char message_out[PORTAL_SIZE];
 
 /*============================================================================*
@@ -366,8 +409,6 @@ static void test_api_portal_read_write_large(void)
  * API Test: Virtualization                                                   *
  *============================================================================*/
 
-#define TEST_VIRTUALIZATION_PORTALS_NR KPORTAL_PORT_NR
-
 /**
  * @brief API Test: Virtualization of HW portals.
  */
@@ -399,11 +440,6 @@ static void test_api_portal_virtualization(void)
 /*============================================================================*
  * API Test: Multiplexation                                                   *
  *============================================================================*/
-
-/**
- * @brief Multiplex test parameters.
- */
-#define TEST_MULTIPLEXATION_PORTAL_PAIRS KPORTAL_PORT_NR
 
 /**
  * @brief API Test: Multiplexation of virtual to hardware portals.
@@ -534,8 +570,6 @@ static void test_api_portal_allow(void)
  * API Test: Multiplexation - Out of Order                                    *
  *============================================================================*/
 
-#define TEST_MULTIPLEXATION2_PORTAL_PAIRS 3
-
 /**
  * @brief API Test: Multiplexation test to assert the correct working when
  * messages flow occur in diferent order than the expected.
@@ -603,10 +637,6 @@ static void test_api_portal_multiplexation_2(void)
 /*============================================================================*
  * API Test: Multiplexation - Messages Selection                              *
  *============================================================================*/
-
-/* @note Define an even number to this constant. */
-#define TEST_MULTIPLEXATION3_PORTAL_MSGS_NR 6
-#define TEST_MULTIPLEXATION3_PORTAL_SELECT_NR (TEST_MULTIPLEXATION3_PORTAL_MSGS_NR / 2)
 
 /**
  * @brief API Test: Multiplexation test to assert the correct message selection
@@ -686,11 +716,6 @@ static void test_api_portal_multiplexation_3(void)
 /*============================================================================*
  * API Test: Multiplexation - Multiple Messages                               *
  *============================================================================*/
-
-/* @note Define an even number to this constant. */
-#define TEST_MLTPX4_PORTAL_SEND_NR 4
-#define TEST_MLTPX4_PORTAL_SELECT_NR (TEST_MLTPX4_PORTAL_SEND_NR / 2)
-#define TEST_MLTPX4_PORTAL_SELECT_MSG (TEST_MLTPX4_PORTAL_SEND_NR / TEST_MLTPX4_PORTAL_SELECT_NR)
 
 /**
  * @brief API Test: Multiplexation test to assert the message buffers tab
@@ -1008,8 +1033,6 @@ static void test_api_portal_multiplexation_4_large(void)
 /*============================================================================*
  * API Test: Pending Messages - Unlink                                        *
  *============================================================================*/
-
-#define TEST_PENDING_UNLINK_PORTAL_PAIRS 2
 
 /**
  * @brief API Test: Test to assert if the kernel correctly avoids an unlink
@@ -2004,14 +2027,14 @@ PRIVATE void fence(struct fence *b)
 PRIVATE void test_stress_do_sender_thread(int tid, int local, int remote)
 {
 	int nports;
-	int portalids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
+	int portalids[TEST_THREAD_PORTALID_NUM];
 
 	for (int i = 0; i < NSETUPS; ++i)
 	{
 		nports = 0;
 		for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 		{
-			if (j == (tid + nports * THREAD_MAX))
+			if (j == (tid + nports * TEST_THREAD_MAX))
 				test_assert((portalids[nports++] = kportal_open(local, remote, j)) >= 0);
 
 			fence(&_fence);
@@ -2035,7 +2058,7 @@ PRIVATE void test_stress_do_sender_thread(int tid, int local, int remote)
 PRIVATE void test_stress_do_receiver_thread(int tid, int local, int remote)
 {
 	int nports;
-	int portalids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
+	int portalids[TEST_THREAD_PORTALID_NUM];
 	char * msg;
 
 	msg = message_in[tid];
@@ -2045,7 +2068,7 @@ PRIVATE void test_stress_do_receiver_thread(int tid, int local, int remote)
 		nports = 0;
 		for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 		{
-			if (j == (tid + nports * THREAD_MAX))
+			if (j == (tid + nports * TEST_THREAD_MAX))
 				test_assert((portalids[nports++] = kportal_create(local, j)) >= 0);
 
 			fence(&_fence);
@@ -2056,7 +2079,7 @@ PRIVATE void test_stress_do_receiver_thread(int tid, int local, int remote)
 			for (int k = 0; k < nports; ++k)
 			{
 				kmemset(msg, -1, PORTAL_SIZE);
-				test_assert(kportal_allow(portalids[k], remote, (tid + k * THREAD_MAX)) >= 0);
+				test_assert(kportal_allow(portalids[k], remote, (tid + k * TEST_THREAD_MAX)) >= 0);
 				test_assert(kportal_read(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
 				for (int l = 0; l < PORTAL_SIZE; ++l)
 					test_assert(msg[l] == remote);
@@ -2087,19 +2110,19 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
  */
 PRIVATE void test_stress_portal_thread_multiplexing_broadcast(void)
 {
-	kthread_t tid[THREAD_MAX - 1];
+	kthread_t tid[TEST_THREAD_MAX - 1];
 
 	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
-	fence_init(&_fence, THREAD_MAX);
+	fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_broadcast, ((void *)(intptr_t) i)) == 0);
 
 	do_thread_multiplexing_broadcast(0);
 
 	/* Join threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
 }
 
@@ -2125,19 +2148,19 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
  */
 PRIVATE void test_stress_portal_thread_multiplexing_gather(void)
 {
-	kthread_t tid[THREAD_MAX - 1];
+	kthread_t tid[TEST_THREAD_MAX - 1];
 
 	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
-	fence_init(&_fence, THREAD_MAX);
+	fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_gather, ((void *)(intptr_t) i)) == 0);
 
 	do_thread_multiplexing_gather(0);
 
 	/* Join threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
 }
 
@@ -2154,8 +2177,8 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 	int local;
 	int remote;
 	int nports;
-	int inportals[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	int outportals[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
+	int inportals[TEST_THREAD_PORTALID_NUM];
+	int outportals[TEST_THREAD_PORTALID_NUM];
 	char * msg;
 
 	tid = ((int)(intptr_t) arg);
@@ -2169,7 +2192,7 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 		nports = 0;
 		for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 		{
-			if (j == (tid + nports * THREAD_MAX))
+			if (j == (tid + nports * TEST_THREAD_MAX))
 			{
 				test_assert((inportals[nports] = kportal_create(local, j)) >= 0);
 				test_assert((outportals[nports] = kportal_open(local, remote, j)) >= 0);
@@ -2186,7 +2209,7 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 				for (int k = 0; k < nports; ++k)
 				{
 					kmemset(msg, -1, PORTAL_SIZE);
-					test_assert(kportal_allow(inportals[k], remote, (tid + k * THREAD_MAX)) >= 0);
+					test_assert(kportal_allow(inportals[k], remote, (tid + k * TEST_THREAD_MAX)) >= 0);
 					test_assert(kportal_read(inportals[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
 					for (int l = 0; l < PORTAL_SIZE; ++l)
 						test_assert(msg[l] == remote);
@@ -2206,7 +2229,7 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 					test_assert(kportal_write(outportals[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 
 					kmemset(msg, -1, PORTAL_SIZE);
-					test_assert(kportal_allow(inportals[k], remote, (tid + k * THREAD_MAX)) >= 0);
+					test_assert(kportal_allow(inportals[k], remote, (tid + k * TEST_THREAD_MAX)) >= 0);
 					test_assert(kportal_read(inportals[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
 					for (int l = 0; l < PORTAL_SIZE; ++l)
 						test_assert(msg[l] == remote);
@@ -2233,19 +2256,19 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
  */
 PRIVATE void test_stress_portal_thread_multiplexing_pingpong(void)
 {
-	kthread_t tid[THREAD_MAX - 1];
+	kthread_t tid[TEST_THREAD_MAX - 1];
 
 	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
-	fence_init(&_fence, THREAD_MAX);
+	fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_pingpong, ((void *)(intptr_t) i)) == 0);
 
 	do_thread_multiplexing_pingpong(0);
 
 	/* Join threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
 }
 
@@ -2299,7 +2322,7 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 			nports = 0;
 			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
 			{
-				if (j == ((tid - 1) + nports * (THREAD_MAX - 1)))
+				if (j == ((tid - 1) + nports * (TEST_THREAD_MAX - 1)))
 					test_assert((portalids[nports++] = kportal_create(local, j)) >= 0);
 
 				fence(&_fence);
@@ -2310,7 +2333,7 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 				for (int k = 0; k < nports; ++k)
 				{
 					kmemset(msg, -1, PORTAL_SIZE);
-					test_assert(kportal_allow(portalids[k], local, ((tid - 1) + k * (THREAD_MAX - 1))) >= 0);
+					test_assert(kportal_allow(portalids[k], local, ((tid - 1) + k * (TEST_THREAD_MAX - 1))) >= 0);
 					test_assert(kportal_read(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
 					for (int l = 0; l < PORTAL_SIZE; ++l)
 						test_assert(msg[l] == 1);
@@ -2334,19 +2357,19 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
  */
 PRIVATE void test_stress_portal_thread_multiplexing_broadcast_local(void)
 {
-	kthread_t tid[THREAD_MAX - 1];
+	kthread_t tid[TEST_THREAD_MAX - 1];
 
 	kmemset(message_out, 1, PORTAL_SIZE);
-	fence_init(&_fence, THREAD_MAX);
+	fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_broadcast_local, ((void *)(intptr_t) i)) == 0);
 
 	do_thread_multiplexing_broadcast_local(0);
 
 	/* Join threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
 }
 
@@ -2377,7 +2400,7 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 			nports = 0;
 			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
 			{
-				if (j == ((tid - 1) + nports * (THREAD_MAX - 1)))
+				if (j == ((tid - 1) + nports * (TEST_THREAD_MAX - 1)))
 					test_assert((portalids[nports++] = kportal_open(local, local, j)) >= 0);
 
 				fence(&_fence);
@@ -2438,19 +2461,19 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
  */
 PRIVATE void test_stress_portal_thread_multiplexing_gather_local(void)
 {
-	kthread_t tid[THREAD_MAX - 1];
+	kthread_t tid[TEST_THREAD_MAX - 1];
 
 	kmemset(message_out, 1, PORTAL_SIZE);
-	fence_init(&_fence, THREAD_MAX);
+	fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_gather_local, ((void *)(intptr_t) i)) == 0);
 
 	do_thread_multiplexing_gather_local(0);
 
 	/* Join threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
 }
 

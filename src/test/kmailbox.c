@@ -33,6 +33,46 @@
 #if __TARGET_HAS_MAILBOX
 
 /*============================================================================*
+ * Contants.                                                                  *
+ *============================================================================*/
+
+/**
+ * @name Multiplexation
+ */
+/**{*/
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+#define TEST_MULTIPLEXATION_MBX_PAIRS  KMAILBOX_PORT_NR
+#else
+#define TEST_MULTIPLEXATION_MBX_PAIRS  MAILBOX_PORT_NR
+#endif
+#define TEST_MULTIPLEXATION2_MBX_PAIRS 3
+#define TEST_MULTIPLEXATION3_MBX_PAIRS 4
+/**}*/
+
+/**
+ * @brief Virtualization
+ */
+#if __NANVIX_IKC_USES_ONLY_MAILBOX
+#define TEST_VIRTUALIZATION_MBX_NR KMAILBOX_PORT_NR
+#else
+#define TEST_VIRTUALIZATION_MBX_NR MAILBOX_PORT_NR
+#endif
+
+/**
+ * @brief Pending Messages - Unlink
+ */
+#define TEST_PENDING_UNLINK_MBX_PAIRS 2
+
+/**
+ * @name Threads 
+ */
+/**{*/
+#define TEST_THREAD_MAX        (CORES_NUM - 1)
+#define TEST_THREAD_SPECIFIED 3
+#define TEST_THREAD_MBXID_NUM ((TEST_THREAD_NPORTS / TEST_THREAD_MAX) + 1)
+/**}*/
+
+/*============================================================================*
  * API Test: Create Unlink                                                    *
  *============================================================================*/
 
@@ -271,12 +311,6 @@ static void test_api_mailbox_read_write(void)
  * API Test: Virtualization                                                   *
  *============================================================================*/
 
-#if __NANVIX_IKC_USES_ONLY_MAILBOX
-#define TEST_VIRTUALIZATION_MBX_NR KMAILBOX_PORT_NR
-#else
-#define TEST_VIRTUALIZATION_MBX_NR MAILBOX_PORT_NR
-#endif
-
 /**
  * @brief API Test: Virtualization.
  */
@@ -308,12 +342,6 @@ static void test_api_mailbox_virtualization(void)
 /*============================================================================*
  * API Test: Multiplexation                                                   *
  *============================================================================*/
-
-#if __NANVIX_IKC_USES_ONLY_MAILBOX
-#define TEST_MULTIPLEXATION_MBX_PAIRS KMAILBOX_PORT_NR
-#else
-#define TEST_MULTIPLEXATION_MBX_PAIRS MAILBOX_PORT_NR
-#endif
 
 /**
  * @brief API Test: Multiplex of virtual to hardware mailboxes.
@@ -396,8 +424,6 @@ static void test_api_mailbox_multiplexation(void)
  * API Test: Multiplexation - Out of Order                                    *
  *============================================================================*/
 
-#define TEST_MULTIPLEXATION2_MBX_PAIRS 3
-
 /**
  * @brief API Test: Multiplexation test to assert the correct working when
  * messages flow occur in diferent order than the expected.
@@ -476,8 +502,6 @@ static void test_api_mailbox_multiplexation_2(void)
 /*============================================================================*
  * API Test: Multiplexation - Multiple Messages                               *
  *============================================================================*/
-
-#define TEST_MULTIPLEXATION3_MBX_PAIRS 4
 
 /**
  * @brief API Test: Multiplexation test to assert the message buffers tab
@@ -568,8 +592,6 @@ static void test_api_mailbox_multiplexation_3(void)
 /*============================================================================*
  * API Test: Pending Messages - Unlink                                        *
  *============================================================================*/
-
-#define TEST_PENDING_UNLINK_MBX_PAIRS 2
 
 /**
  * @brief API Test: Test to assert if the kernel correctly avoids an unlink
@@ -1590,8 +1612,6 @@ PRIVATE void fence(struct fence *b)
  * Stress Test: Thread Specified Source                                       *
  *============================================================================*/
 
-#define SPECIFIED_THREADS_TEST 3
-
 PRIVATE void * do_thread_specified_source(void * arg)
 {
 	int tid;
@@ -1610,7 +1630,7 @@ PRIVATE void * do_thread_specified_source(void * arg)
 	if (local == SLAVE_NODENUM)
 	{
 		/* Opens all mailboxes in order. */
-		for (int i = 0; i < SPECIFIED_THREADS_TEST; ++i)
+		for (int i = 0; i < TEST_THREAD_SPECIFIED; ++i)
 		{
 			if (tid == i)
 				test_assert((mbxid = kmailbox_open(remote, 0)) >= 0);
@@ -1619,7 +1639,7 @@ PRIVATE void * do_thread_specified_source(void * arg)
 		}
 
 		/* Send some messages to the master node. */
-		for (int i = 0; i < SPECIFIED_THREADS_TEST; ++i)
+		for (int i = 0; i < TEST_THREAD_SPECIFIED; ++i)
 		{
 			message[0] = tid;
 			message[1] = i;
@@ -1630,16 +1650,16 @@ PRIVATE void * do_thread_specified_source(void * arg)
 	}
 	else
 	{
-		nmessages = SPECIFIED_THREADS_TEST * SPECIFIED_THREADS_TEST;
+		nmessages = TEST_THREAD_SPECIFIED * TEST_THREAD_SPECIFIED;
 		nreads = 0;
 
 		test_assert((mbxid = kmailbox_create(local, 0)) >= 0);
 
 		/* Reads only messages from pair ports. */
-		for (int i = 0; i < SPECIFIED_THREADS_TEST; i += 2)
+		for (int i = 0; i < TEST_THREAD_SPECIFIED; i += 2)
 		{
 			/* Reads all the messages of a single port first. */
-			for (int k = 0; k < SPECIFIED_THREADS_TEST; ++k)
+			for (int k = 0; k < TEST_THREAD_SPECIFIED; ++k)
 			{
 				message[0] = (-1);
 
@@ -1676,22 +1696,22 @@ PRIVATE void * do_thread_specified_source(void * arg)
 static void test_stress_mailbox_thread_specified_source(void)
 {
 	int local;
-	kthread_t tid[SPECIFIED_THREADS_TEST - 1];
+	kthread_t tid[TEST_THREAD_SPECIFIED - 1];
 
 	local = knode_get_num();
 
 	if (local == SLAVE_NODENUM)
 	{
-		fence_init(&_fence, SPECIFIED_THREADS_TEST);
+		fence_init(&_fence, TEST_THREAD_SPECIFIED);
 
 		/* Create threads. */
-		for (int i = 1; i < SPECIFIED_THREADS_TEST; ++i)
+		for (int i = 1; i < TEST_THREAD_SPECIFIED; ++i)
 			test_assert(kthread_create(&tid[i - 1], do_thread_specified_source, ((void *)(intptr_t) i)) == 0);
 
 		do_thread_specified_source(0);
 
 		/* Join threads. */
-		for (int i = 1; i < SPECIFIED_THREADS_TEST; ++i)
+		for (int i = 1; i < TEST_THREAD_SPECIFIED; ++i)
 			test_assert(kthread_join(tid[i - 1], NULL) == 0);
 	}
 	else if (local == MASTER_NODENUM)
@@ -1708,7 +1728,7 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
 	int nports;
 	int local;
 	int remote;
-	int mbxids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
+	int mbxids[TEST_THREAD_MBXID_NUM];
 	char message[KMAILBOX_MESSAGE_SIZE];
 
 	tid = ((int)(intptr_t) arg);
@@ -1725,7 +1745,7 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
 			nports = 0;
 			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 			{
-				if (j == (tid + nports * THREAD_MAX))
+				if (j == (tid + nports * TEST_THREAD_MAX))
 					test_assert((mbxids[nports++] = kmailbox_open(remote, j)) >= 0);
 
 				fence(&_fence);
@@ -1752,7 +1772,7 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
 			nports = 0;
 			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 			{
-				if (j == (tid + nports * THREAD_MAX))
+				if (j == (tid + nports * TEST_THREAD_MAX))
 					test_assert((mbxids[nports++] = kmailbox_create(local, j)) >= 0);
 
 				fence(&_fence);
@@ -1785,18 +1805,18 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
  */
 PRIVATE void test_stress_mailbox_thread_multiplexing_broadcast(void)
 {
-	kthread_t tid[THREAD_MAX - 1];
+	kthread_t tid[TEST_THREAD_MAX - 1];
 
-	fence_init(&_fence, THREAD_MAX);
+	fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_broadcast, ((void *)(intptr_t) i)) == 0);
 
 	do_thread_multiplexing_broadcast(0);
 
 	/* Join threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
 }
 
@@ -1813,7 +1833,7 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
 	int nports;
 	int local;
 	int remote;
-	int mbxids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
+	int mbxids[TEST_THREAD_MBXID_NUM];
 	char message[KMAILBOX_MESSAGE_SIZE];
 
 	tid = ((int)(intptr_t) arg);
@@ -1830,7 +1850,7 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
 			nports = 0;
 			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 			{
-				if (j == (tid + nports * THREAD_MAX))
+				if (j == (tid + nports * TEST_THREAD_MAX))
 					test_assert((mbxids[nports++] = kmailbox_open(remote, j)) >= 0);
 
 				fence(&_fence);
@@ -1857,7 +1877,7 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
 			nports = 0;
 			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 			{
-				if (j == (tid + nports * THREAD_MAX))
+				if (j == (tid + nports * TEST_THREAD_MAX))
 					test_assert((mbxids[nports++] = kmailbox_create(local, j)) >= 0);
 
 				fence(&_fence);
@@ -1890,18 +1910,18 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
  */
 PRIVATE void test_stress_mailbox_thread_multiplexing_gather(void)
 {
-	kthread_t tid[THREAD_MAX - 1];
+	kthread_t tid[TEST_THREAD_MAX - 1];
 
-	fence_init(&_fence, THREAD_MAX);
+	fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_gather, ((void *)(intptr_t) i)) == 0);
 
 	do_thread_multiplexing_gather(0);
 
 	/* Join threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
 }
 
@@ -1918,8 +1938,8 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 	int local;
 	int remote;
 	int nports;
-	int inboxes[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	int outboxes[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
+	int inboxes[TEST_THREAD_MBXID_NUM];
+	int outboxes[TEST_THREAD_MBXID_NUM];
 	char msg_in[KMAILBOX_MESSAGE_SIZE];
 	char msg_out[KMAILBOX_MESSAGE_SIZE];
 
@@ -1935,7 +1955,7 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 		nports = 0;
 		for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 		{
-			if (j == (tid + nports * THREAD_MAX))
+			if (j == (tid + nports * TEST_THREAD_MAX))
 			{
 				test_assert((inboxes[nports] = kmailbox_create(local, j)) >= 0);
 				test_assert((outboxes[nports] = kmailbox_open(remote, j)) >= 0);
@@ -1995,18 +2015,18 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
  */
 PRIVATE void test_stress_mailbox_thread_multiplexing_pingpong(void)
 {
-	kthread_t tid[THREAD_MAX - 1];
+	kthread_t tid[TEST_THREAD_MAX - 1];
 
-	fence_init(&_fence, THREAD_MAX);
+	fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_pingpong, ((void *)(intptr_t) i)) == 0);
 
 	do_thread_multiplexing_pingpong(0);
 
 	/* Join threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
 }
 
@@ -2064,7 +2084,7 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 			nports = 0;
 			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
 			{
-				if (j == ((tid - 1) + nports * (THREAD_MAX - 1)))
+				if (j == ((tid - 1) + nports * (TEST_THREAD_MAX - 1)))
 					test_assert((mbxids[nports++] = kmailbox_create(local, j)) >= 0);
 
 				fence(&_fence);
@@ -2097,18 +2117,18 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
  */
 PRIVATE void test_stress_mailbox_thread_multiplexing_broadcast_local(void)
 {
-	kthread_t tid[THREAD_MAX - 1];
+	kthread_t tid[TEST_THREAD_MAX - 1];
 
-	fence_init(&_fence, THREAD_MAX);
+	fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_broadcast_local, ((void *)(intptr_t) i)) == 0);
 
 	do_thread_multiplexing_broadcast_local(0);
 
 	/* Join threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
 }
 
@@ -2141,7 +2161,7 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 			nports = 0;
 			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
 			{
-				if (j == ((tid - 1) + nports * (THREAD_MAX - 1)))
+				if (j == ((tid - 1) + nports * (TEST_THREAD_MAX - 1)))
 					test_assert((mbxids[nports++] = kmailbox_open(local, j)) >= 0);
 
 				fence(&_fence);
@@ -2200,18 +2220,18 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
  */
 PRIVATE void test_stress_mailbox_thread_multiplexing_gather_local(void)
 {
-	kthread_t tid[THREAD_MAX - 1];
+	kthread_t tid[TEST_THREAD_MAX - 1];
 
-	fence_init(&_fence, THREAD_MAX);
+	fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_gather_local, ((void *)(intptr_t) i)) == 0);
 
 	do_thread_multiplexing_gather_local(0);
 
 	/* Join threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
 }
 

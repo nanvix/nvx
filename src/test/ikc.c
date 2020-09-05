@@ -33,8 +33,24 @@
 
 #if __TARGET_HAS_MAILBOX && __TARGET_HAS_PORTAL
 
+/*============================================================================*
+ * Contants                                                                   *
+ *============================================================================*/
+
+/**
+ * @name Threads 
+ */
+/**{*/
+#define TEST_THREAD_MAX       (CORES_NUM - 1)
+#define TEST_THREAD_IKCID_NUM ((TEST_THREAD_NPORTS / TEST_THREAD_MAX) + 1)
+/**}*/
+
+/*============================================================================*
+ * Global variables                                                           *
+ *============================================================================*/
+
 PRIVATE char message[PORTAL_SIZE_LARGE];
-PRIVATE char message_in[THREAD_MAX][PORTAL_SIZE];
+PRIVATE char message_in[TEST_THREAD_MAX][PORTAL_SIZE];
 PRIVATE char message_out[PORTAL_SIZE];
 
 /*============================================================================*
@@ -780,8 +796,8 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
 	int local;
 	int remote;
 	int nports;
-	int mbxids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	int portalids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
+	int mbxids[TEST_THREAD_IKCID_NUM];
+	int portalids[TEST_THREAD_IKCID_NUM];
 	char * msg;
 
 	tid = ((int)(intptr_t) arg);
@@ -797,7 +813,7 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
 			nports = 0;
 			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 			{
-				if (j == (tid + nports * THREAD_MAX))
+				if (j == (tid + nports * TEST_THREAD_MAX))
 				{
 					test_assert((mbxids[nports] = kmailbox_open(remote, j)) >= 0);
 					test_assert((portalids[nports] = kportal_open(local, remote, j)) >= 0);
@@ -834,7 +850,7 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
 			nports = 0;
 			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 			{
-				if (j == (tid + nports * THREAD_MAX))
+				if (j == (tid + nports * TEST_THREAD_MAX))
 				{
 					test_assert((mbxids[nports] = kmailbox_create(local, j)) >= 0);
 					test_assert((portalids[nports] = kportal_create(local, j)) >= 0);
@@ -854,7 +870,7 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
 						test_assert(msg[l] == remote);
 
 					kmemset(msg, (char) local, PORTAL_SIZE);
-					test_assert(kportal_allow(portalids[k], remote, (tid + k * THREAD_MAX)) >= 0);
+					test_assert(kportal_allow(portalids[k], remote, (tid + k * TEST_THREAD_MAX)) >= 0);
 					test_assert(kportal_read(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
 					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
 						test_assert(msg[l] == remote);
@@ -881,19 +897,19 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
  */
 PRIVATE void test_stress_ikc_thread_multiplexing_broadcast(void)
 {
-	kthread_t tid[THREAD_MAX - 1];
+	kthread_t tid[TEST_THREAD_MAX - 1];
 
 	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
-	fence_init(&_fence, THREAD_MAX);
+	fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_broadcast, ((void *)(intptr_t) i)) == 0);
 
 	do_thread_multiplexing_broadcast(0);
 
 	/* Join threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
 }
 
@@ -910,8 +926,8 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
 	int nports;
 	int local;
 	int remote;
-	int mbxids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	int portalids[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
+	int mbxids[TEST_THREAD_IKCID_NUM];
+	int portalids[TEST_THREAD_IKCID_NUM];
 	char * msg;
 
 	tid = ((int)(intptr_t) arg);
@@ -927,7 +943,7 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
 			nports = 0;
 			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 			{
-				if (j == (tid + nports * THREAD_MAX))
+				if (j == (tid + nports * TEST_THREAD_MAX))
 				{
 					test_assert((mbxids[nports] = kmailbox_open(remote, j)) >= 0);
 					test_assert((portalids[nports] = kportal_open(local, remote, j)) >= 0);
@@ -964,7 +980,7 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
 			nports = 0;
 			for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 			{
-				if (j == (tid + nports * THREAD_MAX))
+				if (j == (tid + nports * TEST_THREAD_MAX))
 				{
 					test_assert((mbxids[nports] = kmailbox_create(local, j)) >= 0);
 					test_assert((portalids[nports] = kportal_create(local, j)) >= 0);
@@ -984,7 +1000,7 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
 						test_assert(msg[l] == remote);
 
 					kmemset(msg, (char) local, PORTAL_SIZE);
-					test_assert(kportal_allow(portalids[k], remote, (tid + k * THREAD_MAX)) >= 0);
+					test_assert(kportal_allow(portalids[k], remote, (tid + k * TEST_THREAD_MAX)) >= 0);
 					test_assert(kportal_read(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
 					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
 						test_assert(msg[l] == remote);
@@ -1011,19 +1027,19 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
  */
 PRIVATE void test_stress_ikc_thread_multiplexing_gather(void)
 {
-	kthread_t tid[THREAD_MAX - 1];
+	kthread_t tid[TEST_THREAD_MAX - 1];
 
 	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
-	fence_init(&_fence, THREAD_MAX);
+	fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_gather, ((void *)(intptr_t) i)) == 0);
 
 	do_thread_multiplexing_gather(0);
 
 	/* Join threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
 }
 
@@ -1040,10 +1056,10 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 	int local;
 	int remote;
 	int nports;
-	int inboxes[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	int outboxes[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	int inportals[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	int outportals[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
+	int inboxes[TEST_THREAD_IKCID_NUM];
+	int outboxes[TEST_THREAD_IKCID_NUM];
+	int inportals[TEST_THREAD_IKCID_NUM];
+	int outportals[TEST_THREAD_IKCID_NUM];
 	char * msg;
 
 	tid = ((int)(intptr_t) arg);
@@ -1057,7 +1073,7 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 		nports = 0;
 		for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 		{
-			if (j == (tid + nports * THREAD_MAX))
+			if (j == (tid + nports * TEST_THREAD_MAX))
 			{
 				test_assert((inboxes[nports] = kmailbox_create(local, j)) >= 0);
 				test_assert((outboxes[nports] = kmailbox_open(remote, j)) >= 0);
@@ -1081,7 +1097,7 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 						test_assert(msg[l] == remote);
 
 					kmemset(msg, (char) local, PORTAL_SIZE);
-					test_assert(kportal_allow(inportals[k], remote, (tid + k * THREAD_MAX)) >= 0);
+					test_assert(kportal_allow(inportals[k], remote, (tid + k * TEST_THREAD_MAX)) >= 0);
 					test_assert(kportal_read(inportals[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
 					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
 						test_assert(msg[l] == remote);
@@ -1110,7 +1126,7 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 						test_assert(msg[l] == remote);
 
 					kmemset(msg, (char) local, PORTAL_SIZE);
-					test_assert(kportal_allow(inportals[k], remote, (tid + k * THREAD_MAX)) >= 0);
+					test_assert(kportal_allow(inportals[k], remote, (tid + k * TEST_THREAD_MAX)) >= 0);
 					test_assert(kportal_read(inportals[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
 					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
 						test_assert(msg[l] == remote);
@@ -1139,19 +1155,19 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
  */
 PRIVATE void test_stress_ikc_thread_multiplexing_pingpong(void)
 {
-	kthread_t tid[THREAD_MAX - 1];
+	kthread_t tid[TEST_THREAD_MAX - 1];
 
 	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
-	fence_init(&_fence, THREAD_MAX);
+	fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_pingpong, ((void *)(intptr_t) i)) == 0);
 
 	do_thread_multiplexing_pingpong(0);
 
 	/* Join threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
 }
 
@@ -1168,10 +1184,10 @@ PRIVATE void * do_thread_multiplexing_pingpong_reverse(void * arg)
 	int local;
 	int remote;
 	int nports;
-	int inboxes[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	int outboxes[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	int inportals[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
-	int outportals[(TEST_THREAD_NPORTS / THREAD_MAX) + 1];
+	int inboxes[TEST_THREAD_IKCID_NUM];
+	int outboxes[TEST_THREAD_IKCID_NUM];
+	int inportals[TEST_THREAD_IKCID_NUM];
+	int outportals[TEST_THREAD_IKCID_NUM];
 	char * msg;
 
 	tid = ((int)(intptr_t) arg);
@@ -1185,7 +1201,7 @@ PRIVATE void * do_thread_multiplexing_pingpong_reverse(void * arg)
 		nports = 0;
 		for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
 		{
-			if (j == (tid + nports * THREAD_MAX))
+			if (j == (tid + nports * TEST_THREAD_MAX))
 			{
 				test_assert((inboxes[nports] = kmailbox_create(local, j)) >= 0);
 				test_assert((outboxes[nports] = kmailbox_open(remote, j)) >= 0);
@@ -1213,7 +1229,7 @@ PRIVATE void * do_thread_multiplexing_pingpong_reverse(void * arg)
 					test_assert(kmailbox_write(outboxes[k], message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
 
 					kmemset(msg, (char) local, PORTAL_SIZE);
-					test_assert(kportal_allow(inportals[k], remote, (tid + k * THREAD_MAX)) >= 0);
+					test_assert(kportal_allow(inportals[k], remote, (tid + k * TEST_THREAD_MAX)) >= 0);
 					test_assert(kportal_read(inportals[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
 					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
 						test_assert(msg[l] == remote);
@@ -1231,7 +1247,7 @@ PRIVATE void * do_thread_multiplexing_pingpong_reverse(void * arg)
 					test_assert(kmailbox_write(outboxes[k], message_out, MAILBOX_SIZE) == MAILBOX_SIZE);
 
 					kmemset(msg, (char) local, PORTAL_SIZE);
-					test_assert(kportal_allow(inportals[k], remote, (tid + k * THREAD_MAX)) >= 0);
+					test_assert(kportal_allow(inportals[k], remote, (tid + k * TEST_THREAD_MAX)) >= 0);
 					test_assert(kportal_read(inportals[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
 					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
 						test_assert(msg[l] == remote);
@@ -1267,19 +1283,19 @@ PRIVATE void * do_thread_multiplexing_pingpong_reverse(void * arg)
  */
 PRIVATE void test_stress_ikc_thread_multiplexing_pingpong_reverse(void)
 {
-	kthread_t tid[THREAD_MAX - 1];
+	kthread_t tid[TEST_THREAD_MAX - 1];
 
 	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
-	fence_init(&_fence, THREAD_MAX);
+	fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_pingpong_reverse, ((void *)(intptr_t) i)) == 0);
 
 	do_thread_multiplexing_pingpong_reverse(0);
 
 	/* Join threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
 }
 
@@ -1342,7 +1358,7 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 			nports = 0;
 			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
 			{
-				if (j == ((tid - 1) + nports * (THREAD_MAX - 1)))
+				if (j == ((tid - 1) + nports * (TEST_THREAD_MAX - 1)))
 				{
 					test_assert((mbxids[nports] = kmailbox_create(local, j)) >= 0);
 					test_assert((portalids[nports] = kportal_create(local, j)) >= 0);
@@ -1362,7 +1378,7 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 						test_assert(msg[l] == 1);
 
 					kmemset(msg, 0, PORTAL_SIZE);
-					test_assert(kportal_allow(portalids[k], local, ((tid - 1) + k * (THREAD_MAX - 1))) >= 0);
+					test_assert(kportal_allow(portalids[k], local, ((tid - 1) + k * (TEST_THREAD_MAX - 1))) >= 0);
 					test_assert(kportal_read(portalids[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
 					for (unsigned l = 0; l < PORTAL_SIZE; ++l)
 						test_assert(msg[l] == 1);
@@ -1389,19 +1405,19 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
  */
 PRIVATE void test_stress_ikc_thread_multiplexing_broadcast_local(void)
 {
-	kthread_t tid[THREAD_MAX - 1];
+	kthread_t tid[TEST_THREAD_MAX - 1];
 
 	kmemset(message_out, 1, PORTAL_SIZE);
-	fence_init(&_fence, THREAD_MAX);
+	fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_broadcast_local, ((void *)(intptr_t) i)) == 0);
 
 	do_thread_multiplexing_broadcast_local(0);
 
 	/* Join threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
 }
 
@@ -1433,7 +1449,7 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 			nports = 0;
 			for (int j = 0; j < (TEST_THREAD_NPORTS - 1); ++j)
 			{
-				if (j == ((tid - 1) + nports * (THREAD_MAX - 1)))
+				if (j == ((tid - 1) + nports * (TEST_THREAD_MAX - 1)))
 				{
 					test_assert((mbxids[nports] = kmailbox_open(local, j)) >= 0);
 					test_assert((portalids[nports] = kportal_open(local, local, j)) >= 0);
@@ -1514,19 +1530,19 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
  */
 PRIVATE void test_stress_ikc_thread_multiplexing_gather_local(void)
 {
-	kthread_t tid[THREAD_MAX - 1];
+	kthread_t tid[TEST_THREAD_MAX - 1];
 
 	kmemset(message_out, 1, PORTAL_SIZE);
-	fence_init(&_fence, THREAD_MAX);
+	fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_gather_local, ((void *)(intptr_t) i)) == 0);
 
 	do_thread_multiplexing_gather_local(0);
 
 	/* Join threads. */
-	for (int i = 1; i < THREAD_MAX; ++i)
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
 }
 

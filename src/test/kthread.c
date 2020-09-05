@@ -79,6 +79,25 @@ static void *fence_task(void *arg)
 	return (NULL);
 }
 
+/**
+ * @brief Yield task.
+ *
+ * @param arg Unused argument.
+ */
+static void *yield_task(void *arg)
+{
+	int a;
+
+	UNUSED(arg);
+
+	a = 12345;
+
+	kthread_yield();
+
+	KASSERT(a == 12345);
+
+	return (NULL);
+}
 /*============================================================================*
  * API Testing Units                                                          *
  *============================================================================*/
@@ -88,7 +107,11 @@ static void *fence_task(void *arg)
  */
 static void test_api_kthread_self(void)
 {
-	test_assert(kthread_self() == 1);
+	/**
+	 * The range [0, (KTHREAD_MAX - 1)] are reserved to kernel threads.
+	 * So, the first valid ID is the KTHREAD_MAX.
+	 */
+	test_assert(kthread_self() == KTHREAD_LEADER_TID);
 }
 
 /**
@@ -102,6 +125,24 @@ static void test_api_kthread_create(void)
 
 	/* Spawn thread. */
 	test_assert(kthread_create(&tid, task, NULL) == 0);
+
+	/* Wait for thread. */
+	test_assert(kthread_join(tid, NULL) == 0);
+
+#endif
+}
+
+/**
+ * @brief API test for thread yield.
+ */
+static void test_api_kthread_yield(void)
+{
+#if (THREAD_MAX > 1)
+
+	kthread_t tid;
+
+	/* Spawn thread. */
+	test_assert(kthread_create(&tid, yield_task, NULL) == 0);
 
 	/* Wait for thread. */
 	test_assert(kthread_join(tid, NULL) == 0);
@@ -248,6 +289,28 @@ static void test_stress_kthread_create(void)
 #endif
 }
 
+/**
+ * @brief Stress test for thread creation/termination yield.
+ */
+static void test_stress_kthread_yield(void)
+{
+#if (THREAD_MAX > 2)
+
+	for (int j = 0; j < NITERATIONS; j++)
+	{
+		kthread_t tid[NTHREADS];
+
+		/* Spawn threads. */
+		for (int i = 0; i < NTHREADS; i++)
+			test_assert(kthread_create(&tid[i], yield_task, NULL) == 0);
+
+		/* Wait for threads. */
+		for (int i = 0; i < NTHREADS; i++)
+			test_assert(kthread_join(tid[i], NULL) == 0);
+	}
+
+#endif
+}
 
 /*============================================================================*
  * Test Driver                                                                *
@@ -259,6 +322,7 @@ static void test_stress_kthread_create(void)
 static struct test thread_mgmt_tests_api[] = {
 	{ test_api_kthread_self,   "[test][thread][api] thread identification       [passed]" },
 	{ test_api_kthread_create, "[test][thread][api] thread creation/termination [passed]" },
+	{ test_api_kthread_yield,  "[test][thread][api] thread yield                [passed]" },
 	{ NULL,                     NULL                                                      },
 };
 
@@ -277,9 +341,10 @@ static struct test thread_mgmt_tests_fault[] = {
  * @brief Stress tests.
  */
 static struct test thread_mgmt_tests_stress[] = {
-	{ test_stress_kthread_create_overflow, "[test][thread][stress] thread creation overflow    [passed]" },
-	{ test_stress_kthread_create,          "[test][thread][stress] thread creation/termination [passed]" },
-	{ NULL,                                 NULL                                                         },
+	{ test_stress_kthread_create_overflow, "[test][thread][stress] thread creation overflow          [passed]" },
+	{ test_stress_kthread_create,          "[test][thread][stress] thread creation/termination       [passed]" },
+	{ test_stress_kthread_create,          "[test][thread][stress] thread creation/termination yield [passed]" },
+	{ NULL,                                 NULL                                                               },
 };
 
 /**

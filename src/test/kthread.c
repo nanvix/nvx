@@ -103,6 +103,13 @@ static void *yield_task(void *arg)
  *============================================================================*/
 
 /**
+ * @brief API test for current thread id
+ */
+static void test_api_thread_curr_id(void)
+{
+	test_assert(KTHREAD_LEADER_TID == thread_get_curr_id());
+}
+/**
  * @brief API test for thread identification.
  */
 static void test_api_kthread_self(void)
@@ -320,6 +327,7 @@ static void test_stress_kthread_yield(void)
  * @brief API tests.
  */
 static struct test thread_mgmt_tests_api[] = {
+	{ test_api_thread_curr_id, "[test][thread][api] current thread id           [passed]" },
 	{ test_api_kthread_self,   "[test][thread][api] thread identification       [passed]" },
 	{ test_api_kthread_create, "[test][thread][api] thread creation/termination [passed]" },
 	{ test_api_kthread_yield,  "[test][thread][api] thread yield                [passed]" },

@@ -54,9 +54,9 @@
 	/**
 	 * @brief Initializes a semaphore.
 	 *
-	 * @param m Target semaphore.
+	 * @param sem Target semaphore.
 	 *
-	 * @param Upon sucessful completion, zero is returned. Upon failure, a
+	 * @return Upon sucessful completion, zero is returned. Upon failure, a
 	 * negative error code is returned instead.
 	 */
 	extern int nanvix_semaphore_init(struct nanvix_semaphore *sem, int val);
@@ -64,9 +64,9 @@
 	/**
 	 * @brief Performs a down operation on a semaphore.
 	 *
-	 * @param m Target semaphore.
+	 * @param sem Target semaphore.
 	 *
-	 * @param Upon sucessful completion, zero is returned. Upon failure, a
+	 * @return Upon sucessful completion, zero is returned. Upon failure, a
 	 * negative error code is returned instead.
 	 */
 	extern int nanvix_semaphore_down(struct nanvix_semaphore *sem);
@@ -74,12 +74,32 @@
 	/**
 	 * @brief Performs an up operation on a semaphore.
 	 *
-	 * @param m Target semaphore.
+	 * @param sem Target semaphore.
 	 *
-	 * @param Upon sucessful completion, zero is returned. Upon failure, a
+	 * @return Upon sucessful completion, zero is returned. Upon failure, a
 	 * negative error code is returned instead.
 	 */
 	extern int nanvix_semaphore_up(struct nanvix_semaphore *sem);
+
+	/**
+	 * @brief Try to perform a down operation on a semaphore.
+	 *
+	 * @param sem Target semaphore.
+	 *
+	 * @return Upon sucessful completion, zero is returned. Upon failure, a
+	 * negative error code is returned instead.
+	 */
+	extern int nanvix_semaphore_trywait(struct nanvix_semaphore *sem);
+
+	/**
+	 * @brief Destroy a semaphore
+	 *
+	 * @param sem Target semaphore.
+	 *
+	 * @return Upon sucessful completion, zero is returned. Upon failure, a
+	 * negative error code is returned instead.
+	 */
+	extern int nanvix_semaphore_destroy(struct nanvix_semaphore *sem);
 
 #endif
 

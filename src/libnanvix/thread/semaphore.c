@@ -33,9 +33,12 @@
  *============================================================================*/
 
 /**
- * @todo TODO provide a detailed description for this function.
+ * @brief Initializes a semaphore.
  *
- * @author Pedro Henrique Penna
+ * @param sem Target semaphore.
+ *
+ * @return Upon sucessful completion, zero is returned. Upon failure, a
+ * negative error code is returned instead.
  */
 int nanvix_semaphore_init(struct nanvix_semaphore *sem, int val)
 {
@@ -68,9 +71,12 @@ int nanvix_semaphore_init(struct nanvix_semaphore *sem, int val)
 
 
 /**
- * @todo TODO provide a detailed description for this function.
+ * @brief Performs a down operation on a semaphore.
  *
- * @author Pedro Henrique Penna
+ * @param sem Target semaphore.
+ *
+ * @return Upon sucessful completion, zero is returned. Upon failure, a
+ * negative error code is returned instead.
  */
 int nanvix_semaphore_down(struct nanvix_semaphore *sem)
 {
@@ -152,9 +158,12 @@ int nanvix_semaphore_down(struct nanvix_semaphore *sem)
 
 
 /**
- * @todo TODO provide a detailed description for this function.
+ * @brief Performs an up operation on a semaphore.
  *
- * @author Pedro Henrique Penna
+ * @param sem Target semaphore.
+ *
+ * @return Upon sucessful completion, zero is returned. Upon failure, a
+ * negative error code is returned instead.
  */
 int nanvix_semaphore_up(struct nanvix_semaphore *sem)
 {
@@ -189,5 +198,64 @@ again:
 
 	return (0);
 }
+
+/**
+ * @brief Try to perform a down operation on a semaphore.
+ *
+ * @param sem Target semaphore.
+ *
+ * @return Upon sucessful completion, zero is returned. Upon failure, a
+ * negative error code is returned instead.
+ */
+int nanvix_semaphore_trywait(struct nanvix_semaphore *sem)
+{
+	int ret;
+
+	if (sem == NULL)
+		return (-EINVAL);
+
+	ret =  (-EINVAL);
+
+	spinlock_lock(&sem->lock);
+
+		if (sem->val > 0)
+		{
+			sem->val--;
+			ret = (0);
+		}
+
+	spinlock_unlock(&sem->lock);
+
+	return (ret);
+}
+
+/**
+ * @brief Destroy a semaphore
+ *
+ * @param sem Target semaphore.
+ *
+ * @return Upon sucessful completion, zero is returned. Upon failure, a
+ * negative error code is returned instead.
+ */
+int nanvix_semaphore_destroy(struct nanvix_semaphore *sem)
+{
+	if (!sem)
+		return (-EINVAL);
+
+	#if (__NANVIX_MUTEX_SLEEP)
+		/* The thread queue must be empty. */
+		KASSERT(sem->tids[0] == -1);
+	#endif
+
+	/**
+	 * Sets -INT_MAX because we force any thread to block.
+	 *
+	 * @TODO We must implement a way to detect an uninitialized semaphore.
+	 */
+	sem->val = -2147483648;
+
+	return (0);
+}
+
 
 #endif /* CORES_NUM > 1 */

@@ -135,6 +135,7 @@ void ___start(int argc, const char *argv[])
 		#if (CORES_NUM > 1)
 			test_condition_variables();
 			test_mutex();
+			test_semaphore();
 		#endif
 
 		#ifndef __unix64__

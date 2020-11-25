@@ -134,6 +134,7 @@ void ___start(int argc, const char *argv[])
 			test_thread_sleep();
 		#if (CORES_NUM > 1)
 			test_condition_variables();
+			test_mutex();
 		#endif
 
 		#ifndef __unix64__

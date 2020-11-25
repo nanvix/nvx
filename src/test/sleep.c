@@ -86,7 +86,7 @@ static void test_api_sleep_wakeup(void)
 	kthread_t tids[NTHREADS];
 
 	var = 0;
-	nanvix_mutex_init(&mutex);
+	nanvix_mutex_init(&mutex, NULL);
 
 	/* Spawn threads. */
 	for (int i = 0; i < NTHREADS; i++)
@@ -171,7 +171,7 @@ static void *task3(void *arg)
 static void test_stress_sleep_wakeup(void)
 {
 	kthread_t tids[NTHREADS];
-	nanvix_mutex_init(&mutex);
+	nanvix_mutex_init(&mutex, NULL);
 
 	for (int k = 0; k < NITERATIONS; k++)
 	{

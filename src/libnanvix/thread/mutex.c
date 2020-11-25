@@ -37,17 +37,24 @@
  *
  * @param m Target mutex.
  *
- * @param Upon sucessful completion, zero is returned. Upon failure, a
+ * @return Upon sucessful completion, zero is returned. Upon failure, a
  * negative error code is returned instead.
  */
-int nanvix_mutex_init(struct nanvix_mutex *m)
+int nanvix_mutex_init(struct nanvix_mutex *m, struct nanvix_mutexattr *mattr)
 {
 	/* Invalid mutex. */
 	if (m == NULL)
 		return (-EINVAL);
 
 	m->locked = false;
+	m->owner = -1;
+	m->rlevel = 0;
 	spinlock_init(&m->lock);
+
+	if (mattr)
+		m->type = mattr->type;
+	else
+		m->type = NANVIX_MUTEX_NORMAL;
 
 	#if (__NANVIX_MUTEX_SLEEP)
 
@@ -70,26 +77,27 @@ int nanvix_mutex_init(struct nanvix_mutex *m)
  *
  * @param m Target mutex.
  *
- * @param Upon sucessful completion, zero is returned. Upon failure, a
+ * @return Upon sucessful completion, zero is returned. Upon failure, a
  * negative error code is returned instead.
  */
 int nanvix_mutex_lock(struct nanvix_mutex *m)
 {
-	#if (__NANVIX_MUTEX_SLEEP)
-
-		kthread_t tid;
-
-	#endif /* __NANVIX_MUTEX_SLEEP */
+	kthread_t tid;
 
 	/* Invalid mutex. */
 	if (UNLIKELY(m == NULL))
 		return (-EINVAL);
 
-	#if (__NANVIX_MUTEX_SLEEP)
+	tid = kthread_self();
 
-		tid = kthread_self();
+	if (m->type == NANVIX_MUTEX_ERRORCHECK && m->owner == tid)
+		return (-EDEADLK);
 
-	#endif /* __NANVIX_MUTEX_SLEEP */
+	if (m->type == NANVIX_MUTEX_RECURSIVE && m->owner == tid)
+	{
+		m->rlevel++;
+		return (0);
+	}
 
 	do
 	{
@@ -116,6 +124,9 @@ int nanvix_mutex_lock(struct nanvix_mutex *m)
 			if (LIKELY(!m->locked))
 			{
 				m->locked = true;
+				m->owner = tid;
+				if (m->type == NANVIX_MUTEX_RECURSIVE)
+					m->rlevel++;
 				spinlock_unlock(&m->lock);
 				break;
 			}
@@ -147,22 +158,94 @@ int nanvix_mutex_lock(struct nanvix_mutex *m)
 }
 
 /*============================================================================*
+ * nanvix_mutex_trylock()                                                     *
+ *============================================================================*/
+
+/**
+ * @brief Tries to lock a mutex.
+ *
+ * @param m Target mutex.
+ *
+ * @return Upon sucessful completion, zero is returned. Upon failure, a
+ * negative error code is returned instead.
+ */
+int nanvix_mutex_trylock(struct nanvix_mutex *m)
+ {
+	kthread_t tid;
+	if (!m)
+		return (-EINVAL);
+
+	tid = kthread_self();
+
+	if (m->locked)
+	{
+		if (m->type == NANVIX_MUTEX_RECURSIVE && m->owner == tid)
+		{
+			spinlock_lock(&m->lock);
+			m->rlevel++;
+			spinlock_unlock(&m->lock);
+			return (0);
+		}
+	}
+	else
+	{
+		spinlock_lock(&m->lock);
+		if (m->type == NANVIX_MUTEX_RECURSIVE)
+			m->rlevel++;
+		m->owner = tid;
+		m->locked = true;
+		spinlock_unlock(&m->lock);
+		return (0);
+	}
+
+	return (-EBUSY);
+ }
+
+
+/*============================================================================*
  * nanvix_mutex_unlock()                                                      *
  *============================================================================*/
 
 /**
- * @brief unlocks a mutex.
+ * @brief Unlocks a mutex.
  *
  * @param m Target mutex.
  *
- * @param Upon sucessful completion, zero is returned. Upon failure, a
+ * @return Upon sucessful completion, zero is returned. Upon failure, a
  * negative error code is returned instead.
  */
 int nanvix_mutex_unlock(struct nanvix_mutex *m)
 {
+	kthread_t tid;
 	/* Invalid mutex. */
 	if (UNLIKELY(m == NULL))
 		return (-EINVAL);
+
+	tid = kthread_self();
+
+	if (m->type == NANVIX_MUTEX_ERRORCHECK)
+	{
+		if (!m->locked)
+			return (-EPERM);
+		if (m->owner != tid)
+			return (-EPERM);
+	}
+	else if (m->type == NANVIX_MUTEX_RECURSIVE)
+	{
+		if (m->rlevel > 0 && m->owner == tid)
+		{
+			spinlock_lock(&m->lock);
+			m->rlevel--;
+			if (m->rlevel != 0)
+			{
+				spinlock_unlock(&m->lock);
+				return (0);
+			}
+			spinlock_unlock(&m->lock);
+		}
+		else
+			return (-EPERM);
+	}
 
 #if (__NANVIX_MUTEX_SLEEP)
 
@@ -187,10 +270,123 @@ again:
 		#endif /* __NANVIX_MUTEX_SLEEP */
 
 		m->locked = false;
-
+		m->owner = -1;
 	spinlock_unlock(&m->lock);
 
 	return (0);
+}
+
+/*============================================================================*
+ * nanvix_mutex_destroy()                                                     *
+ *============================================================================*/
+
+/**
+ * @brief Destroy a mutex.
+ *
+ * @param m Target mutex.
+ *
+ * @return Upon sucessful completion, zero is returned. Upon failure, a
+ * negative error code is returned instead.
+ */
+int nanvix_mutex_destroy(struct nanvix_mutex *m)
+{
+	if (!m)
+		return (-EINVAL);
+
+	KASSERT(m->owner == -1);
+	KASSERT(m->locked == false);
+	#if (__NANVIX_MUTEX_SLEEP)
+		KASSERT(m->tids[0] == -1);
+	#endif
+
+	m = NULL;
+	return (0);
+}
+
+/*============================================================================*
+ * nanvix_mutexattr_init()                                                    *
+ *============================================================================*/
+
+/**
+ * @brief Initializes a mutex attribute.
+ *
+ * @param mattr Target mutex attribute.
+ *
+ * @return Upon sucessful completion, zero is returned. Upon failure, a
+ * negative error code is returned instead.
+ */
+int nanvix_mutexattr_init(struct nanvix_mutexattr *mattr)
+{
+	if (!mattr)
+		return (-EINVAL);
+
+	mattr->type = NANVIX_MUTEX_DEFAULT;
+
+	return(0);
+}
+
+/*============================================================================*
+ * nanvix_mutexattr_destroy()                                                 *
+ *============================================================================*/
+
+/**
+ * @brief Destroy a mutex attribute.
+ *
+ * @param mattr Target mutex attribute.
+ *
+ * @return Upon sucessful completion, zero is returned. Upon failure, a
+ * negative error code is returned instead.
+ */
+int nanvix_mutexattr_destroy(struct nanvix_mutexattr *mattr)
+{
+	if (!mattr)
+		return (-EINVAL);
+
+	mattr = NULL;
+
+	return (0);
+}
+
+/*============================================================================*
+ * nanvix_mutexattr_settype()                                                 *
+ *============================================================================*/
+
+/**
+ * @brief Set mutex attribute type.
+ *
+ * @param mattr Target mutex attribute.
+ * @param type Mutex attribute type
+ *
+ * @return Upon sucessful completion, zero is returned. Upon failure, a
+ * negative error code is returned instead.
+ */
+int nanvix_mutexattr_settype(struct nanvix_mutexattr* mattr, int type)
+{
+	if (!mattr)
+		return (-EINVAL);
+
+	mattr->type = type;
+
+	return (0);
+}
+
+/*============================================================================*
+ * nanvix_mutexattr_gettype()                                                 *
+ *============================================================================*/
+
+/**
+ * @brief Get mutex attribute type.
+ *
+ * @param mattr Target mutex attribute.
+ *
+ * @return Upon sucessful completion, zero is returned. Upon failure, a
+ * negative error code is returned instead.
+ */
+int nanvix_mutexattr_gettype(struct nanvix_mutexattr* mattr) {
+	if (!mattr)
+		return (-EINVAL);
+
+	return (mattr->type);
 }
 
 #endif /* CORES_NUM > 1 */

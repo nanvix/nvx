@@ -26,6 +26,13 @@
 #include "test.h"
 
 /**
+ * @name Auxiliar Constants
+ */
+/**@{*/
+#define TEST_DEFAULT_VALUE (0xc0ffee) /**< Default value. */
+/**@}*/
+
+/**
  * @name Extra Tests
  */
 /**@{*/
@@ -86,18 +93,19 @@ static void *fence_task(void *arg)
  */
 static void *yield_task(void *arg)
 {
-	int a;
+	uint64_t a;
 
 	UNUSED(arg);
 
-	a = 12345;
+	a = TEST_DEFAULT_VALUE;
 
 	kthread_yield();
 
-	KASSERT(a == 12345);
+	KASSERT(a == TEST_DEFAULT_VALUE);
 
 	return (NULL);
 }
+
 /*============================================================================*
  * API Testing Units                                                          *
  *============================================================================*/
@@ -343,7 +351,7 @@ static struct test thread_mgmt_tests_fault[] = {
 static struct test thread_mgmt_tests_stress[] = {
 	{ test_stress_kthread_create_overflow, "[test][thread][stress] thread creation overflow          [passed]" },
 	{ test_stress_kthread_create,          "[test][thread][stress] thread creation/termination       [passed]" },
-	{ test_stress_kthread_create,          "[test][thread][stress] thread creation/termination yield [passed]" },
+	{ test_stress_kthread_yield,           "[test][thread][stress] thread creation/termination yield [passed]" },
 	{ NULL,                                 NULL                                                               },
 };
 

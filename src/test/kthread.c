@@ -106,6 +106,56 @@ static void *yield_task(void *arg)
 	return (NULL);
 }
 
+/**
+ * @brief One counter for each thread.
+ */
+PRIVATE volatile int sched_counter = 0;
+
+/**
+ * @brief Sched task.
+ *
+ * @param arg Unused argument.
+ */
+static void *sched_task(void *arg)
+{
+	int busy;
+	bool exit;
+
+	UNUSED(arg);
+
+	spinlock_lock(&lock_tt);
+
+		busy = 1000;
+		while (busy--);
+
+		++sched_counter;
+
+		busy = 1000;
+		while (busy--);
+
+	spinlock_unlock(&lock_tt);
+
+	exit = false;
+
+	while (!exit)
+	{
+		/* Shared region. */
+		spinlock_lock(&lock_tt);
+
+			busy = 1000;
+			while (busy--);
+
+			exit = (sched_counter == NTHREADS);
+
+			busy = 1000;
+			while (busy--);
+
+		spinlock_unlock(&lock_tt);
+	}
+
+ 	return (NULL);
+ }
+
 /*============================================================================*
  * API Testing Units                                                          *
  *============================================================================*/
@@ -320,6 +370,31 @@ static void test_stress_kthread_yield(void)
 #endif
 }
 
+/**
+ * @brief Stress test for thread scheduler.
+ */
+static void test_stress_kthread_scheduler(void)
+{
+#if (THREAD_MAX > 2 && CORE_SUPPORTS_MULTITHREADING)
+
+	for (int j = 0; j < NITERATIONS; j++)
+	{
+		kthread_t tid[NTHREADS];
+
+		sched_counter = 0;
+
+		/* Spawn threads. */
+		for (int i = 0; i < NTHREADS; i++)
+			test_assert(kthread_create(&tid[i], sched_task, NULL) == 0);
+
+		/* Wait for threads. */
+		for (int i = 0; i < NTHREADS; i++)
+			test_assert(kthread_join(tid[i], NULL) == 0);
+	}
+
+#endif
+}
+
 /*============================================================================*
  * Test Driver                                                                *
  *============================================================================*/
@@ -349,10 +424,11 @@ static struct test thread_mgmt_tests_fault[] = {
  * @brief Stress tests.
  */
 static struct test thread_mgmt_tests_stress[] = {
-	{ test_stress_kthread_create_overflow, "[test][thread][stress] thread creation overflow          [passed]" },
-	{ test_stress_kthread_create,          "[test][thread][stress] thread creation/termination       [passed]" },
-	{ test_stress_kthread_yield,           "[test][thread][stress] thread creation/termination yield [passed]" },
-	{ NULL,                                 NULL                                                               },
+	{ test_stress_kthread_create_overflow, "[test][thread][stress] thread creation overflow              [passed]" },
+	{ test_stress_kthread_create,          "[test][thread][stress] thread creation/termination           [passed]" },
+	{ test_stress_kthread_yield,           "[test][thread][stress] thread creation/termination yield     [passed]" },
+	{ test_stress_kthread_scheduler,       "[test][thread][stress] thread creation/termination scheduler [passed]" },
+	{ NULL,                                 NULL                                                                   },
 };
 
 /**

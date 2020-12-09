@@ -149,6 +149,38 @@ int kthread_yield(void)
 	return (ret);
 }
 
+/*============================================================================*
+ * kthread_set_affinity()                                                     *
+ *============================================================================*/
+
+/*
+ * @see kernel_thread_set_affinity()
+ */
+int kthread_set_affinity(int new_affinity)
+{
+	int ret;
+
+	/* Invalid affinity. */
+	if (!KTHREAD_AFFINITY_IS_VALID(new_affinity))
+	{
+		errno = EINVAL;
+		return (-1);
+	}
+
+	ret = kcall1(
+		NR_thread_set_affinity,
+		(word_t) new_affinity
+	);
+
+	/* System call failed. */
+	if (ret < 0)
+	{
+		errno = -ret;
+		return (-1);
+	}
+
+	return (ret);
+}
 
 /*============================================================================*
  * ksleep()                                                                   *

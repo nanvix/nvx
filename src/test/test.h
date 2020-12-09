@@ -42,6 +42,8 @@
 #endif
     #define NSETUPS 10
     #define NCOMMUNICATIONS 50 
+	#define NSETUPS_AFFINITY 5
+	#define NCOMMS_AFFINITY  5
 	/**@}*/
 
     /**

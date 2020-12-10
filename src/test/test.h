@@ -26,6 +26,7 @@
 #define _TEST_H_
 
 	#include <nanvix/sys/thread.h>
+	#include <nanvix/sys/mutex.h>
 
 	/**
      * @brief Test's parameters
@@ -40,10 +41,10 @@
 	#define SLAVE_NODENUM  1
 	#define TEST_THREAD_NPORTS (THREAD_MAX)
 #endif
-    #define NSETUPS 10
-    #define NCOMMUNICATIONS 50 
-	#define NSETUPS_AFFINITY 5
-	#define NCOMMS_AFFINITY  5
+	#define NSETUPS          10
+	#define NCOMMUNICATIONS  50
+	#define NSETUPS_AFFINITY 1
+	#define NCOMMS_AFFINITY  2
 	/**@}*/
 
     /**
@@ -102,6 +103,21 @@
     extern void test_barrier_nodes_setup(const int * nodes, int nnodes, int is_master);
     extern void test_barrier_nodes(void);
     extern void test_barrier_nodes_cleanup(void);
+    /**@}*/
+
+    /**
+     * @name Fence
+     */
+    /**@{*/
+	struct fence
+	{
+		int ncores;               /**< Number of cores in the fence.           */
+		int nreached;             /**< Number of cores that reached the fence. */
+		int release;              /**< Wait condition.                         */
+		struct nanvix_mutex lock; /**< Lock.                                   */
+	};
+	extern void fence_init(struct fence *b, int ncores);
+	extern void fence(struct fence *b);
     /**@}*/
 #endif /* __TARGET_HAS_SYNC */
 

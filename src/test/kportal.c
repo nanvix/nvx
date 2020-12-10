@@ -1964,63 +1964,7 @@ PRIVATE void test_stress_portal_multiplexing_pingpong(void)
  * Stress Test: Thread synchronization                                        *
  *============================================================================*/
 
-/**
- * @brief A simple fence.
- */
-static struct fence
-{
-	int ncores;      /**< Number of cores in the fence.            */
-	int nreached;    /**< Number of cores that reached the fence.  */
-	int release;     /**< Wait condition.                          */
-	spinlock_t lock; /**< Lock.                                    */
-} _fence = {
-	0, 0, 0, SPINLOCK_UNLOCKED
-};
-
-/**
- * @brief Initializes a fence.
- *
- * @param b      Target fence.
- * @param ncores Number of cores in the fence.
- */
-PRIVATE void fence_init(struct fence *b, int ncores)
-{
-	b->ncores   = ncores;
-	b->nreached = 0;
-	b->release  = 0;
-}
-
-/**
- * @brief Waits in a fence.
- */
-PRIVATE void fence(struct fence *b)
-{
-	int exit;
-	int local_release;
-
-	/* Notifies thread reach. */
-	spinlock_lock(&b->lock);
-
-		local_release = !b->release;
-
-		b->nreached++;
-
-		if (b->nreached == b->ncores)
-		{
-			b->nreached = 0;
-			b->release  = local_release;
-		}
-
-	spinlock_unlock(&b->lock);
-
-	do
-	{
-		spinlock_lock(&b->lock);
-			exit = (local_release == b->release);
-		spinlock_unlock(&b->lock);
-	}
-	while (!exit);
-}
+PRIVATE struct fence _fence;
 
 /*============================================================================*
  * Stress Test: Portal Thread Multiplexing Broadcast                          *
@@ -2278,6 +2222,8 @@ PRIVATE void test_stress_portal_thread_multiplexing_pingpong(void)
  * Stress Test: Portal Thread Multiplexing Affinity                           *
  *============================================================================*/
 
+#define PPORT(x) (tid + x * TEST_THREAD_MAX)
+
 /**
  * @brief Stress Test: Portal Thread Multiplexing Affinity
  */
@@ -2383,6 +2329,8 @@ PRIVATE void test_stress_portal_thread_multiplexing_affinity(void)
 	/* Join threads. */
 	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
+
+	test_assert(kthread_set_affinity(KTHREAD_AFFINITY_DEFAULT) == TEST_THREAD_AFFINITY);
 }
 
 /*============================================================================*

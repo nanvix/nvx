@@ -1550,65 +1550,7 @@ PRIVATE void test_stress_mailbox_multiplexing_pingpong(void)
  * Stress Test: Thread synchronization                                        *
  *============================================================================*/
 
-/**
- * @brief A simple fence.
- */
-static struct fence
-{
-	int ncores;      /**< Number of cores in the fence.            */
-	int nreached;    /**< Number of cores that reached the fence.  */
-	int release;     /**< Wait condition.                          */
-	spinlock_t lock; /**< Lock.                                    */
-} _fence = {
-	0, 0, 0, SPINLOCK_UNLOCKED
-};
-
-/**
- * @brief Initializes a fence.
- *
- * @param b      Target fence.
- * @param ncores Number of cores in the fence.
- */
-PRIVATE void fence_init(struct fence *b, int ncores)
-{
-	b->ncores   = ncores;
-	b->nreached = 0;
-}
-
-/**
- * @brief Waits in a fence.
- */
-PRIVATE void fence(struct fence *b)
-{
-	int exit;
-	int local_release;
-
-	/* Notifies thread reach. */
-	spinlock_lock(&b->lock);
-
-		local_release = !b->release;
-
-		b->nreached++;
-
-		if (b->nreached == b->ncores)
-		{
-			b->nreached = 0;
-			b->release  = local_release;
-		}
-
-	spinlock_unlock(&b->lock);
-
-	exit = 0;
-	while (!exit)
-	{
-		exit = 100;
-		while (exit--);
-
-		spinlock_lock(&b->lock);
-			exit = (local_release == b->release);
-		spinlock_unlock(&b->lock);
-	}
-}
+PRIVATE struct fence _fence;
 
 /*============================================================================*
  * Stress Test: Thread Specified Source                                       *
@@ -1759,6 +1701,8 @@ static void test_stress_mailbox_thread_specified_affinity(void)
 	}
 	else if (local == MASTER_NODENUM)
 		do_thread_specified_affinity(0);
+
+	test_assert(kthread_set_affinity(KTHREAD_AFFINITY_DEFAULT) == TEST_THREAD_AFFINITY);
 }
 
 /*============================================================================*
@@ -2077,6 +2021,8 @@ PRIVATE void test_stress_mailbox_thread_multiplexing_pingpong(void)
  * Stress Test: Mailbox Thread Multiplexing Affinity                          *
  *============================================================================*/
 
+#define PPORT(x) (tid + x * TEST_THREAD_MAX)
+
 /**
  * @brief Stress Test: Mailbox Thread Multiplexing Ping-Pong
  */
@@ -2180,6 +2126,8 @@ PRIVATE void test_stress_mailbox_thread_multiplexing_affinity(void)
 	/* Join threads. */
 	for (int i = 1; i < TEST_THREAD_MAX; ++i)
 		test_assert(kthread_join(tid[i - 1], NULL) == 0);
+
+	test_assert(kthread_set_affinity(KTHREAD_AFFINITY_DEFAULT) == TEST_THREAD_AFFINITY);
 }
 
 /*============================================================================*

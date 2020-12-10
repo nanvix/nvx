@@ -47,6 +47,7 @@
 
 		#if (__NANVIX_MUTEX_SLEEP)
 
+			spinlock_t lock2;           /**< Lock helper.      */
 			kthread_t tids[THREAD_MAX]; /**< Sleeping threads. */
 
 		#endif /* __NANVIX_MUTEX_SLEEP */

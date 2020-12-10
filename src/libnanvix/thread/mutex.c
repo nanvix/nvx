@@ -22,6 +22,10 @@
  * SOFTWARE.
  */
 
+/* Must come first. */
+#define __NEED_SECTION_GUARD
+
+#include <nanvix/hal/section_guard.h>
 #include <nanvix/kernel/kernel.h>
 #include <nanvix/sys/mutex.h>
 #include <posix/errno.h>
@@ -51,6 +55,8 @@ int nanvix_mutex_init(struct nanvix_mutex *m)
 
 	#if (__NANVIX_MUTEX_SLEEP)
 
+		spinlock_init(&m->lock2);
+
 		for (int i = 0; i < THREAD_MAX; i++)
 			m->tids[i] = -1;
 
@@ -75,6 +81,8 @@ int nanvix_mutex_init(struct nanvix_mutex *m)
  */
 int nanvix_mutex_lock(struct nanvix_mutex *m)
 {
+	struct section_guard guard; /* Section guard. */
+
 	#if (__NANVIX_MUTEX_SLEEP)
 
 		kthread_t tid;
@@ -91,57 +99,66 @@ int nanvix_mutex_lock(struct nanvix_mutex *m)
 
 	#endif /* __NANVIX_MUTEX_SLEEP */
 
+	/* Prevent this call be preempted by any maskable interrupt. */
+	section_guard_init(&guard, &m->lock, INTERRUPT_LEVEL_NONE);
+	section_guard_entry(&guard);
+
+	#if (__NANVIX_MUTEX_SLEEP)
+
+		/* Enqueue kernel thread. */
+		for (int i = 0; i < THREAD_MAX; i++)
+		{
+			if (m->tids[i] == -1)
+			{
+				m->tids[i] = tid;
+				break;
+			}
+		}
+
+	#endif /* __NANVIX_MUTEX_SLEEP */
+
 	do
 	{
-		spinlock_lock(&m->lock);
-
-			#if (__NANVIX_MUTEX_SLEEP)
-
-				/* Dequeue kernel thread. */
-				for (int i = 0; i < THREAD_MAX; i++)
-				{
-					if (UNLIKELY(m->tids[i] == tid))
-					{
-						for (int j = i; j < (THREAD_MAX - 1); j++)
-							m->tids[j] = m->tids[j + 1];
-						m->tids[THREAD_MAX - 1] = -1;
-
-						break;
-					}
-				}
-
-			#endif /* __NANVIX_MUTEX_SLEEP */
-
-			/* Lock. */
-			if (LIKELY(!m->locked))
+			/* Lock free and its my time. */
+			if (LIKELY(m->tids[0] == tid && !m->locked))
 			{
 				m->locked = true;
-				spinlock_unlock(&m->lock);
 				break;
 			}
 
+		section_guard_exit(&guard);
+
 			#if (__NANVIX_MUTEX_SLEEP)
 
-				/* Enqueue kernel thread. */
-				for (int i = 0; i < THREAD_MAX; i++)
-				{
-					if (m->tids[i] == -1)
-					{
-						m->tids[i] = tid;
-						break;
-					}
-				}
+					ksleep();
+
+			#else
+
+					/**
+					 * Decreases the competition and allows another thread
+					 * to release the lock.
+					 */
+					int busy = 10;
+					while (busy--);
 
 			#endif /* __NANVIX_MUTEX_SLEEP */
 
-		spinlock_unlock(&m->lock);
+		section_guard_entry(&guard);
 
-		#if (__NANVIX_MUTEX_SLEEP)
-
-			ksleep();
-
-		#endif /* __NANVIX_MUTEX_SLEEP */
 	} while (LIKELY(true));
+
+	#if (__NANVIX_MUTEX_SLEEP)
+
+		KASSERT(m->tids[0] == tid);
+
+		/* Dequeue kernel thread. */
+		for (int i = 0; i < (THREAD_MAX - 1); i++)
+			m->tids[i] = m->tids[i + 1];
+		m->tids[THREAD_MAX - 1] = -1;
+
+	#endif /* __NANVIX_MUTEX_SLEEP */
+
+	section_guard_exit(&guard);
 
 	return (0);
 }
@@ -160,35 +177,42 @@ int nanvix_mutex_lock(struct nanvix_mutex *m)
  */
 int nanvix_mutex_unlock(struct nanvix_mutex *m)
 {
+	struct section_guard guard; /* Section guard. */
+
 	/* Invalid mutex. */
 	if (UNLIKELY(m == NULL))
 		return (-EINVAL);
 
 #if (__NANVIX_MUTEX_SLEEP)
-
-again:
-
+	spinlock_lock(&m->lock2);
 #endif /* __NANVIX_MUTEX_SLEEP */
 
-	spinlock_lock(&m->lock);
-
-		#if (__NANVIX_MUTEX_SLEEP)
-
-			/* Dequeue thread. */
-			if (m->tids[0] != -1)
-			{
-				if (UNLIKELY(kwakeup(m->tids[0]) != 0))
-				{
-					spinlock_unlock(&m->lock);
-					goto again;
-				}
-			}
-
-		#endif /* __NANVIX_MUTEX_SLEEP */
-
+	/* Prevent this call be preempted by any maskable interrupt. */
+	section_guard_init(&guard, &m->lock, INTERRUPT_LEVEL_NONE);
+	section_guard_entry(&guard);
 		m->locked = false;
 
-	spinlock_unlock(&m->lock);
+#if (__NANVIX_MUTEX_SLEEP)
+		int ret = -1;
+		int head;
+
+		if ((head = m->tids[0]) >= 0)
+		{
+			/* Dequeue thread. */
+			while (ret < 0 && !m->locked && m->tids[0] == head)
+			{
+				section_guard_exit(&guard);
+					ret = kwakeup(head);
+				section_guard_entry(&guard);
+			}
+		}
+#endif /* __NANVIX_MUTEX_SLEEP */
+
+	section_guard_exit(&guard);
+
+#if (__NANVIX_MUTEX_SLEEP)
+	spinlock_unlock(&m->lock2);
+#endif /* __NANVIX_MUTEX_SLEEP */
 
 	return (0);
 }

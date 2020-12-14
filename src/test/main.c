@@ -133,6 +133,7 @@ void ___start(int argc, const char *argv[])
 			test_thread_mgmt();
 			test_thread_sleep();
 			test_condition_variables();
+			test_task_mgmt();
 
 		#ifndef __unix64__
 			test_perf();

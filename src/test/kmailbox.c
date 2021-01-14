@@ -26,6 +26,7 @@
 #include <nanvix/sys/thread.h>
 #include <nanvix/sys/mailbox.h>
 #include <nanvix/sys/noc.h>
+#include <nanvix/runtime/fence.h>
 #include <posix/errno.h>
 
 #include "test.h"
@@ -1550,7 +1551,7 @@ PRIVATE void test_stress_mailbox_multiplexing_pingpong(void)
  * Stress Test: Thread synchronization                                        *
  *============================================================================*/
 
-PRIVATE struct fence _fence;
+PRIVATE struct fence_t _fence;
 
 /*============================================================================*
  * Stress Test: Thread Specified Source                                       *

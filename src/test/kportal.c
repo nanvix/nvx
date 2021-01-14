@@ -25,6 +25,7 @@
 
 #include <nanvix/sys/portal.h>
 #include <nanvix/sys/noc.h>
+#include <nanvix/runtime/fence.h>
 #include <posix/errno.h>
 
 #include "test.h"
@@ -1964,7 +1965,7 @@ PRIVATE void test_stress_portal_multiplexing_pingpong(void)
  * Stress Test: Thread synchronization                                        *
  *============================================================================*/
 
-PRIVATE struct fence _fence;
+PRIVATE struct fence_t _fence;
 
 /*============================================================================*
  * Stress Test: Portal Thread Multiplexing Broadcast                          *

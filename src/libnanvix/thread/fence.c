@@ -22,20 +22,13 @@
  * SOFTWARE.
  */
 
-#include <nanvix/sys/sync.h>
-#include <nanvix/sys/mutex.h>
+#include <nanvix/runtime/fence.h>
 #include <posix/errno.h>
-#include "test.h"
-
-#if (__TARGET_HAS_SYNC)
 
 /**
- * @brief Initializes a fence.
- *
- * @param b      Target fence.
- * @param ncores Number of cores in the fence.
+ * @see fence_init() in nanvix/runtime/fence.h
  */
-PUBLIC void fence_init(struct fence *b, int ncores)
+PUBLIC void fence_init(struct fence_t *b, int ncores)
 {
 	b->ncores   = ncores;
 	b->nreached = 0;
@@ -44,9 +37,9 @@ PUBLIC void fence_init(struct fence *b, int ncores)
 }
 
 /**
- * @brief Waits in a fence.
+ * @see fence() in nanvix/runtime/fence.h
  */
-PUBLIC void fence(struct fence *b)
+PUBLIC void fence(struct fence_t *b)
 {
 	int exit;
 	int local_release;
@@ -73,5 +66,3 @@ PUBLIC void fence(struct fence *b)
 		nanvix_mutex_unlock(&b->lock);
 	} while (!exit);
 }
-
-#endif /* __TARGET_HAS_SYNC */

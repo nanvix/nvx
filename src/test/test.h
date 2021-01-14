@@ -104,21 +104,6 @@
     extern void test_barrier_nodes(void);
     extern void test_barrier_nodes_cleanup(void);
     /**@}*/
-
-    /**
-     * @name Fence
-     */
-    /**@{*/
-	struct fence
-	{
-		int ncores;               /**< Number of cores in the fence.           */
-		int nreached;             /**< Number of cores that reached the fence. */
-		int release;              /**< Wait condition.                         */
-		struct nanvix_mutex lock; /**< Lock.                                   */
-	};
-	extern void fence_init(struct fence *b, int ncores);
-	extern void fence(struct fence *b);
-    /**@}*/
 #endif /* __TARGET_HAS_SYNC */
 
 	/**

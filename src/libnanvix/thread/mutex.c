@@ -120,7 +120,11 @@ int nanvix_mutex_lock(struct nanvix_mutex *m)
 	do
 	{
 			/* Lock free and its my time. */
+	#if (__NANVIX_MUTEX_SLEEP)
 			if (LIKELY(m->tids[0] == tid && !m->locked))
+	#else
+			if (!m->locked)
+	#endif
 			{
 				m->locked = true;
 				break;

@@ -2613,7 +2613,9 @@ PRIVATE struct test portal_tests_stress[] = {
 	{ test_stress_portal_thread_multiplexing_broadcast,       "[test][portal][stress] portal thread multiplexing broadcast       [passed]" },
 	{ test_stress_portal_thread_multiplexing_gather,          "[test][portal][stress] portal thread multiplexing gather          [passed]" },
 	{ test_stress_portal_thread_multiplexing_pingpong,        "[test][portal][stress] portal thread multiplexing ping-pong       [passed]" },
+#if CORE_SUPPORTS_MULTITHREADING
 	{ test_stress_portal_thread_multiplexing_affinity,        "[test][portal][stress] portal thread multiplexing affinity        [passed]" },
+#endif
 	{ test_stress_portal_thread_multiplexing_broadcast_local, "[test][portal][stress] portal thread multiplexing broadcast local [passed]" },
 	{ test_stress_portal_thread_multiplexing_gather_local,    "[test][portal][stress] portal thread multiplexing gather local    [passed]" },
 	{ NULL,                                                    NULL                                                                        },

@@ -477,6 +477,30 @@ error:
 }
 
 /*============================================================================*
+ * kmailbox_set_remote()                                                      *
+ *============================================================================*/
+
+/**
+ * @todo Provide a detailed description about this function.
+ */
+int kmailbox_set_remote(int mbxid, int remote, int remote_port)
+{
+	int ret;
+
+	/* Invalid nodenum. */
+	if (!WITHIN(remote, 0, (MAILBOX_ANY_SOURCE + 1)))
+		return (-EINVAL);
+
+	/* Invalid port number. */
+	if (!WITHIN(remote_port, 0, (MAILBOX_ANY_PORT + 1)))
+		return (-EINVAL);
+
+	ret = kmailbox_ioctl(mbxid, KMAILBOX_IOCTL_SET_REMOTE, remote, remote_port);
+
+	return (ret);
+}
+
+/*============================================================================*
  * kmailbox_init()                                                            *
  *============================================================================*/
 

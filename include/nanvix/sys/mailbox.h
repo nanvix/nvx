@@ -164,6 +164,18 @@
 	 */
 	extern int kmailbox_ioctl(int, unsigned, ...);
 
+	/**
+	 * @brief Specifies the mailbox remote for a single read.
+	 *
+	 * @param mbxid  Target mailbox.
+	 * @param remote Remote node number.
+	 * @param port   Remote port number.
+	 *
+	 * @param Upon successful completion, zero is returned. Upon failure,
+	 * a negative error code is returned instead.
+	 */
+	extern int kmailbox_set_remote(int, int, int);
+
 #endif /* NANVIX_SYS_MAILBOX_H_ */
 
 /**@}*/

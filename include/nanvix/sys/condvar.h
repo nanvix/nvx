@@ -43,11 +43,10 @@
 	struct nanvix_cond_var
 	{
 		spinlock_t lock;
-		#if (__NANVIX_CONDVAR_SLEEP)
-			kthread_t tids[THREAD_MAX];
-		#else
+		kthread_t tids[THREAD_MAX];
+
+		#if (!__NANVIX_CONDVAR_SLEEP)
 			bool locked;
-			int waiting;
 		#endif
 	};
 

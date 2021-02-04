@@ -23,9 +23,9 @@
  * SOFTWARE.
  */
 
-#include <nanvix/sys/thread.h>
 #include <nanvix/sys/mailbox.h>
 #include <nanvix/sys/noc.h>
+#include <nanvix/runtime/fence.h>
 #include <posix/errno.h>
 
 #include "test.h"
@@ -33,7 +33,7 @@
 #if __TARGET_HAS_MAILBOX
 
 /*============================================================================*
- * Contants.                                                                  *
+ * Constants                                                                  *
  *============================================================================*/
 
 /**
@@ -71,6 +71,15 @@
 #define TEST_THREAD_SPECIFIED 3
 #define TEST_THREAD_MBXID_NUM ((TEST_THREAD_NPORTS / TEST_THREAD_MAX) + 1)
 /**}*/
+
+/*============================================================================*
+ * Global variables                                                           *
+ *============================================================================*/
+
+/**
+ * @brief Simple fence used for thread synchronization.
+ */
+PRIVATE struct fence_t _fence;
 
 /*============================================================================*
  * API Test: Create Unlink                                                    *
@@ -1547,66 +1556,6 @@ PRIVATE void test_stress_mailbox_multiplexing_pingpong(void)
 /*============================================================================*
  * Stress Test: Thread synchronization                                        *
  *============================================================================*/
-
-/**
- * @brief A simple fence.
- */
-static struct fence
-{
-	int ncores;      /**< Number of cores in the fence.            */
-	int nreached;    /**< Number of cores that reached the fence.  */
-	int release;     /**< Wait condition.                          */
-	spinlock_t lock; /**< Lock.                                    */
-} _fence = {
-	0, 0, 0, SPINLOCK_UNLOCKED
-};
-
-/**
- * @brief Initializes a fence.
- *
- * @param b      Target fence.
- * @param ncores Number of cores in the fence.
- */
-PRIVATE void fence_init(struct fence *b, int ncores)
-{
-	b->ncores   = ncores;
-	b->nreached = 0;
-}
-
-/**
- * @brief Waits in a fence.
- */
-PRIVATE void fence(struct fence *b)
-{
-	int exit;
-	int local_release;
-
-	/* Notifies thread reach. */
-	spinlock_lock(&b->lock);
-
-		local_release = !b->release;
-
-		b->nreached++;
-
-		if (b->nreached == b->ncores)
-		{
-			b->nreached = 0;
-			b->release  = local_release;
-		}
-
-	spinlock_unlock(&b->lock);
-
-	exit = 0;
-	while (!exit)
-	{
-		exit = 100;
-		while (exit--);
-
-		spinlock_lock(&b->lock);
-			exit = (local_release == b->release);
-		spinlock_unlock(&b->lock);
-	}
-}
 
 /*============================================================================*
  * Stress Test: Thread Specified Source                                       *

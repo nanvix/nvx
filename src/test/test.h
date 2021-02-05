@@ -122,6 +122,7 @@
 	extern void test_mailbox(void);
 	extern void test_portal(void);
 	extern void test_ikc(void);
+	extern void test_semaphore(void);
 
 	/**@}*/
 

@@ -74,7 +74,7 @@ static void *task(void *arg)
 static void test_api_condvar_init(void)
 {
 	test_assert(nanvix_cond_init(&cond_var) == 0);
-	test_assert(nanvix_mutex_init(&mutex) == 0);
+	test_assert(nanvix_mutex_init(&mutex, NULL) == 0);
 }
 
 /*

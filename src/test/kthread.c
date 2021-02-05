@@ -36,6 +36,11 @@
 /**@}*/
 
 /**
+ * @brief Expected value used on thread return tests.
+ */
+#define TEST_EXPECTED_VALUE 0xc0ffee
+
+/**
  * @brief Dummy task.
  *
  * @param arg Unused argument.
@@ -90,14 +95,43 @@ static void *yield_task(void *arg)
 
 	UNUSED(arg);
 
-	a = 12345;
+	a = TEST_EXPECTED_VALUE;
 
 	kthread_yield();
 
-	KASSERT(a == 12345);
+	KASSERT(a == TEST_EXPECTED_VALUE);
 
 	return (NULL);
 }
+
+/**
+ * @brief Global variable used in the return task.
+ */
+static int global_val = 0;
+
+/**
+ * @brief Return pointer task.
+ *
+ * @param arg Unused argument.
+ */
+static void * return_pointer_task(void *arg)
+{
+	UNUSED(arg);
+
+	/* Store a new value to shared variable. */
+	global_val = TEST_EXPECTED_VALUE;
+
+	/* Return the pointer to be access on master thread. */
+	return (&global_val);
+}
+
+static void * return_value_task(void *arg)
+{
+	UNUSED(arg);
+
+	return ((void *) TEST_EXPECTED_VALUE);
+}
+
 /*============================================================================*
  * API Testing Units                                                          *
  *============================================================================*/
@@ -146,6 +180,85 @@ static void test_api_kthread_yield(void)
 
 	/* Wait for thread. */
 	test_assert(kthread_join(tid, NULL) == 0);
+
+#endif
+}
+
+/**
+ * @brief API Test: Return NULL from the slave thread.
+ */
+static void test_api_kthread_return_null(void)
+{
+#if (THREAD_MAX > 1)
+
+	int * retval;
+	kthread_t tid;
+
+	/* Spawn thread. */
+	test_assert(kthread_create(&tid, task, NULL) == 0);
+
+	/* Set retval to 1 to assert that the join will set it to NULL. */
+	retval = (int *) 0x1;
+
+	/* Wait for thread. */
+	test_assert(kthread_join(tid, (void **) &retval) == 0);
+
+	/* In this test, we return a expected int value. */
+	test_assert(retval == NULL);
+
+#endif
+}
+
+/**
+ * @brief API Test: Return a int from the slave thread.
+ */
+static void test_api_kthread_return_value(void)
+{
+#if (THREAD_MAX > 1)
+
+	int * retval;
+	kthread_t tid;
+
+	/* Spawn thread. */
+	test_assert(kthread_create(&tid, return_value_task, NULL) == 0);
+
+	retval = NULL;
+
+	/* Wait for thread. */
+	test_assert(kthread_join(tid, (void **) &retval) == 0);
+
+	/* In this test, we return a expected int value. */
+	test_assert(retval == (void *) TEST_EXPECTED_VALUE);
+
+#endif
+}
+
+/**
+ * @brief API Test: Return a pointer seted by the slave thread.
+ */
+static void test_api_kthread_return_pointer(void)
+{
+#if (THREAD_MAX > 1)
+
+	int * retval;
+	kthread_t tid;
+
+	/* Spawn thread. */
+	test_assert(kthread_create(&tid, return_pointer_task, NULL) == 0);
+
+	retval = NULL;
+
+	/* Wait for thread. */
+	test_assert(kthread_join(tid, (void **) &retval) == 0);
+
+	/* Returned pointer must be the same of the global variable. */
+	test_assert(retval == &global_val);
+
+	/* Both access must contain the same value. */
+	test_assert(*retval == global_val);
+
+	/* The value must be the expected value. */
+	test_assert(*retval == TEST_EXPECTED_VALUE);
 
 #endif
 }
@@ -320,10 +433,13 @@ static void test_stress_kthread_yield(void)
  * @brief API tests.
  */
 static struct test thread_mgmt_tests_api[] = {
-	{ test_api_kthread_self,   "[test][thread][api] thread identification       [passed]" },
-	{ test_api_kthread_create, "[test][thread][api] thread creation/termination [passed]" },
-	{ test_api_kthread_yield,  "[test][thread][api] thread yield                [passed]" },
-	{ NULL,                     NULL                                                      },
+	{ test_api_kthread_self,           "[test][thread][api] thread identification       [passed]" },
+	{ test_api_kthread_create,         "[test][thread][api] thread creation/termination [passed]" },
+	{ test_api_kthread_yield,          "[test][thread][api] thread yield                [passed]" },
+	{ test_api_kthread_return_null,    "[test][thread][api] thread return null          [passed]" },
+	{ test_api_kthread_return_value,   "[test][thread][api] thread return value         [passed]" },
+	{ test_api_kthread_return_pointer, "[test][thread][api] thread return pointer       [passed]" },
+	{NULL,                              NULL                                                      },
 };
 
 /**

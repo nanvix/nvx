@@ -1138,6 +1138,88 @@ static void test_fault_mailbox_invalid_ioctl(void)
 }
 
 /*============================================================================*
+ * Fault Test: Invalid Set Remote                                             *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Invalid Set Remote
+ */
+static void test_fault_mailbox_invalid_set_remote(void)
+{
+	int mbxid;
+	int local;
+	int remote;
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	/* Invalid mbxid. */
+	test_assert(kmailbox_set_remote(-1, remote, MAILBOX_ANY_PORT) == (-EINVAL));
+	test_assert(kmailbox_set_remote(KMAILBOX_MAX, remote, MAILBOX_ANY_PORT) == (-EINVAL));
+
+	test_assert((mbxid = kmailbox_create(local, 0)) >= 0);
+
+	/* Invalid remote. */
+	test_assert(kmailbox_set_remote(mbxid, -1, MAILBOX_ANY_PORT) == (-EINVAL));
+	test_assert(kmailbox_set_remote(mbxid, (MAILBOX_ANY_SOURCE + 1), MAILBOX_ANY_PORT) == (-EINVAL));
+
+	/* Invalid port number. */
+	test_assert(kmailbox_set_remote(mbxid, remote, -1) == (-EINVAL));
+	test_assert(kmailbox_set_remote(mbxid, remote, (MAILBOX_ANY_PORT + 1)) == (-EINVAL));
+
+	test_assert(kmailbox_unlink(mbxid) == 0);
+}
+
+/*============================================================================*
+ * Fault Test: Bad Set Remote                                                 *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Bad Set Remote
+ */
+static void test_fault_mailbox_bad_set_remote(void)
+{
+	int mbxid;
+	int local;
+	int remote;
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((mbxid = kmailbox_open(remote, 0)) >= 0);
+
+	/* Bad mailbox. */
+	test_assert(kmailbox_set_remote(mbxid, local, MAILBOX_ANY_PORT) == (-EFAULT));
+
+	test_assert(kmailbox_close(mbxid) == 0);
+}
+
+/*============================================================================*
+ * Fault Test: Double Set Remote                                              *
+ *============================================================================*/
+
+/**
+ * @brief Fault Test: Double Set Remote
+ */
+static void test_fault_mailbox_double_set_remote(void)
+{
+	int mbxid;
+	int local;
+	int remote;
+
+	local = knode_get_num();
+	remote = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	test_assert((mbxid = kmailbox_create(local, 0)) >= 0);
+
+	/* Double set remote. */
+	test_assert(kmailbox_set_remote(mbxid, remote, MAILBOX_ANY_PORT) == 0);
+	test_assert(kmailbox_set_remote(mbxid, remote, MAILBOX_ANY_PORT) == (-EFAULT));
+
+	test_assert(kmailbox_unlink(mbxid) == 0);
+}
+
+/*============================================================================*
  * Fault Test: Bad mbxid                                                      *
  *============================================================================*/
 
@@ -1613,7 +1695,7 @@ PRIVATE void * do_thread_specified_source(void * arg)
 				message[0] = (-1);
 
 				/* Specifies the port from where to read. */
-				test_assert(kmailbox_ioctl(mbxid, KMAILBOX_IOCTL_SET_REMOTE, MAILBOX_ANY_SOURCE, i) == 0);
+				test_assert(kmailbox_set_remote(mbxid, MAILBOX_ANY_SOURCE, i) == 0);
 
 				test_assert(kmailbox_read(mbxid, message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
 				test_assert((message[0] == i) && (message[1] == k));
@@ -2231,6 +2313,9 @@ static struct test mailbox_tests_fault[] = {
 	{ test_fault_mailbox_null_write,         "[test][mailbox][fault] mailbox null write         [passed]" },
 	{ test_fault_mailbox_invalid_wait,       "[test][mailbox][fault] mailbox invalid wait       [passed]" },
 	{ test_fault_mailbox_invalid_ioctl,      "[test][mailbox][fault] mailbox invalid ioctl      [passed]" },
+	{ test_fault_mailbox_invalid_set_remote, "[test][mailbox][fault] mailbox invalid set remote [passed]" },
+	{ test_fault_mailbox_bad_set_remote,     "[test][mailbox][fault] mailbox bad set remote     [passed]" },
+	{ test_fault_mailbox_double_set_remote,  "[test][mailbox][fault] mailbox double set remote  [passed]" },
 	{ test_fault_mailbox_bad_mbxid,          "[test][mailbox][fault] mailbox bad mbxid          [passed]" },
 	{ NULL,                                   NULL                                                        },
 };

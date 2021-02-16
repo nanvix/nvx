@@ -44,14 +44,11 @@ int nanvix_cond_init(struct nanvix_cond_var *cond)
 
 	spinlock_init(&cond->lock);
 
-	#if (__NANVIX_CONDVAR_SLEEP)
-		for (int i = 0; i < THREAD_MAX; i++)
-		{
-			cond->tids[i] = -1;
-		}
-	#else
+	for (int i = 0; i < THREAD_MAX; i++)
+		cond->tids[i] = -1;
+
+	#if (!__NANVIX_CONDVAR_SLEEP)
 		cond->locked = true;
-		cond->waiting = 0;
 	#endif  /* __NANVIX_CONDVAR_SLEEP */
 
 	return (0);
@@ -71,11 +68,7 @@ int nanvix_condvar_destroy(struct nanvix_cond_var *cond)
 		return (-EINVAL);
 	}
 
-	#if (__NANVIX_CONDVAR_SLEEP)
-		KASSERT(cond->tids[0] == -1);
-	#else
-		KASSERT(cond->waiting == 0);
-	#endif
+	KASSERT(cond->tids[0] == -1);
 
 	cond = NULL;
 
@@ -90,26 +83,27 @@ int nanvix_condvar_destroy(struct nanvix_cond_var *cond)
  * @return 0 upon successfull completion or a negative error code
  * upon failure
  */
-int nanvix_cond_wait(struct nanvix_cond_var *cond, struct nanvix_mutex *mutex) {
+int nanvix_cond_wait(struct nanvix_cond_var *cond, struct nanvix_mutex *mutex)
+{
+	kthread_t tid;
+
 	if (!cond)
 	{
 		kprintf("Invalid condition variable");
 		return (-EINVAL);
 	}
+
 	if (!mutex)
 	{
 		kprintf("Invalid mutex");
 		return (-EINVAL);
 	}
 
-	#if (__NANVIX_CONDVAR_SLEEP)
-		kthread_t tid;
-		tid = kthread_self();
-	#endif  /* __NANVIX_CONDVAR_SLEEP */
+	tid = kthread_self();
 
 	spinlock_lock(&cond->lock);
 
-	#if (__NANVIX_CONDVAR_SLEEP)
+		/* Inserts current thread in waiting list. */
 		for (int i = 0; i < THREAD_MAX; i++)
 		{
 			if (cond->tids[i] == -1)
@@ -118,39 +112,40 @@ int nanvix_cond_wait(struct nanvix_cond_var *cond, struct nanvix_mutex *mutex) {
 				break;
 			}
 		}
-	#else
-		cond->waiting++;
-	#endif  /* __NANVIX_CONDVAR_SLEEP */
 
 	spinlock_unlock(&cond->lock);
 
+	/* Releases @p mutex. */
 	nanvix_mutex_unlock(mutex);
 
 	#if (__NANVIX_CONDVAR_SLEEP)
 		ksleep();
-
-		spinlock_lock(&cond->lock);
-		for (int i = 0; i < THREAD_MAX - 1; i++)
-		{
-			cond->tids[i] = cond->tids[i + 1];
-		}
-		cond->tids[THREAD_MAX - 1] = -1;
-
 	#else
 		while (1)
 		{
 			spinlock_lock(&cond->lock);
-			if (!cond->locked)
-			{
-				cond->locked = true;
-				cond->waiting--;
-				break;
-			}
+				if ((cond->tids[0] == tid) && (!cond->locked))
+				{
+					cond->locked = true;
+					break;
+				}
 			spinlock_unlock(&cond->lock);
 		}
+
+		spinlock_unlock(&cond->lock);
 	#endif  /* __NANVIX_CONDVAR_SLEEP */
 
+	/* Remove current thread and updates waiting list. */
+	spinlock_lock(&cond->lock);
+
+		for (int i = 0; i < THREAD_MAX - 1; i++)
+			cond->tids[i] = cond->tids[i + 1];
+
+		cond->tids[THREAD_MAX - 1] = -1;
+
 	spinlock_unlock(&cond->lock);
+
+	/* Reacquire @p mutex. */
 	nanvix_mutex_lock(mutex);
 
 	return (0);
@@ -169,29 +164,28 @@ int nanvix_cond_signal(struct nanvix_cond_var *cond)
 		kprintf("Invalid condition variable");
 		return (-EINVAL);
 	}
-	#if (__NANVIX_CONDVAR_SLEEP)
-		again:
-	#endif  /* __NANVIX_CONDVAR_SLEEP */
+
+#if (__NANVIX_CONDVAR_SLEEP)
+	again:
+#endif  /* __NANVIX_CONDVAR_SLEEP */
 
 	spinlock_lock(&cond->lock);
 
-	#if (__NANVIX_CONDVAR_SLEEP)
 		if (cond->tids[0] != -1)
 		{
+		#if (__NANVIX_CONDVAR_SLEEP)
 			if (kwakeup(cond->tids[0]) != 0)
 			{
 				spinlock_unlock(&cond->lock);
 				goto again;
 			}
-		}
-	#else
-		if (cond->waiting > 0)
-		{
+		#else
 			cond->locked = false;
+		#endif /* __NANVIX_CONDVAR_SLEEP */
 		}
-	#endif  /* __NANVIX_CONDVAR_SLEEP */
 
 	spinlock_unlock(&cond->lock);
+
 	return (0);
 }
 

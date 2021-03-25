@@ -34,7 +34,7 @@
  * @brief Kernel standard input mailbox.
  */
 static int __stdinbox[THREAD_MAX + 1] = {
-	[0 ... (THREAD_MAX)] = -1
+	[0 ... THREAD_MAX] = -1
 };
 
 /**
@@ -42,7 +42,10 @@ static int __stdinbox[THREAD_MAX + 1] = {
  */
 int stdinbox_get_port(void)
 {
-	return (kthread_self() - (SYS_THREAD_MAX - 1));
+	int port = (kthread_self() - (SYS_THREAD_MAX - 1));
+
+	/* Kernel thread ? 0 else port. */
+	return ((port <= 0) ? 0 : port);
 }
 
 /**
@@ -51,14 +54,16 @@ int stdinbox_get_port(void)
 int __stdmailbox_setup(void)
 {
 	int tid;
-	int local;
 
-	if ((tid = kthread_self()) > THREAD_MAX)
+	if ((tid = stdinbox_get_port()) > (THREAD_MAX + 1))
 		return (-1);
 
-	local = knode_get_num();
+	if (__stdinbox[tid] >= 0)
+		return (__stdinbox[tid]);
 
-	return (((__stdinbox[tid] = kmailbox_create(local, stdinbox_get_port())) < 0) ? -1 : 0);
+	__stdinbox[tid] = kmailbox_create(knode_get_num(), tid);
+
+	return ((__stdinbox[tid] < 0) ? -1 : 0);
 }
 
 /**
@@ -68,7 +73,7 @@ int __stdmailbox_cleanup(void)
 {
 	int tid;
 
-	if ((tid = kthread_self()) > THREAD_MAX)
+	if ((tid = stdinbox_get_port()) > (THREAD_MAX + 1))
 		return (-1);
 
 	return (kmailbox_unlink(__stdinbox[tid]));
@@ -81,7 +86,7 @@ int stdinbox_get(void)
 {
 	int tid;
 
-	if ((tid = kthread_self()) > THREAD_MAX)
+	if ((tid = stdinbox_get_port()) > (THREAD_MAX + 1))
 		return (-1);
 
 	return (__stdinbox[tid]);

@@ -402,6 +402,26 @@ int kportal_ioctl(int portalid, unsigned request, ...)
 }
 
 /*============================================================================*
+ * kportal_get_port()                                                         *
+ *============================================================================*/
+
+/**
+ * @details Get port details.
+ */
+PUBLIC int kportal_get_port(int portalid)
+{
+	int ret; /* Return value. */
+
+	/* Invalid portalid. */
+	if (!WITHIN(portalid, 0, KPORTAL_MAX))
+		return (-EINVAL);
+
+	ret = kcomm_get_port(portalid, COMM_TYPE_PORTAL);
+
+	return (ret);
+}
+
+/*============================================================================*
  * kportal_init()                                                             *
  *============================================================================*/
 

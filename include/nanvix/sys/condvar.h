@@ -43,7 +43,12 @@
 	struct nanvix_cond_var
 	{
 		spinlock_t lock;
-		kthread_t tids[THREAD_MAX];
+		spinlock_t lock2;
+
+		int begin;                  /**< Fist valid element.    */
+		int end;                    /**< Last valid element.    */
+		int size;                   /**< Current queue size.    */
+		kthread_t tids[THREAD_MAX]; /**< Buffer.                */
 
 		#if (!__NANVIX_CONDVAR_SLEEP)
 			bool locked;

@@ -34,7 +34,7 @@
  * @brief Kernel standard input portal.
  */
 static int __stdinportal[THREAD_MAX + 1] = {
-	[0 ... (THREAD_MAX)] = -1
+	[0 ... THREAD_MAX] = -1
 };
 
 /**
@@ -42,7 +42,10 @@ static int __stdinportal[THREAD_MAX + 1] = {
  */
 int stdinportal_get_port(void)
 {
-	return (kthread_self() - (SYS_THREAD_MAX - 1));
+	int port = (kthread_self() - (SYS_THREAD_MAX - 1));
+
+	/* Kernel thread ? 0 else port. */
+	return ((port <= 0) ? 0 : port);
 }
 
 /**
@@ -51,14 +54,16 @@ int stdinportal_get_port(void)
 int __stdportal_setup(void)
 {
 	int tid;
-	int local;
 
-	if ((tid = kthread_self()) > THREAD_MAX)
+	if ((tid = stdinportal_get_port()) > (THREAD_MAX + 1))
 		return (-1);
 
-	local = knode_get_num();
+	if (__stdinportal[tid] >= 0)
+		return (__stdinportal[tid]);
 
-	return (((__stdinportal[tid] = kportal_create(local, stdinportal_get_port())) < 0) ? -1 : 0);
+	__stdinportal[tid] = kportal_create(knode_get_num(), tid);
+
+	return ((__stdinportal[tid] < 0) ? -1 : 0);
 }
 
 /**
@@ -68,7 +73,10 @@ int __stdportal_cleanup(void)
 {
 	int tid;
 
-	if ((tid = kthread_self()) > THREAD_MAX)
+	if ((tid = stdinportal_get_port()) > (THREAD_MAX + 1))
+		return (-1);
+
+	if (__stdinportal[tid] < 0)
 		return (-1);
 
 	return (kportal_unlink(__stdinportal[tid]));
@@ -81,7 +89,7 @@ int stdinportal_get(void)
 {
 	int tid;
 
-	if ((tid = kthread_self()) > THREAD_MAX)
+	if ((tid = stdinportal_get_port()) > (THREAD_MAX + 1))
 		return (-1);
 
 	return (__stdinportal[tid]);

@@ -176,6 +176,15 @@
 	 */
 	extern int kmailbox_set_remote(int, int, int);
 
+	/**
+	 * @brief Gets local port attached to a mailbox.
+	 *
+	 * @param mbxid Mailbox ID
+	 *
+	 * @returns Upon successful completion, local port attached to mbxid.
+	 */
+	extern int kmailbox_get_port(int);
+
 #endif /* NANVIX_SYS_MAILBOX_H_ */
 
 /**@}*/

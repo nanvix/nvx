@@ -173,8 +173,6 @@
 	 */
 	extern int kportal_ioctl(int portalid, unsigned request, ...);
 
-#if __NANVIX_IKC_USES_ONLY_MAILBOX
-
 	/**
 	 * @brief Gets local port attached to a portal.
 	 *
@@ -183,8 +181,6 @@
 	 * @returns Upon successful completion, local port attached to portalid.
 	 */
 	extern int kportal_get_port(int portalid);
-
-#endif /* __NANVIX_IKC_USES_ONLY_MAILBOX */
 
 #endif /* NANVIX_SYS_PORTAL_H_ */
 

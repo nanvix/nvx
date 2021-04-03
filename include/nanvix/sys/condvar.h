@@ -51,36 +51,54 @@
 	};
 
 	/**
-	 * @brief Initializes a condition variable
-	 * @param cond Condition variable to be initialized
-	 * @return 0 if the condition variable was sucessfully initialized
-	 * or a negative code error if an error occurred
+	 * @brief Initializes a condition variable.
+	 *
+	 * @param cond Condition variable to be initialized.
+	 *
+	 * @returns 0 if the condition variable was sucessfully initialized
+	 * or a negative code error if an error occurred.
 	 */
 	extern int nanvix_cond_init(struct nanvix_cond_var *cond);
 
 	/**
-	 * @brief Block thread on a condition variable
-	 * @param cond Condition variable to wait for
-	 * @param mutex Mutex unlocked when waiting for a signal and locked when
-	 * the funtion returns after a cond_signal call
-	 * @return 0 upon successfull completion or a negative error code
-	 * upon failure
+	 * @brief Block thread on a condition variable.
+	 *
+	 * @param cond  Condition variable to wait for.
+	 * @param mutex Target mutex unlocked when waiting for a signal and locked when
+	 * after a cond_signal call.
+	 *
+	 * @returns 0 upon successfull completion or a negative error code
+	 * upon failure.
 	 */
 	extern int nanvix_cond_wait(struct nanvix_cond_var *cond, struct nanvix_mutex *mutex);
 
 	/**
-	 * @brief Unclock thread blocked on a condition variable
-	 * @param cond Condition variable to signal
-	 * @return 0 upon successfull completion or a negative error code
-	 * upon failure
+	 * @brief Unlock the first thread blocked on a condition variable.
+	 *
+	 * @param cond Condition variable to be signaled.
+	 *
+	 * @returns 0 upon successfull completion or a negative error code
+	 * upon failure.
 	 */
 	extern int nanvix_cond_signal(struct nanvix_cond_var *cond);
 
 	/**
-	 * @brief Destroy a condition variable
-	 * @param cond Condition variable to destroy
-	 * @return 0 upon successfull completion or a negative error code
-	 * upon failure
+	 * @brief Unlocks all threads blocked on a condition variable.
+	 *
+	 * @param cond Condition variable to be signaled.
+	 *
+	 * @returns Upon successful completion, zero is returned. Upon failure,
+	 * a negative error code is returned instead.
+	 */
+	extern int nanvix_cond_broadcast(struct nanvix_cond_var *cond);
+
+	/**
+	 * @brief Destroy a condition variable.
+	 *
+	 * @param cond Condition variable to destroy.
+	 *
+	 * @returns 0 upon successfull completion or a negative error code
+	 * upon failure.
 	 */
 	extern int nanvix_condvar_destroy(struct nanvix_cond_var *cond);
 

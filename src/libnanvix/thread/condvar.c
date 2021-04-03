@@ -189,4 +189,44 @@ int nanvix_cond_signal(struct nanvix_cond_var *cond)
 	return (0);
 }
 
+/**
+ * @brief Unlocks all threads blocked on a condition variable.
+ *
+ * @param cond Condition variable to be signaled.
+ *
+ * @returns Upon successful completion, zero is returned. Upon failure,
+ * a negative error code is returned instead.
+ */
+PUBLIC int nanvix_cond_broadcast(struct nanvix_cond_var *cond)
+{
+	if (!cond)
+	{
+		kprintf("Invalid condition variable");
+		return (-EINVAL);
+	}
+
+#if (__NANVIX_CONDVAR_SLEEP)
+	again:
+#endif  /* __NANVIX_CONDVAR_SLEEP */
+
+	spinlock_lock(&cond->lock);
+
+		while (cond->tids[0] != -1)
+		{
+		#if (__NANVIX_CONDVAR_SLEEP)
+			if (kwakeup(cond->tids[0]) != 0)
+			{
+				spinlock_unlock(&cond->lock);
+				goto again;
+			}
+		#else
+			cond->locked = false;
+		#endif /* __NANVIX_CONDVAR_SLEEP */
+		}
+
+	spinlock_unlock(&cond->lock);
+
+	return (0);
+}
+
 #endif  /* CORES_NUM */

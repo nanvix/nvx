@@ -146,6 +146,7 @@ static struct test condition_variables_tests_stress[] = {
 void test_condition_variables(void)
 {
 	/* API Tests */
+	nanvix_puts("--------------------------------------------------------------------------------");
 	for (int i = 0; condition_variables_tests_api[i].test_fn != NULL; i++)
 	{
 		condition_variables_tests_api[i].test_fn();

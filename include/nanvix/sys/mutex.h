@@ -41,6 +41,7 @@
 	#define NANVIX_MUTEX_ERRORCHECK 1
 	#define NANVIX_MUTEX_RECURSIVE  2
 	#define NANVIX_MUTEX_DEFAULT    3
+	#define NANVIX_MUTEX_LIMIT      4
 
 	/**
 	 * @brief Mutex Attribute

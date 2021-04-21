@@ -105,7 +105,7 @@
 	 * @returns 0 upon successfull completion or a negative error code
 	 * upon failure.
 	 */
-	extern int nanvix_condvar_destroy(struct nanvix_cond_var *cond);
+	extern int nanvix_cond_destroy(struct nanvix_cond_var *cond);
 
 #endif  /* CORES_NUM */
 

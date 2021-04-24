@@ -30,19 +30,24 @@
 
 /**
  * @brief Initializes a condition variable
+ *
  * @param cond Condition variable to be initialized
+ *
  * @return 0 if the condition variable was sucessfully initialized
  * or a negative code error if an error occurred
  */
-int nanvix_cond_init(struct nanvix_cond_var *cond)
+PUBLIC int nanvix_cond_init(struct nanvix_cond_var * cond)
 {
+	/* Invalid argument. */
 	if (!cond)
-	{
-		kprintf("Invalid condition variable");
 		return (-EINVAL);
-	}
 
 	spinlock_init(&cond->lock);
+	spinlock_init(&cond->lock2);
+
+	cond->begin = 0;
+	cond->end   = 0;
+	cond->size  = 0;
 
 	for (int i = 0; i < THREAD_MAX; i++)
 		cond->tids[i] = -1;
@@ -56,19 +61,19 @@ int nanvix_cond_init(struct nanvix_cond_var *cond)
 
 /**
  * @brief Destroy a condition variable
+ *
  * @param cond Condition variable to destroy
+ *
  * @return 0 upon successfull completion or a negative error code
  * upon failure
  */
-int nanvix_condvar_destroy(struct nanvix_cond_var *cond)
+PUBLIC int nanvix_cond_destroy(struct nanvix_cond_var * cond)
 {
+	/* Invalid argument. */
 	if (!cond)
-	{
-		kprintf("Invalid condition variable");
 		return (-EINVAL);
-	}
 
-	KASSERT(cond->tids[0] == -1);
+	KASSERT(cond->size == 0);
 
 	cond = NULL;
 
@@ -77,41 +82,31 @@ int nanvix_condvar_destroy(struct nanvix_cond_var *cond)
 
 /**
  * @brief Block thread on a condition variable
+ *
  * @param cond Condition variable to wait for
  * @param mutex Mutex unlocked when waiting for a signal and locked when
  * the funtion return after a cond_signal call
+ *
  * @return 0 upon successfull completion or a negative error code
  * upon failure
  */
-int nanvix_cond_wait(struct nanvix_cond_var *cond, struct nanvix_mutex *mutex)
+PUBLIC int nanvix_cond_wait(struct nanvix_cond_var * cond, struct nanvix_mutex * mutex)
 {
 	kthread_t tid;
 
-	if (!cond)
-	{
-		kprintf("Invalid condition variable");
+	/* Invalid arguments. */
+	if (!cond || !mutex)
 		return (-EINVAL);
-	}
-
-	if (!mutex)
-	{
-		kprintf("Invalid mutex");
-		return (-EINVAL);
-	}
 
 	tid = kthread_self();
 
 	spinlock_lock(&cond->lock);
 
-		/* Inserts current thread in waiting list. */
-		for (int i = 0; i < THREAD_MAX; i++)
-		{
-			if (cond->tids[i] == -1)
-			{
-				cond->tids[i] = tid;
-				break;
-			}
-		}
+		KASSERT(cond->size < THREAD_MAX);
+
+		cond->end             = (cond->end + 1) % THREAD_MAX;
+		cond->tids[cond->end] = tid;
+		cond->size++;
 
 	spinlock_unlock(&cond->lock);
 
@@ -124,7 +119,7 @@ int nanvix_cond_wait(struct nanvix_cond_var *cond, struct nanvix_mutex *mutex)
 		while (1)
 		{
 			spinlock_lock(&cond->lock);
-				if ((cond->tids[0] == tid) && (!cond->locked))
+				if ((cond->tids[cond->begin] == tid) && (!cond->locked))
 				{
 					cond->locked = true;
 					break;
@@ -135,16 +130,6 @@ int nanvix_cond_wait(struct nanvix_cond_var *cond, struct nanvix_mutex *mutex)
 		spinlock_unlock(&cond->lock);
 	#endif  /* __NANVIX_CONDVAR_SLEEP */
 
-	/* Remove current thread and updates waiting list. */
-	spinlock_lock(&cond->lock);
-
-		for (int i = 0; i < THREAD_MAX - 1; i++)
-			cond->tids[i] = cond->tids[i + 1];
-
-		cond->tids[THREAD_MAX - 1] = -1;
-
-	spinlock_unlock(&cond->lock);
-
 	/* Reacquire @p mutex. */
 	nanvix_mutex_lock(mutex);
 
@@ -153,38 +138,61 @@ int nanvix_cond_wait(struct nanvix_cond_var *cond, struct nanvix_mutex *mutex)
 
 /**
  * @brief Unclock thread blocked on a condition variable
+ *
  * @param cond Condition variable to signal
+ *
  * @return 0 upon successfull completion or a negative error code
  * upon failure
  */
-int nanvix_cond_signal(struct nanvix_cond_var *cond)
+PUBLIC int nanvix_cond_signal(struct nanvix_cond_var * cond)
 {
+#if (__NANVIX_CONDVAR_SLEEP)
+	kthread_t head = -1;
+#endif
+
+	/* Invalid argument. */
 	if (!cond)
-	{
-		kprintf("Invalid condition variable");
 		return (-EINVAL);
-	}
+
+	spinlock_lock(&cond->lock2);
+
+		spinlock_lock(&cond->lock);
+
+			/**
+			 * Remove the head of the queue.
+			 */
+			if (cond->size > 0)
+			{
+				/* Move to the next thread. */
+				cond->begin = (cond->begin + 1) % THREAD_MAX;
+				cond->size--;
 
 #if (__NANVIX_CONDVAR_SLEEP)
-	again:
+				head        = cond->tids[cond->begin];
+#endif
+			}
+
+#if (!__NANVIX_CONDVAR_SLEEP)
+			cond->locked = false;
+#endif
+
+		spinlock_unlock(&cond->lock);
+
+#if (__NANVIX_CONDVAR_SLEEP)
+
+		/**
+		 * May be we need try to wakeup a thread more than one time because it
+		 * is not an atomic sleep/wakeup.
+		 *
+		 * Obs.: We release the primary lock because we don't need garantee
+		 * that the head thread gets the mutex.
+		 */
+		if (head != -1)
+			while (LIKELY(kwakeup(head) != 0));
+
 #endif  /* __NANVIX_CONDVAR_SLEEP */
 
-	spinlock_lock(&cond->lock);
-
-		if (cond->tids[0] != -1)
-		{
-		#if (__NANVIX_CONDVAR_SLEEP)
-			if (kwakeup(cond->tids[0]) != 0)
-			{
-				spinlock_unlock(&cond->lock);
-				goto again;
-			}
-		#else
-			cond->locked = false;
-		#endif /* __NANVIX_CONDVAR_SLEEP */
-		}
-
-	spinlock_unlock(&cond->lock);
+	spinlock_unlock(&cond->lock2);
 
 	return (0);
 }
@@ -197,36 +205,63 @@ int nanvix_cond_signal(struct nanvix_cond_var *cond)
  * @returns Upon successful completion, zero is returned. Upon failure,
  * a negative error code is returned instead.
  */
-PUBLIC int nanvix_cond_broadcast(struct nanvix_cond_var *cond)
+PUBLIC int nanvix_cond_broadcast(struct nanvix_cond_var * cond)
 {
+	int initial;
+#if (__NANVIX_CONDVAR_SLEEP)
+	kthread_t head = -1;
+#endif
+
+	/* Invalid argument. */
 	if (!cond)
-	{
-		kprintf("Invalid condition variable");
 		return (-EINVAL);
-	}
+
+	spinlock_lock(&cond->lock2);
+		spinlock_lock(&cond->lock);
+
+			initial = cond->size;
+
+			while (initial > 0 && cond->size > 0)
+			{
+				/* Remove the head of the queue. */
+				cond->begin = (cond->begin + 1) % THREAD_MAX;
+				cond->size--;
 
 #if (__NANVIX_CONDVAR_SLEEP)
-	again:
+				head = cond->tids[cond->begin];
+
+				spinlock_unlock(&cond->lock);
+
+					/**
+					 * May be we need try to wakeup a thread more than one time
+					 * because it is not an atomic sleep/wakeup.
+					 *
+					 * Obs.: We release the primary lock because we don't need
+					 * garantee that the head thread gets the mutex.
+					 */
+					if (head != -1)
+						while (LIKELY(kwakeup(head) != 0));
+
+				spinlock_lock(&cond->lock);
+#else
+				cond->locked = false;
+
+				/* While thread does wakeup. */
+				while (!cond->locked)
+				{
+					spinlock_unlock(&cond->lock);
+					spinlock_lock(&cond->lock);
+				}
 #endif  /* __NANVIX_CONDVAR_SLEEP */
 
-	spinlock_lock(&cond->lock);
-
-		while (cond->tids[0] != -1)
-		{
-		#if (__NANVIX_CONDVAR_SLEEP)
-			if (kwakeup(cond->tids[0]) != 0)
-			{
-				spinlock_unlock(&cond->lock);
-				goto again;
+				--initial;
 			}
-		#else
-			cond->locked = false;
-		#endif /* __NANVIX_CONDVAR_SLEEP */
-		}
 
-	spinlock_unlock(&cond->lock);
+		spinlock_unlock(&cond->lock);
+	spinlock_unlock(&cond->lock2);
 
 	return (0);
 }
 
-#endif  /* CORES_NUM */
+#endif /* CORES_NUM */
+

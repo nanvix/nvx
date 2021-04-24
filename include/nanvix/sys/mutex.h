@@ -41,6 +41,7 @@
 	#define NANVIX_MUTEX_ERRORCHECK 1
 	#define NANVIX_MUTEX_RECURSIVE  2
 	#define NANVIX_MUTEX_DEFAULT    3
+	#define NANVIX_MUTEX_LIMIT      4
 
 	/**
 	 * @brief Mutex Attribute
@@ -63,7 +64,12 @@
 
 		#if (__NANVIX_MUTEX_SLEEP)
 
-			kthread_t tids[THREAD_MAX]; /**< Sleeping threads. */
+			int begin;                  /**< Fist valid element.    */
+			int end;                    /**< Last valid element.    */
+			int size;                   /**< Current queue size.    */
+			kthread_t tids[THREAD_MAX]; /**< Buffer.                */
+
+			spinlock_t lock2;           /**< Exclusive unlock call. */
 
 		#endif /* __NANVIX_MUTEX_SLEEP */
 	};

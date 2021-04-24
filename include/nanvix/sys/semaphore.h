@@ -46,7 +46,12 @@
 
 		#if (__NANVIX_SEMAPHORE_SLEEP)
 
-			kthread_t tids[THREAD_MAX]; /**< Sleeping threads. */
+			int begin;                  /**< Fist valid element.    */
+			int end;                    /**< Last valid element.    */
+			int size;                   /**< Current queue size.    */
+			kthread_t tids[THREAD_MAX]; /**< Buffer.                */
+
+			spinlock_t lock2;           /**< Exclusive unlock call. */
 
 		#endif /* __NANVIX_SEMAPHORE_SLEEP */
 	};

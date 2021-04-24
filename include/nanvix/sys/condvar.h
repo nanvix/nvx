@@ -43,7 +43,12 @@
 	struct nanvix_cond_var
 	{
 		spinlock_t lock;
-		kthread_t tids[THREAD_MAX];
+		spinlock_t lock2;
+
+		int begin;                  /**< Fist valid element.    */
+		int end;                    /**< Last valid element.    */
+		int size;                   /**< Current queue size.    */
+		kthread_t tids[THREAD_MAX]; /**< Buffer.                */
 
 		#if (!__NANVIX_CONDVAR_SLEEP)
 			bool locked;
@@ -100,7 +105,7 @@
 	 * @returns 0 upon successfull completion or a negative error code
 	 * upon failure.
 	 */
-	extern int nanvix_condvar_destroy(struct nanvix_cond_var *cond);
+	extern int nanvix_cond_destroy(struct nanvix_cond_var *cond);
 
 #endif  /* CORES_NUM */
 

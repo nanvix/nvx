@@ -26,6 +26,13 @@
 #include "test.h"
 
 /**
+ * @name Auxiliar Constants
+ */
+/**@{*/
+#define TEST_EXPECTED_VALUE (0xc0ffee) /**< Default value. */
+/**@}*/
+
+/**
  * @name Extra Tests
  */
 /**@{*/
@@ -34,11 +41,6 @@
 #define UTEST_KTHREAD_BAD_JOIN  0 /**< Test bad thread join?     */
 #define UTEST_KTHREAD_BAD_EXIT  0 /**< Test bad thread exit?     */
 /**@}*/
-
-/**
- * @brief Expected value used on thread return tests.
- */
-#define TEST_EXPECTED_VALUE 0xc0ffee
 
 /**
  * @brief Dummy task.
@@ -77,7 +79,9 @@ static void *fence_task(void *arg)
 	while (!release)
 	{
 		spinlock_lock(&lock_tt);
+
 			release = release_tt;
+
 		spinlock_unlock(&lock_tt);
 	}
 
@@ -91,7 +95,7 @@ static void *fence_task(void *arg)
  */
 static void *yield_task(void *arg)
 {
-	int a;
+	uint64_t a;
 
 	UNUSED(arg);
 
@@ -130,6 +134,86 @@ static void * return_value_task(void *arg)
 	UNUSED(arg);
 
 	return ((void *) TEST_EXPECTED_VALUE);
+}
+
+/**
+ * @brief One counter for each thread.
+ */
+PRIVATE volatile int sched_counter = 0;
+
+/**
+ * @brief Sched task.
+ *
+ * @param arg Unused argument.
+ */
+static void *sched_task(void *arg)
+{
+	int busy;
+	bool exit;
+
+	UNUSED(arg);
+
+	spinlock_lock(&lock_tt);
+
+		busy = 1000;
+		while (busy--);
+
+		++sched_counter;
+
+		busy = 1000;
+		while (busy--);
+
+	spinlock_unlock(&lock_tt);
+
+	exit = false;
+
+	while (!exit)
+	{
+		/* Shared region. */
+		spinlock_lock(&lock_tt);
+
+			busy = 1000;
+			while (busy--);
+
+			exit = (sched_counter == NTHREADS);
+
+			busy = 1000;
+			while (busy--);
+
+		spinlock_unlock(&lock_tt);
+	}
+
+	return (NULL);
+ }
+
+/**
+ * @brief Yield task.
+ *
+ * @param arg Unused argument.
+ */
+static void *affinity_task(void *arg)
+{
+	int curr_coreid;
+	int next_coreid;
+
+	UNUSED(arg);
+
+	curr_coreid = core_get_id();
+	next_coreid = curr_coreid == 1 ? 2 : 1;
+
+	KASSERT(kthread_set_affinity(1 << curr_coreid) == KTHREAD_AFFINITY_DEFAULT);
+
+	KASSERT(core_get_id() == curr_coreid);
+
+	KASSERT(kthread_set_affinity(1 << next_coreid) == (1 << curr_coreid));
+
+	KASSERT(core_get_id() == next_coreid);
+
+	KASSERT(kthread_set_affinity(KTHREAD_AFFINITY_DEFAULT) == (1 << next_coreid));
+
+	KASSERT(core_get_id() == next_coreid);
+
+	return (NULL);
 }
 
 /*============================================================================*
@@ -177,6 +261,24 @@ static void test_api_kthread_yield(void)
 
 	/* Spawn thread. */
 	test_assert(kthread_create(&tid, yield_task, NULL) == 0);
+
+	/* Wait for thread. */
+	test_assert(kthread_join(tid, NULL) == 0);
+
+#endif
+}
+
+/**
+ * @brief API test for thread affinity.
+ */
+static void test_api_kthread_affinity(void)
+{
+#if ((THREAD_MAX > 1) && CORE_SUPPORTS_MULTITHREADING && !__NANVIX_MICROKERNEL_STATIC_SCHED)
+
+	kthread_t tid;
+
+	/* Spawn thread. */
+	test_assert(kthread_create(&tid, affinity_task, NULL) == 0);
 
 	/* Wait for thread. */
 	test_assert(kthread_join(tid, NULL) == 0);
@@ -259,6 +361,45 @@ static void test_api_kthread_return_pointer(void)
 
 	/* The value must be the expected value. */
 	test_assert(*retval == TEST_EXPECTED_VALUE);
+
+#endif
+}
+
+/**
+ * @brief API test for thread stats.
+ */
+static void test_api_kthread_stats(void)
+{
+#if (CORE_SUPPORTS_MULTITHREADING)
+
+	kthread_t tid;
+	uint64_t t0 = 0ULL;
+	uint64_t t1 = 0ULL;
+
+	tid = kthread_self();
+
+#if __NANVIX_MICROKERNEL_THREAD_STATS
+
+	/* Gets old time. */
+	test_assert(kthread_stats(tid, &t0, KTHREAD_STATS_EXEC_TIME) == 0);
+
+	/* Reset time. */
+	test_assert(kthread_stats(tid, NULL, KTHREAD_STATS_EXEC_TIME) == 0);
+
+	/* Gets new time. */
+	test_assert(kthread_stats(tid, &t1, KTHREAD_STATS_EXEC_TIME) == 0);
+
+	test_assert(t0 != 0ULL);
+	test_assert(t1 != 0ULL);
+	test_assert(t1 < t0);
+
+#else
+
+	test_assert(kthread_stats(tid, &t0, KTHREAD_STATS_EXEC_TIME)  < 0);
+	test_assert(kthread_stats(tid, NULL, KTHREAD_STATS_EXEC_TIME) < 0);
+	UNUSED(t1);
+
+#endif
 
 #endif
 }
@@ -347,6 +488,39 @@ static void test_fault_kthread_join_bad(void)
 #endif
 }
 
+/**
+ * @brief Fault Test: Bad Affinity
+ */
+static void test_fault_kthread_affinity(void)
+{
+#if (CORE_SUPPORTS_MULTITHREADING && !__NANVIX_MICROKERNEL_STATIC_SCHED)
+
+	test_assert(kthread_set_affinity(0) < 0);
+	test_assert(kthread_set_affinity(1 << CORES_NUM) < 0);
+
+#endif
+}
+
+/**
+ * @brief Fault test for thread stats.
+ */
+static void test_fault_kthread_stats(void)
+{
+#if (CORE_SUPPORTS_MULTITHREADING)
+
+	uint64_t t0 = 0ULL;
+
+	/* Invalid stat. */
+	test_assert(kthread_stats(kthread_self(), &t0, -1) < 0);
+
+	/* Invalid thread. */
+	test_assert(kthread_stats(-1, &t0, KTHREAD_STATS_EXEC_TIME) < 0);
+
+	/* All Invalid. */
+	test_assert(kthread_stats(-1, NULL, -1) < 0);
+
+#endif
+}
 /*============================================================================*
  * Stress Testing Units                                                       *
  *============================================================================*/
@@ -425,6 +599,31 @@ static void test_stress_kthread_yield(void)
 #endif
 }
 
+/**
+ * @brief Stress test for thread scheduler.
+ */
+static void test_stress_kthread_scheduler(void)
+{
+#if (THREAD_MAX > 2 && CORE_SUPPORTS_MULTITHREADING)
+
+	for (int j = 0; j < NITERATIONS; j++)
+	{
+		kthread_t tid[NTHREADS];
+
+		sched_counter = 0;
+
+		/* Spawn threads. */
+		for (int i = 0; i < NTHREADS; i++)
+			test_assert(kthread_create(&tid[i], sched_task, NULL) == 0);
+
+		/* Wait for threads. */
+		for (int i = 0; i < NTHREADS; i++)
+			test_assert(kthread_join(tid[i], NULL) == 0);
+	}
+
+#endif
+}
+
 /*============================================================================*
  * Test Driver                                                                *
  *============================================================================*/
@@ -436,6 +635,8 @@ static struct test thread_mgmt_tests_api[] = {
 	{ test_api_kthread_self,           "[test][thread][api] thread identification       [passed]" },
 	{ test_api_kthread_create,         "[test][thread][api] thread creation/termination [passed]" },
 	{ test_api_kthread_yield,          "[test][thread][api] thread yield                [passed]" },
+	{ test_api_kthread_affinity,       "[test][thread][api] thread affinity             [passed]" },
+	{ test_api_kthread_stats,          "[test][thread][api] thread stats                [passed]" },
 	{ test_api_kthread_return_null,    "[test][thread][api] thread return null          [passed]" },
 	{ test_api_kthread_return_value,   "[test][thread][api] thread return value         [passed]" },
 	{ test_api_kthread_return_pointer, "[test][thread][api] thread return pointer       [passed]" },
@@ -450,6 +651,8 @@ static struct test thread_mgmt_tests_fault[] = {
 	{ test_fault_kthread_create_bad,      "[test][thread][fault] bad thread create     [passed]" },
 	{ test_fault_kthread_join_invalid,    "[test][thread][fault] invalid thread join   [passed]" },
 	{ test_fault_kthread_join_bad,        "[test][thread][fault] bad thread join       [passed]" },
+	{ test_fault_kthread_affinity,        "[test][thread][fault] bad affinity          [passed]" },
+	{ test_fault_kthread_stats,           "[test][thread][fault] bad stats             [passed]" },
 	{ NULL,                                NULL                                                  },
 };
 
@@ -457,10 +660,11 @@ static struct test thread_mgmt_tests_fault[] = {
  * @brief Stress tests.
  */
 static struct test thread_mgmt_tests_stress[] = {
-	{ test_stress_kthread_create_overflow, "[test][thread][stress] thread creation overflow          [passed]" },
-	{ test_stress_kthread_create,          "[test][thread][stress] thread creation/termination       [passed]" },
-	{ test_stress_kthread_create,          "[test][thread][stress] thread creation/termination yield [passed]" },
-	{ NULL,                                 NULL                                                               },
+	{ test_stress_kthread_create_overflow, "[test][thread][stress] thread creation overflow              [passed]" },
+	{ test_stress_kthread_create,          "[test][thread][stress] thread creation/termination           [passed]" },
+	{ test_stress_kthread_yield,           "[test][thread][stress] thread creation/termination yield     [passed]" },
+	{ test_stress_kthread_scheduler,       "[test][thread][stress] thread creation/termination scheduler [passed]" },
+	{ NULL,                                 NULL                                                                   },
 };
 
 /**
@@ -494,3 +698,4 @@ void test_thread_mgmt(void)
 		nanvix_puts(thread_mgmt_tests_stress[i].name);
 	}
 }
+

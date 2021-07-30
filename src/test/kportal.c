@@ -69,6 +69,8 @@
 /**{*/
 #define TEST_THREAD_MAX          (CORES_NUM - 1)
 #define TEST_THREAD_PORTALID_NUM ((TEST_THREAD_NPORTS / TEST_THREAD_MAX) + 1)
+#define TEST_CORE_AFFINITY       (1)
+#define TEST_THREAD_AFFINITY     (1 << TEST_CORE_AFFINITY)
 /**}*/
 
 /*============================================================================*
@@ -2221,6 +2223,121 @@ PRIVATE void test_stress_portal_thread_multiplexing_pingpong(void)
 }
 
 /*============================================================================*
+ * Stress Test: Portal Thread Multiplexing Affinity                           *
+ *============================================================================*/
+
+#define PPORT(x) (tid + x * TEST_THREAD_MAX)
+
+/**
+ * @brief Stress Test: Portal Thread Multiplexing Affinity
+ */
+PRIVATE void * do_thread_multiplexing_affinity(void * arg)
+{
+	int tid;
+	int local;
+	int remote;
+	int nports;
+	int inportals[TEST_THREAD_PORTALID_NUM];
+	int outportals[TEST_THREAD_PORTALID_NUM];
+	char * msg;
+
+	test_assert(kthread_set_affinity(TEST_THREAD_AFFINITY) > 0);
+	test_assert(core_get_id() == TEST_CORE_AFFINITY);
+
+	tid = ((int)(intptr_t) arg);
+	msg = message_in[tid];
+
+	local  = knode_get_num();
+	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	for (int i = 0; i < NSETUPS_AFFINITY; ++i)
+	{
+		nports = 0;
+		for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
+		{
+			if (j == (tid + nports * TEST_THREAD_MAX))
+			{
+				test_assert((inportals[nports] = kportal_create(local, j)) >= 0);
+				test_assert((outportals[nports] = kportal_open(local, remote, j)) >= 0);
+				nports++;
+			}
+
+			nanvix_fence(&_fence);
+		}
+
+		if (local == MASTER_NODENUM)
+		{
+			for (int j = 0; j < NCOMMS_AFFINITY; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+				{
+					kmemset(msg, -1, PORTAL_SIZE);
+					test_assert(kportal_allow(inportals[k], remote, (tid + k * TEST_THREAD_MAX)) >= 0);
+					test_assert(kportal_read(inportals[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+					for (int l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(msg[l] == remote);
+
+					test_assert(kportal_write(outportals[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
+				}
+
+				nanvix_fence(&_fence);
+			}
+		}
+		else
+		{
+			for (int j = 0; j < NCOMMS_AFFINITY; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+				{
+					test_assert(kportal_write(outportals[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
+
+					kmemset(msg, -1, PORTAL_SIZE);
+					test_assert(kportal_allow(inportals[k], remote, (tid + k * TEST_THREAD_MAX)) >= 0);
+					test_assert(kportal_read(inportals[k], msg, PORTAL_SIZE) == PORTAL_SIZE);
+					for (int l = 0; l < PORTAL_SIZE; ++l)
+						test_assert(msg[l] == remote);
+				}
+
+				nanvix_fence(&_fence);
+			}
+		}
+
+		for (int j = 0; j < nports; ++j)
+		{
+			test_assert(kportal_close(outportals[j]) == 0);
+			test_assert(kportal_unlink(inportals[j]) == 0);
+		}
+
+		nanvix_fence(&_fence);
+	}
+
+	return (NULL);
+}
+
+/**
+ * @brief Stress Test: Portal Thread Multiplexing Affinity
+ */
+PRIVATE void test_stress_portal_thread_multiplexing_affinity(void)
+{
+	kthread_t tid[TEST_THREAD_MAX - 1];
+
+	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
+	nanvix_fence_init(&_fence, TEST_THREAD_MAX);
+
+	/* Create threads. */
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
+		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_affinity, ((void *)(intptr_t) i)) == 0);
+
+	do_thread_multiplexing_affinity(0);
+
+	/* Join threads. */
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
+		test_assert(kthread_join(tid[i - 1], NULL) == 0);
+
+	test_assert(kthread_set_affinity(KTHREAD_AFFINITY_DEFAULT) == TEST_THREAD_AFFINITY);
+}
+
+/*============================================================================*
  * Stress Test: Portal Thread Multiplexing Broadcast Local                    *
  *============================================================================*/
 
@@ -2500,6 +2617,9 @@ PRIVATE struct test portal_tests_stress[] = {
 	{ test_stress_portal_thread_multiplexing_broadcast,       "[test][portal][stress] portal thread multiplexing broadcast       [passed]" },
 	{ test_stress_portal_thread_multiplexing_gather,          "[test][portal][stress] portal thread multiplexing gather          [passed]" },
 	{ test_stress_portal_thread_multiplexing_pingpong,        "[test][portal][stress] portal thread multiplexing ping-pong       [passed]" },
+#if (CORE_SUPPORTS_MULTITHREADING && !__NANVIX_MICROKERNEL_STATIC_SCHED)
+	{ test_stress_portal_thread_multiplexing_affinity,        "[test][portal][stress] portal thread multiplexing affinity        [passed]" },
+#endif
 	{ test_stress_portal_thread_multiplexing_broadcast_local, "[test][portal][stress] portal thread multiplexing broadcast local [passed]" },
 	{ test_stress_portal_thread_multiplexing_gather_local,    "[test][portal][stress] portal thread multiplexing gather local    [passed]" },
 	{ NULL,                                                    NULL                                                                        },

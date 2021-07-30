@@ -67,9 +67,11 @@
  * @name Threads 
  */
 /**{*/
-#define TEST_THREAD_MAX        (CORES_NUM - 1)
+#define TEST_THREAD_MAX       (CORES_NUM - 1)
 #define TEST_THREAD_SPECIFIED 3
 #define TEST_THREAD_MBXID_NUM ((TEST_THREAD_NPORTS / TEST_THREAD_MAX) + 1)
+#define TEST_CORE_AFFINITY    (1)
+#define TEST_THREAD_AFFINITY  (1 << TEST_CORE_AFFINITY)
 /**}*/
 
 /*============================================================================*
@@ -1750,6 +1752,49 @@ static void test_stress_mailbox_thread_specified_source(void)
 }
 
 /*============================================================================*
+ * Stress Test: Thread Specified Affinity                                     *
+ *============================================================================*/
+
+PRIVATE void * do_thread_specified_affinity(void * arg)
+{
+	test_assert(kthread_set_affinity(TEST_THREAD_AFFINITY) > 0);
+
+	test_assert(core_get_id() == TEST_CORE_AFFINITY);
+
+	return (do_thread_specified_source(arg));
+}
+
+/**
+ * @brief Stress Test: Specified Thread Affinity
+ */
+static void test_stress_mailbox_thread_specified_affinity(void)
+{
+	int local;
+	kthread_t tid[TEST_THREAD_SPECIFIED - 1];
+
+	local = knode_get_num();
+
+	if (local == SLAVE_NODENUM)
+	{
+		nanvix_fence_init(&_fence, TEST_THREAD_SPECIFIED);
+
+		/* Create threads. */
+		for (int i = 1; i < TEST_THREAD_SPECIFIED; ++i)
+			test_assert(kthread_create(&tid[i - 1], do_thread_specified_affinity, ((void *)(intptr_t) i)) == 0);
+
+		do_thread_specified_affinity(0);
+
+		/* Join threads. */
+		for (int i = 1; i < TEST_THREAD_SPECIFIED; ++i)
+			test_assert(kthread_join(tid[i - 1], NULL) == 0);
+	}
+	else if (local == MASTER_NODENUM)
+		do_thread_specified_affinity(0);
+
+	test_assert(kthread_set_affinity(KTHREAD_AFFINITY_DEFAULT) == TEST_THREAD_AFFINITY);
+}
+
+/*============================================================================*
  * Stress Test: Mailbox Thread Multiplexing Broadcast                         *
  *============================================================================*/
 
@@ -2062,6 +2107,119 @@ PRIVATE void test_stress_mailbox_thread_multiplexing_pingpong(void)
 }
 
 /*============================================================================*
+ * Stress Test: Mailbox Thread Multiplexing Affinity                          *
+ *============================================================================*/
+
+#define PPORT(x) (tid + x * TEST_THREAD_MAX)
+
+/**
+ * @brief Stress Test: Mailbox Thread Multiplexing Ping-Pong
+ */
+PRIVATE void * do_thread_multiplexing_affinity(void * arg)
+{
+	int tid;
+	int local;
+	int remote;
+	int nports;
+	int inboxes[TEST_THREAD_MBXID_NUM];
+	int outboxes[TEST_THREAD_MBXID_NUM];
+	char msg_in[KMAILBOX_MESSAGE_SIZE];
+	char msg_out[KMAILBOX_MESSAGE_SIZE];
+
+	/* Change affinity. */
+	test_assert(kthread_set_affinity(TEST_THREAD_AFFINITY) > 0);
+	test_assert(core_get_id() == TEST_CORE_AFFINITY);
+
+	tid = ((int)(intptr_t) arg);
+
+	local = knode_get_num();
+	remote = local == MASTER_NODENUM ? SLAVE_NODENUM : MASTER_NODENUM;
+
+	msg_out[0] = local;
+
+	for (int i = 0; i < NSETUPS_AFFINITY; ++i)
+	{
+		nports = 0;
+		for (int j = 0; j < TEST_THREAD_NPORTS; ++j)
+		{
+			if (j == (tid + nports * TEST_THREAD_MAX))
+			{
+				test_assert((inboxes[nports] = kmailbox_create(local, j)) >= 0);
+				test_assert((outboxes[nports] = kmailbox_open(remote, j)) >= 0);
+				nports++;
+			}
+
+			nanvix_fence(&_fence);
+		}
+
+		if (local == MASTER_NODENUM)
+		{
+			for (int j = 0; j < NCOMMS_AFFINITY; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+				{
+					msg_in[0] = local;
+					test_assert(kmailbox_read(inboxes[k], msg_in, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+					test_assert(msg_in[0] == remote);
+
+					test_assert(kmailbox_write(outboxes[k], msg_out, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+				}
+
+				nanvix_fence(&_fence);
+			}
+		}
+		else
+		{
+			for (int j = 0; j < NCOMMS_AFFINITY; ++j)
+			{
+				for (int k = 0; k < nports; ++k)
+				{
+					test_assert(kmailbox_write(outboxes[k], msg_out, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+
+					msg_in[0] = local;
+					test_assert(kmailbox_read(inboxes[k], msg_in, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
+					test_assert(msg_in[0] == remote);
+				}
+
+				nanvix_fence(&_fence);
+			}
+		}
+
+		for (int j = 0; j < nports; ++j)
+		{
+			test_assert(kmailbox_close(outboxes[j]) == 0);
+			test_assert(kmailbox_unlink(inboxes[j]) == 0);
+		}
+
+		nanvix_fence(&_fence);
+	}
+
+	return (NULL);
+}
+
+/**
+ * @brief Stress Test: Mailbox Thread Multiplexing Ping-Pong
+ */
+PRIVATE void test_stress_mailbox_thread_multiplexing_affinity(void)
+{
+	kthread_t tid[TEST_THREAD_MAX - 1];
+
+	nanvix_fence_init(&_fence, TEST_THREAD_MAX);
+
+	/* Create threads. */
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
+		test_assert(kthread_create(&tid[i - 1], do_thread_multiplexing_affinity, ((void *)(intptr_t) i)) == 0);
+
+	do_thread_multiplexing_affinity(0);
+
+	/* Join threads. */
+	for (int i = 1; i < TEST_THREAD_MAX; ++i)
+		test_assert(kthread_join(tid[i - 1], NULL) == 0);
+
+	test_assert(kthread_set_affinity(KTHREAD_AFFINITY_DEFAULT) == TEST_THREAD_AFFINITY);
+}
+
+/*============================================================================*
  * Stress Test: Mailbox Thread Multiplexing Broadcast Local                   *
  *============================================================================*/
 
@@ -2274,19 +2432,19 @@ PRIVATE void test_stress_mailbox_thread_multiplexing_gather_local(void)
  * @brief API tests.
  */
 static struct test mailbox_tests_api[] = {
-	{ test_api_mailbox_create_unlink,      "[test][mailbox][api] mailbox create unlink      [passed]" },
-	{ test_api_mailbox_open_close,         "[test][mailbox][api] mailbox open close         [passed]" },
-	{ test_api_mailbox_get_volume,         "[test][mailbox][api] mailbox get volume         [passed]" },
-	{ test_api_mailbox_get_latency,        "[test][mailbox][api] mailbox get latency        [passed]" },
-	{ test_api_mailbox_get_counters,       "[test][mailbox][api] mailbox get counters       [passed]" },
-	{ test_api_mailbox_read_write,         "[test][mailbox][api] mailbox read write         [passed]" },
-	{ test_api_mailbox_virtualization,     "[test][mailbox][api] mailbox virtualization     [passed]" },
-	{ test_api_mailbox_multiplexation,     "[test][mailbox][api] mailbox multiplexation     [passed]" },
-	{ test_api_mailbox_multiplexation_2,   "[test][mailbox][api] mailbox multiplexation 2   [passed]" },
-	{ test_api_mailbox_multiplexation_3,   "[test][mailbox][api] mailbox multiplexation 3   [passed]" },
-	{ test_api_mailbox_pending_msg_unlink, "[test][mailbox][api] mailbox pending msg unlink [passed]" },
-	{ test_api_mailbox_msg_forwarding,     "[test][mailbox][api] mailbox message forwarding [passed]" },
-	{ NULL,                                 NULL                                                      },
+	{ test_api_mailbox_create_unlink,         "[test][mailbox][api] mailbox create unlink         [passed]" },
+	{ test_api_mailbox_open_close,            "[test][mailbox][api] mailbox open close            [passed]" },
+	{ test_api_mailbox_get_volume,            "[test][mailbox][api] mailbox get volume            [passed]" },
+	{ test_api_mailbox_get_latency,           "[test][mailbox][api] mailbox get latency           [passed]" },
+	{ test_api_mailbox_get_counters,          "[test][mailbox][api] mailbox get counters          [passed]" },
+	{ test_api_mailbox_read_write,            "[test][mailbox][api] mailbox read write            [passed]" },
+	{ test_api_mailbox_virtualization,        "[test][mailbox][api] mailbox virtualization        [passed]" },
+	{ test_api_mailbox_multiplexation,        "[test][mailbox][api] mailbox multiplexation        [passed]" },
+	{ test_api_mailbox_multiplexation_2,      "[test][mailbox][api] mailbox multiplexation 2      [passed]" },
+	{ test_api_mailbox_multiplexation_3,      "[test][mailbox][api] mailbox multiplexation 3      [passed]" },
+	{ test_api_mailbox_pending_msg_unlink,    "[test][mailbox][api] mailbox pending msg unlink    [passed]" },
+	{ test_api_mailbox_msg_forwarding,        "[test][mailbox][api] mailbox message forwarding    [passed]" },
+	{ NULL,                                    NULL                                                         },
 };
 
 /**
@@ -2334,9 +2492,15 @@ PRIVATE struct test mailbox_tests_stress[] = {
 	{ test_stress_mailbox_multiplexing_gather,                 "[test][mailbox][stress] mailbox multiplexing gather                 [passed]" },
 	{ test_stress_mailbox_multiplexing_pingpong,               "[test][mailbox][stress] mailbox multiplexing ping-pong              [passed]" },
 	{ test_stress_mailbox_thread_specified_source,             "[test][mailbox][stress] mailbox thread specified source             [passed]" },
+#if (CORE_SUPPORTS_MULTITHREADING && !__NANVIX_MICROKERNEL_STATIC_SCHED)
+	{ test_stress_mailbox_thread_specified_affinity,           "[test][mailbox][stress] mailbox thread specified affinity           [passed]" },
+#endif
 	{ test_stress_mailbox_thread_multiplexing_broadcast,       "[test][mailbox][stress] mailbox thread multiplexing broadcast       [passed]" },
 	{ test_stress_mailbox_thread_multiplexing_gather,          "[test][mailbox][stress] mailbox thread multiplexing gather          [passed]" },
 	{ test_stress_mailbox_thread_multiplexing_pingpong,        "[test][mailbox][stress] mailbox thread multiplexing ping-pong       [passed]" },
+#if (CORE_SUPPORTS_MULTITHREADING && !__NANVIX_MICROKERNEL_STATIC_SCHED)
+	{ test_stress_mailbox_thread_multiplexing_affinity,        "[test][mailbox][stress] mailbox thread multiplexing affinity        [passed]" },
+#endif
 	{ test_stress_mailbox_thread_multiplexing_broadcast_local, "[test][mailbox][stress] mailbox thread multiplexing broadcast local [passed]" },
 	{ test_stress_mailbox_thread_multiplexing_gather_local,    "[test][mailbox][stress] mailbox thread multiplexing gather local    [passed]" },
 	{ NULL,                                                     NULL                                                                          },

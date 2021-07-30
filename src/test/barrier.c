@@ -75,11 +75,11 @@ PUBLIC void test_barrier_nodes_setup(const int * nodes, int nnodes, int is_maste
 	{
 		_syncin  = ksync_create(nodes, nnodes, SYNC_ALL_TO_ONE);
 		_syncout = ksync_open(nodes, nnodes, SYNC_ONE_TO_ALL);
+
+		test_delay(1, CLUSTER_FREQ);
 	}
 	else
 	{
-		test_delay(1, CLUSTER_FREQ);
-
 		_syncout = ksync_open(nodes, nnodes, SYNC_ALL_TO_ONE);
 		_syncin  = ksync_create(nodes, nnodes, SYNC_ONE_TO_ALL);
 	}
@@ -94,13 +94,13 @@ PUBLIC void test_barrier_nodes(void)
 {
 	if (_node_is_master)
 	{
-		ksync_wait(_syncin);
 		ksync_signal(_syncout);
+		ksync_wait(_syncin);
 	}
 	else
 	{
-		ksync_signal(_syncout);
 		ksync_wait(_syncin);
+		ksync_signal(_syncout);
 	}
 }
 

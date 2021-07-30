@@ -65,8 +65,6 @@ PUBLIC int nanvix_mutex_init(struct nanvix_mutex * m, struct nanvix_mutexattr * 
 		for (int i = 0; i < THREAD_MAX; i++)
 			m->tids[i] = -1;
 
-		spinlock_init(&m->lock2);
-
 	#endif /* __NANVIX_MUTEX_SLEEP */
 
 	dcache_invalidate();
@@ -220,7 +218,6 @@ PUBLIC int nanvix_mutex_unlock(struct nanvix_mutex * m)
 
 #if (__NANVIX_MUTEX_SLEEP)
 	int head = -1;
-	spinlock_lock(&m->lock2);
 #endif
 
 		spinlock_lock(&m->lock);
@@ -277,8 +274,6 @@ exit:
 		 */
 		if (head != -1)
 			while (LIKELY(kwakeup(head) != 0));
-
-	spinlock_unlock(&m->lock2);
 #endif
 
 	return (ret);

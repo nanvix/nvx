@@ -69,8 +69,6 @@
 			int size;                   /**< Current queue size.    */
 			kthread_t tids[THREAD_MAX]; /**< Buffer.                */
 
-			spinlock_t lock2;           /**< Exclusive unlock call. */
-
 		#endif /* __NANVIX_MUTEX_SLEEP */
 	};
 

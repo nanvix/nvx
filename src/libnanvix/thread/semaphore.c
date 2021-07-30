@@ -62,8 +62,6 @@ PUBLIC int nanvix_semaphore_init(struct nanvix_semaphore * sem, int val)
 		for (int i = 0; i < THREAD_MAX; ++i)
 			sem->tids[i] = -1;
 
-		spinlock_init(&sem->lock2);
-
 	#endif /* __NANVIX_SEMAPHORE_SLEEP */
 
 	dcache_invalidate();
@@ -174,7 +172,6 @@ PUBLIC int nanvix_semaphore_up(struct nanvix_semaphore * sem)
 
 #if (__NANVIX_SEMAPHORE_SLEEP)
 	kthread_t tid = -1;
-	spinlock_lock(&sem->lock2);
 #endif /* __NANVIX_SEMAPHORE_SLEEP */
 
 		spinlock_lock(&sem->lock);
@@ -211,12 +208,12 @@ PUBLIC int nanvix_semaphore_up(struct nanvix_semaphore * sem)
 		 */
 		if (tid != -1)
 			while (LIKELY(kwakeup(tid) != 0));
-
-	spinlock_unlock(&sem->lock2);
 #endif
 
 	return (0);
 }
+
+PRIVATE int nbusy = 1;
 
 /**
  * @brief Try to perform a down operation on a semaphore.
@@ -226,24 +223,32 @@ PUBLIC int nanvix_semaphore_up(struct nanvix_semaphore * sem)
  * @return Upon sucessful completion, zero is returned. Upon failure, a
  * negative error code is returned instead.
  */
-PUBLIC int nanvix_semaphore_trywait(struct nanvix_semaphore * sem)
+PUBLIC int nanvix_semaphore_trydown(struct nanvix_semaphore * sem)
 {
 	int ret;
+	int busy;
 
 	if (sem == NULL)
 		return (-EINVAL);
 
-	ret =  (-EINVAL);
+	ret = (-EINVAL);
+
+	busy  = (++nbusy % 150) + 150;
 
 	spinlock_lock(&sem->lock);
 
 		if (sem->val > 0)
 		{
 			sem->val--;
-			ret = (0);
+			ret  = (0);
+			busy = (0);
 		}
 
 	spinlock_unlock(&sem->lock);
+
+	/* Issue #84: https://github.com/nanvix/libnanvix/issues/84 */
+	while (busy-- > 0)
+		/* noop */;
 
 	return (ret);
 }

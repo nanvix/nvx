@@ -43,7 +43,6 @@ PUBLIC int nanvix_cond_init(struct nanvix_cond_var * cond)
 		return (-EINVAL);
 
 	spinlock_init(&cond->lock);
-	spinlock_init(&cond->lock2);
 
 	cond->begin = 0;
 	cond->end   = 0;
@@ -154,45 +153,41 @@ PUBLIC int nanvix_cond_signal(struct nanvix_cond_var * cond)
 	if (!cond)
 		return (-EINVAL);
 
-	spinlock_lock(&cond->lock2);
-
-		spinlock_lock(&cond->lock);
-
-			/**
-			 * Remove the head of the queue.
-			 */
-			if (cond->size > 0)
-			{
-				/* Move to the next thread. */
-				cond->begin = (cond->begin + 1) % THREAD_MAX;
-				cond->size--;
-
-#if (__NANVIX_CONDVAR_SLEEP)
-				head        = cond->tids[cond->begin];
-#endif
-			}
-
-#if (!__NANVIX_CONDVAR_SLEEP)
-			cond->locked = false;
-#endif
-
-		spinlock_unlock(&cond->lock);
-
-#if (__NANVIX_CONDVAR_SLEEP)
+	spinlock_lock(&cond->lock);
 
 		/**
-		 * May be we need try to wakeup a thread more than one time because it
-		 * is not an atomic sleep/wakeup.
-		 *
-		 * Obs.: We release the primary lock because we don't need garantee
-		 * that the head thread gets the mutex.
+		 * Remove the head of the queue.
 		 */
-		if (head != -1)
-			while (LIKELY(kwakeup(head) != 0));
+		if (cond->size > 0)
+		{
+			/* Move to the next thread. */
+			cond->begin = (cond->begin + 1) % THREAD_MAX;
+			cond->size--;
+
+#if (__NANVIX_CONDVAR_SLEEP)
+			head        = cond->tids[cond->begin];
+#endif
+		}
+
+#if (!__NANVIX_CONDVAR_SLEEP)
+		cond->locked = false;
+#endif
+
+	spinlock_unlock(&cond->lock);
+
+#if (__NANVIX_CONDVAR_SLEEP)
+
+	/**
+	 * May be we need try to wakeup a thread more than one time because it
+	 * is not an atomic sleep/wakeup.
+	 *
+	 * Obs.: We release the primary lock because we don't need garantee
+	 * that the head thread gets the mutex.
+	 */
+	if (head != -1)
+		while (LIKELY(kwakeup(head) != 0));
 
 #endif  /* __NANVIX_CONDVAR_SLEEP */
-
-	spinlock_unlock(&cond->lock2);
 
 	return (0);
 }
@@ -216,52 +211,50 @@ PUBLIC int nanvix_cond_broadcast(struct nanvix_cond_var * cond)
 	if (!cond)
 		return (-EINVAL);
 
-	spinlock_lock(&cond->lock2);
-		spinlock_lock(&cond->lock);
+	spinlock_lock(&cond->lock);
 
-			initial = cond->size;
+		initial = cond->size;
 
-			while (initial > 0 && cond->size > 0)
-			{
-				/* Remove the head of the queue. */
-				cond->begin = (cond->begin + 1) % THREAD_MAX;
-				cond->size--;
+		while (initial > 0 && cond->size > 0)
+		{
+			/* Remove the head of the queue. */
+			cond->begin = (cond->begin + 1) % THREAD_MAX;
+			cond->size--;
 
 #if (__NANVIX_CONDVAR_SLEEP)
-				head = cond->tids[cond->begin];
+			head = cond->tids[cond->begin];
 
-				spinlock_unlock(&cond->lock);
+			spinlock_unlock(&cond->lock);
 
-					/**
-					 * May be we need try to wakeup a thread more than one time
-					 * because it is not an atomic sleep/wakeup.
-					 *
-					 * Obs.: We release the primary lock because we don't need
-					 * garantee that the head thread gets the mutex.
-					 */
-					if (head != -1)
-						while (LIKELY(kwakeup(head) != 0));
+				/**
+				 * May be we need try to wakeup a thread more than one time
+				 * because it is not an atomic sleep/wakeup.
+				 *
+				 * Obs.: We release the primary lock because we don't need
+				 * garantee that the head thread gets the mutex.
+				 */
+				if (head != -1)
+					while (LIKELY(kwakeup(head) != 0));
 
-				spinlock_lock(&cond->lock);
+			spinlock_lock(&cond->lock);
 #else
-				cond->locked = false;
+			cond->locked = false;
 
-				/* While thread does wakeup. */
-				while (!cond->locked)
-				{
-					spinlock_unlock(&cond->lock);
-					spinlock_lock(&cond->lock);
-				}
+			/* While thread does wakeup. */
+			while (!cond->locked)
+			{
+				spinlock_unlock(&cond->lock);
+				spinlock_lock(&cond->lock);
+			}
 #endif  /* __NANVIX_CONDVAR_SLEEP */
 
-				--initial;
-			}
+			--initial;
+		}
 
-		spinlock_unlock(&cond->lock);
-	spinlock_unlock(&cond->lock2);
+	spinlock_unlock(&cond->lock);
 
 	return (0);
 }
 
-#endif /* CORES_NUM */
+#endif /* CORES_NUM > 1 */
 

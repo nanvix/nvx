@@ -137,6 +137,7 @@ void ___start(int argc, const char *argv[])
 			test_semaphore();
 			test_condition_variables();
 		#endif
+			test_fence();
 
 		#ifndef __unix64__
 			test_perf();
@@ -187,3 +188,4 @@ void ___start(int argc, const char *argv[])
 	kshutdown();
 	UNREACHABLE();
 }
+

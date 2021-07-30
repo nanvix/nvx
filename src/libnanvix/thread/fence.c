@@ -25,44 +25,95 @@
 #include <nanvix/runtime/fence.h>
 #include <posix/errno.h>
 
+#if (CORES_NUM > 1)
+
 /**
- * @see fence_init() in nanvix/runtime/fence.h
+ * @see nanvix_fence_init() in nanvix/runtime/fence.h
  */
-PUBLIC void fence_init(struct fence_t *b, int ncores)
+PUBLIC int nanvix_fence_init(struct nanvix_fence * b, int nthreads)
 {
-	b->ncores   = ncores;
-	b->nreached = 0;
+	/* Invalide fence. */
+	if (b == NULL)
+		return (-EINVAL);
+
+	/* Invalide number of threads. */
+	if (!WITHIN(nthreads, 1, (THREAD_MAX + 1)))
+		return (-EINVAL);
+
 	b->release  = 0;
-	spinlock_init(&b->lock);
+	b->nreached = 0;
+	b->nthreads = nthreads;
+	nanvix_mutex_init(&b->mutex, NULL);
+	nanvix_cond_init(&b->cond);
+
+	/* Success. */
+	return (0);
 }
 
 /**
- * @see fence() in nanvix/runtime/fence.h
+ * @see nanvix_fence_destroy() in nanvix/runtime/fence.h
  */
-PUBLIC void fence(struct fence_t *b)
+PUBLIC int nanvix_fence_destroy(struct nanvix_fence * b)
 {
-	int exit;
+	/* Invalide fence. */
+	if (b == NULL)
+		return (-EINVAL);
+
+	b->release  = 0;
+	b->nreached = 0;
+	b->nthreads = (THREAD_MAX + 1);
+	nanvix_mutex_destroy(&b->mutex);
+	nanvix_cond_destroy(&b->cond);
+
+	/* Success. */
+	return (0);
+}
+
+/**
+ * @see nanvix_fence() in nanvix/runtime/fence.h
+ */
+PUBLIC int nanvix_fence(struct nanvix_fence * b)
+{
 	int local_release;
 
-	/* Notifies thread reach. */
-	spinlock_lock(&b->lock);
+	/* Invalide fence. */
+	if (b == NULL)
+		return (-EINVAL);
 
+	/* Invalide number of threads. */
+	if (!WITHIN(b->nthreads, 1, (THREAD_MAX + 1)))
+		return (-EINVAL);
+
+	nanvix_mutex_lock(&b->mutex);
+
+		/* Gets release condition. */
 		local_release = !b->release;
 
+		/* Notifies arrival. */
 		b->nreached++;
 
-		if (b->nreached == b->ncores)
+		/* Last thread? */
+		if (b->nreached == b->nthreads)
 		{
+			/* Resets number of reached threads. */
 			b->nreached = 0;
-			b->release  = local_release;
+
+			/* Update wait condition. */
+			b->release = local_release;
+
+			/* Wake up other threads. */
+			nanvix_cond_broadcast(&b->cond);
 		}
 
-	spinlock_unlock(&b->lock);
+		/* Until all the threads arrive, sleep. */
+		while (local_release != b->release)
+			nanvix_cond_wait(&b->cond, &b->mutex);
 
-	do
-	{
-		spinlock_lock(&b->lock);
-			exit = (local_release == b->release);
-		spinlock_unlock(&b->lock);
-	} while (!exit);
+	nanvix_mutex_unlock(&b->mutex);
+
+	/* Success. */
+	return (0);
 }
+
+#endif /* CORES_NUM > 1 */
+

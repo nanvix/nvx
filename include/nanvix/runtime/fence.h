@@ -25,29 +25,43 @@
 #ifndef NANVIX_RUNTIME_FENCE_H_
 #define NANVIX_RUNTIME_FENCE_H_
 
+	#include <nanvix/sys/condvar.h>
 	#include <nanvix/sys/mutex.h>
 
+#if (CORES_NUM > 1)
+
 	/**
-	 * @brief Fence
+	 * @brief Fence.
 	 */
-	struct fence_t
+	struct nanvix_fence
 	{
-		int ncores;      /**< Number of cores in the fence.           */
-		int nreached;    /**< Number of cores that reached the fence. */
-		int release;     /**< Wait condition.                         */
-		spinlock_t lock; /**< Lock.                                   */
+		int release;                 /**< Wait condition.                           */
+		int nthreads;                /**< Number of threads in the fence.           */
+		int nreached;                /**< Number of threads that reached the fence. */
+		struct nanvix_mutex mutex;   /**< Mutex.                                    */
+		struct nanvix_cond_var cond; /**< Condition.                                */
 	};
 
 	/**
 	 * @brief Initializes a fence.
 	 *
-	 * @param b      Target fence.
- 	 * @param ncores Number of cores in the fence.
+	 * @param b        Target fence.
+	 * @param nthreads Number of threads in the fence.
 	 *
 	 * @returns Upons sucessful completion zero is returned. Upon failure,
 	 * a negative number is returned instead.
 	 */
-	extern void fence_init(struct fence_t *b, int ncores);
+	extern int nanvix_fence_init(struct nanvix_fence * b, int nthreads);
+
+	/**
+	 * @brief Destroy a fence.
+	 *
+	 * @param b Target fence.
+	 *
+	 * @returns Upons sucessful completion zero is returned. Upon failure,
+	 * a negative number is returned instead.
+	 */
+	extern int nanvix_fence_destroy(struct nanvix_fence * b);
 
 	/**
 	 * @brief Waits in a fence until the defined number of threads reach it.
@@ -57,6 +71,9 @@
 	 * @returns Upon sucessful completion, zero is returned. Upon failure a
 	 * negative errorcode is returned instead.
 	 */
-	extern void fence(struct fence_t *b);
+	extern int nanvix_fence(struct nanvix_fence * b);
+
+#endif /* CORES_NUM > 1 */
 
 #endif /* NANVIX_RUNTIME_FENCE_H_ */
+

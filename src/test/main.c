@@ -82,11 +82,10 @@ size_t strlen(const char *str)
  */
 void nanvix_puts(const char *str)
 {
-	size_t len;
+	if (knode_get_num() != MASTER_NODENUM)
+		return;
 
-	len = strlen(str);
-
-	nanvix_write(0, str, len);
+	nanvix_write(0, str, strlen(str));
 }
 
 /*============================================================================*
@@ -126,18 +125,25 @@ void ___start(int argc, const char *argv[])
 	/* Only involved nodes. */
 	if (index >= 0)
 	{
-		if (nodenum == 0)
+#ifndef __mppa256__
+		if (nodenum == MASTER_NODENUM)
 		{
+#endif
+
 			test_kframe_mgmt();
 			test_page_mgmt();
+
 			test_thread_mgmt();
 			test_thread_sleep();
-		#if (CORES_NUM > 1)
 			test_mutex();
 			test_semaphore();
 			test_condition_variables();
-		#endif
 			test_fence();
+
+#ifdef __mppa256__
+		if (nodenum == MASTER_NODENUM)
+		{
+#endif
 
 		#ifndef __unix64__
 			test_perf();

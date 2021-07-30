@@ -26,41 +26,51 @@
 #define _TEST_H_
 
 	#include <nanvix/sys/thread.h>
+	#include <nanvix/sys/mutex.h>
+	#include <nanvix/sys/noc.h>
 
 	/**
-     * @brief Test's parameters
-     */
+	 * @brief Test's parameters
+	 */
 	/**@{*/
-    #define NR_NODES       2
-    #define MASTER_NODENUM 0
-#ifdef __mppa256__
-	#define SLAVE_NODENUM  8
-	#define TEST_THREAD_NPORTS (K1BDP_CORES_NUM - 1)
-#else
-	#define SLAVE_NODENUM  1
+	#define NR_NODES           2
+#if (PROCESSOR_IS_MULTICLUSTER)
+		#define MASTER_NODENUM     PROCESSOR_NODENUM_MASTER
+	#ifdef __mppa256__
+		#define SLAVE_NODENUM      PROCESSOR_NODENUM_LEADER
+		#define TEST_THREAD_NPORTS (K1BDP_CORES_NUM - 1)
+	#else /* !__mppa256__ */
+		#define SLAVE_NODENUM      (PROCESSOR_NODENUM_MASTER + 1)
+		#define TEST_THREAD_NPORTS (THREAD_MAX)
+	#endif /* __mppa256__ */
+#else /* !PROCESSOR_IS_MULTICLUSTER */
+	#define MASTER_NODENUM     0
+	#define SLAVE_NODENUM      1
 	#define TEST_THREAD_NPORTS (THREAD_MAX)
-#endif
-    #define NSETUPS 10
-    #define NCOMMUNICATIONS 100
+#endif /* PROCESSOR_IS_MULTICLUSTER */
+	#define NSETUPS            10
+	#define NCOMMUNICATIONS    25
+	#define NSETUPS_AFFINITY    1
+	#define NCOMMS_AFFINITY     2
 	/**@}*/
 
-    /**
-     * @name Portal sizes.
-     */
+	/**
+	 * @name Portal sizes.
+	 */
 	/**@{*/
-    #define PORTAL_SIZE       (1 * KB)                             /**< Small size. */
+	#define PORTAL_SIZE       (1 * KB)                             /**< Small size. */
 	#define PORTAL_SIZE_LARGE (HAL_PORTAL_DATA_SIZE + PORTAL_SIZE) /**< Large size. */
 	/**@}*/
 
 	/**
      * @brief Portal message size
      */
-    #define MAILBOX_SIZE (KMAILBOX_MESSAGE_SIZE)
+    #define MAILBOX_SIZE KMAILBOX_MESSAGE_SIZE
 
-    /**
-     * @brief Max number of nodes involved.
-     */
-    #define MAX_NUM_NODES PROCESSOR_NOC_NODES_NUM
+	/**
+	 * @brief Max number of nodes involved.
+	 */
+	#define MAX_NUM_NODES PROCESSOR_NOC_NODES_NUM
 
 	/**
 	 * @brief Number of iterations in stress tests.
@@ -92,15 +102,17 @@
 	extern void nanvix_puts(const char *str);
 
 #if __TARGET_HAS_SYNC
-    /**
-     * @name Barrier functions
-     */
-    /**@{*/
+
+	/**
+	 * @name Barrier functions
+	 */
+	/**@{*/
 	extern void test_delay(int times, uint64_t cycles);
-    extern void test_barrier_nodes_setup(const int * nodes, int nnodes, int is_master);
-    extern void test_barrier_nodes(void);
-    extern void test_barrier_nodes_cleanup(void);
-    /**@}*/
+	extern void test_barrier_nodes_setup(const int * nodes, int nnodes, int is_master);
+	extern void test_barrier_nodes(void);
+	extern void test_barrier_nodes_cleanup(void);
+	/**@}*/
+
 #endif /* __TARGET_HAS_SYNC */
 
 	/**
@@ -110,6 +122,7 @@
 	extern void test_kframe_mgmt(void);
 	extern void test_page_mgmt(void);
 	extern void test_thread_mgmt(void);
+	extern void test_task_mgmt(void);
 	extern void test_excp_mgmt(void);
 	extern void test_thread_sleep(void);
 	extern void test_condition_variables(void);
@@ -123,6 +136,7 @@
 	extern void test_portal(void);
 	extern void test_ikc(void);
 	extern void test_semaphore(void);
+	extern void test_fence(void);
 
 	/**@}*/
 
@@ -143,8 +157,8 @@
 	}
 
 	/**
-     * @brief Horizontal line.
-     */
-    extern const char *HLINE;
+	 * @brief Horizontal line.
+	 */
+	extern const char *HLINE;
 
 #endif /* _TEST_H_  */

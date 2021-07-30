@@ -32,18 +32,6 @@
 #if __TARGET_HAS_SYNC
 
 /**
- * @brief Test's parameters
- */
-#define NR_NODES       2
-#define NR_NODES_MAX   PROCESSOR_NOC_NODES_NUM
-#define MASTER_NODENUM 0
-#ifdef __mppa256__
-	#define SLAVE_NODENUM  8
-#else
-	#define SLAVE_NODENUM  1
-#endif
-
-/**
  * @brief Auxiliar array
  */
 int nodenums[NR_NODES] = {
@@ -486,7 +474,7 @@ void test_fault_sync_invalid_create(void)
 	test_assert((ksync_create(nodes, -1, SYNC_ONE_TO_ALL)) == -EINVAL);
 	test_assert((ksync_create(nodes, 0, SYNC_ONE_TO_ALL)) == -EINVAL);
 	test_assert((ksync_create(nodes, 1, SYNC_ONE_TO_ALL)) == -EINVAL);
-	test_assert((ksync_create(nodes, NR_NODES_MAX + 1, SYNC_ONE_TO_ALL)) == -EINVAL);
+	test_assert((ksync_create(nodes, MAX_NUM_NODES + 1, SYNC_ONE_TO_ALL)) == -EINVAL);
 	test_assert((ksync_create(nodes, NR_NODES, -1)) == -EINVAL);
 	nodes[1] = nodes[0];
 	test_assert((ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);
@@ -617,7 +605,7 @@ void test_fault_sync_invalid_open(void)
 	test_assert((ksync_open(nodes, -1, SYNC_ONE_TO_ALL)) == -EINVAL);
 	test_assert((ksync_open(nodes, 0, SYNC_ONE_TO_ALL)) == -EINVAL);
 	test_assert((ksync_open(nodes, 1, SYNC_ONE_TO_ALL)) == -EINVAL);
-	test_assert((ksync_open(nodes, NR_NODES_MAX + 1, SYNC_ONE_TO_ALL)) == -EINVAL);
+	test_assert((ksync_open(nodes, MAX_NUM_NODES + 1, SYNC_ONE_TO_ALL)) == -EINVAL);
 	test_assert((ksync_open(nodes, NR_NODES, -1)) == -EINVAL);
 	nodes[1] = nodes[0];
 	test_assert((ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) == -EINVAL);

@@ -40,7 +40,11 @@
 /**
  * @brief Number of trials.
  */
-#define NTRIALS 1000
+#if UTEST_SLEEP_STRESS
+	#define NTRIALS 1000
+#else
+	#define NTRIALS 100
+#endif
 
 #if (THREAD_MAX > 2)
 

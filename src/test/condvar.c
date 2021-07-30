@@ -325,11 +325,15 @@ PRIVATE struct test condition_variables_tests_stress[] = {
 	{ NULL,                           NULL                                                                   },
 };
 
+#endif  /* CORES_NUM */
+
 /**
  * @brief Condition variable tests laucher
  */
 PUBLIC void test_condition_variables(void)
 {
+#if (CORES_NUM > 1)
+
 	/* API Tests */
 	nanvix_puts("--------------------------------------------------------------------------------");
 	for (int i = 0; condition_variables_tests_api[i].test_fn != NULL; i++)
@@ -353,7 +357,7 @@ PUBLIC void test_condition_variables(void)
 		condition_variables_tests_stress[i].test_fn();
 		nanvix_puts(condition_variables_tests_stress[i].name);
 	}
-}
 
 #endif  /* CORES_NUM */
+}
 

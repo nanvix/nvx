@@ -31,7 +31,11 @@
 /**
  * @brief Number of iterations.
  */
-#define CITERATIONS (50000 / NTHREADS)
+#ifdef __k1bdp__
+	#define CITERATIONS (250)
+#else
+	#define CITERATIONS (2500)
+#endif
 
 /**
  * @name Benchmark Parameters
@@ -108,15 +112,15 @@ PRIVATE void * counter_down_task(void * arg)
 }
 
 /**
- * @brief Trywait test.
+ * @brief Trydown test.
  */
-PRIVATE void *counter_trywait_task(void * arg)
+PRIVATE void *counter_trydown_task(void * arg)
 {
 	UNUSED(arg);
 
 	for (int i = 0; i < CITERATIONS; i++)
 	{
-		while (nanvix_semaphore_trywait(&sem) != 0);
+		while (nanvix_semaphore_trydown(&sem) != 0);
 		counter++;
 		nanvix_semaphore_up(&sem);
 	}
@@ -260,8 +264,8 @@ PRIVATE void test_api_semaphore_up_down(void)
 		test_assert(nanvix_semaphore_up(&sem) == 0);
 
 		/* Try wait. */
-		test_assert(nanvix_semaphore_trywait(&sem) == 0);
-		test_assert(nanvix_semaphore_trywait(&sem) < 0);
+		test_assert(nanvix_semaphore_trydown(&sem) == 0);
+		test_assert(nanvix_semaphore_trydown(&sem) < 0);
 
 		/* Conter. */
 		test_assert(nanvix_semaphore_up(&sem) == 0);
@@ -270,7 +274,7 @@ PRIVATE void test_api_semaphore_up_down(void)
 			test_assert(nanvix_semaphore_up(&sem) == 0);
 		test_assert(nanvix_semaphore_down(&sem) == 0);
 		test_assert(nanvix_semaphore_down(&sem) == 0);
-		test_assert(nanvix_semaphore_trywait(&sem) < 0);
+		test_assert(nanvix_semaphore_trydown(&sem) < 0);
 
 	test_assert(nanvix_semaphore_destroy(&sem) == 0);
 }
@@ -330,13 +334,13 @@ PRIVATE void test_fault_semaphore_init(void)
  *----------------------------------------------------------------------------*/
 
 /*
- * @brief Fault test for up/down/trywait.
+ * @brief Fault test for up/down/trydown.
  */
 PRIVATE void test_fault_semaphore_up_down(void)
 {
 	test_assert(nanvix_semaphore_up(NULL) < 0);
 	test_assert(nanvix_semaphore_down(NULL) < 0);
-	test_assert(nanvix_semaphore_trywait(NULL) < 0);
+	test_assert(nanvix_semaphore_trydown(NULL) < 0);
 }
 
 /*============================================================================*
@@ -371,13 +375,13 @@ PRIVATE void test_stress_semaphore_up_down(void)
 }
 
 /*----------------------------------------------------------------------------*
- * test_stress_semaphore_trywait()                                            *
+ * test_stress_semaphore_trydown()                                            *
  *----------------------------------------------------------------------------*/
 
 /*
- * @brief Stress test for trywait.
+ * @brief Stress test for trydown.
  */
-PRIVATE void test_stress_semaphore_trywait(void)
+PRIVATE void test_stress_semaphore_trydown(void)
 {
 #if (THREAD_MAX > 2)
 	kthread_t tids[NTHREADS];
@@ -386,7 +390,7 @@ PRIVATE void test_stress_semaphore_trywait(void)
 	test_assert(nanvix_semaphore_init(&sem, 1) == 0);
 
 		for (int i = 0; i < NTHREADS; i++)
-			test_assert(kthread_create(&tids[i], counter_trywait_task, NULL) == 0);
+			test_assert(kthread_create(&tids[i], counter_trydown_task, NULL) == 0);
 
 		for (int i = 0; i < NTHREADS; i++)
 			test_assert(kthread_join(tids[i], NULL) == 0);
@@ -454,7 +458,7 @@ PRIVATE struct test test_api_semaphore[] = {
  */
 PRIVATE struct test test_fault_semaphore[] = {
 	{ test_fault_semaphore_init,              "[test][semaphore][fault] Init/Destroy    [passed]" },
-	{ test_fault_semaphore_up_down,           "[test][semaphore][fault] Up/Down/Trywait [passed]" },
+	{ test_fault_semaphore_up_down,           "[test][semaphore][fault] Up/Down/trydown [passed]" },
 	{ NULL,                                    NULL                                               },
 };
 
@@ -463,16 +467,20 @@ PRIVATE struct test test_fault_semaphore[] = {
  */
 PRIVATE struct test test_stress_semaphore[] = {
 	{ test_stress_semaphore_up_down,           "[test][semaphore][stress] Up/Down [passed]"           },
-	{ test_stress_semaphore_trywait,           "[test][semaphore][stress] Trywait [passed]"           },
+	{ test_stress_semaphore_trydown,           "[test][semaphore][stress] trydown [passed]"           },
 	{ test_stress_semaphore_producer_consumer, "[test][semaphore][stress] Producer-Consumer [passed]" },
 	{ NULL,                                     NULL                                                  },
 };
+
+#endif /* CORES_NUM > 1 */
 
 /**
  * @brief Semaphore test launcher
  */
 PUBLIC void test_semaphore(void)
 {
+#if (CORES_NUM > 1)
+
 	/* API Tests */
 	nanvix_puts("--------------------------------------------------------------------------------");
 	for (int i = 0; test_api_semaphore[i].test_fn != NULL; i++)
@@ -496,7 +504,7 @@ PUBLIC void test_semaphore(void)
 		test_stress_semaphore[i].test_fn();
 		nanvix_puts(test_stress_semaphore[i].name);
 	}
-}
 
 #endif /* CORES_NUM > 1 */
+}
 

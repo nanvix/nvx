@@ -56,7 +56,7 @@ PRIVATE char message_out[PORTAL_SIZE];
 /**
  * @brief Simple fence used for thread synchronization.
  */
-PRIVATE struct fence_t _fence;
+PRIVATE struct nanvix_fence _fence;
 
 /*============================================================================*
  * Stress Tests                                                               *
@@ -765,7 +765,7 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
 					nports++;
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
@@ -776,7 +776,7 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
 					test_assert(kportal_write(portalids[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 
 			for (int j = 0; j < nports; ++j)
@@ -785,7 +785,7 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
 				test_assert(kmailbox_close(mbxids[j]) == 0);
 			}
 
-			fence(&_fence);
+			nanvix_fence(&_fence);
 		}
 	}
 	else
@@ -802,7 +802,7 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
 					nports++;
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
@@ -821,7 +821,7 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
 						test_assert(msg[l] == remote);
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 
 			for (int j = 0; j < nports; ++j)
@@ -830,7 +830,7 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
 				test_assert(kmailbox_unlink(mbxids[j]) == 0);
 			}
 
-			fence(&_fence);
+			nanvix_fence(&_fence);
 		}
 	}
 
@@ -845,7 +845,7 @@ PRIVATE void test_stress_ikc_thread_multiplexing_broadcast(void)
 	kthread_t tid[TEST_THREAD_MAX - 1];
 
 	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
-	fence_init(&_fence, TEST_THREAD_MAX);
+	nanvix_fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
 	for (int i = 1; i < TEST_THREAD_MAX; ++i)
@@ -895,7 +895,7 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
 					nports++;
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
@@ -906,7 +906,7 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
 					test_assert(kportal_write(portalids[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 
 			for (int j = 0; j < nports; ++j)
@@ -915,7 +915,7 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
 				test_assert(kmailbox_close(mbxids[j]) == 0);
 			}
 
-			fence(&_fence);
+			nanvix_fence(&_fence);
 		}
 	}
 	else
@@ -932,7 +932,7 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
 					nports++;
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
@@ -951,7 +951,7 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
 						test_assert(msg[l] == remote);
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 
 			for (int j = 0; j < nports; ++j)
@@ -960,7 +960,7 @@ PRIVATE void * do_thread_multiplexing_gather(void * arg)
 				test_assert(kportal_unlink(portalids[j]) == 0);
 			}
 
-			fence(&_fence);
+			nanvix_fence(&_fence);
 		}
 	}
 
@@ -975,7 +975,7 @@ PRIVATE void test_stress_ikc_thread_multiplexing_gather(void)
 	kthread_t tid[TEST_THREAD_MAX - 1];
 
 	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
-	fence_init(&_fence, TEST_THREAD_MAX);
+	nanvix_fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
 	for (int i = 1; i < TEST_THREAD_MAX; ++i)
@@ -1027,7 +1027,7 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 				nports++;
 			}
 
-			fence(&_fence);
+			nanvix_fence(&_fence);
 		}
 
 		if (local == MASTER_NODENUM)
@@ -1052,7 +1052,7 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 					test_assert(kportal_write(outportals[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 		}
 		else
@@ -1077,7 +1077,7 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 						test_assert(msg[l] == remote);
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 		}
 
@@ -1089,7 +1089,7 @@ PRIVATE void * do_thread_multiplexing_pingpong(void * arg)
 			test_assert(kmailbox_unlink(inboxes[j]) == 0);
 		}
 
-		fence(&_fence);
+		nanvix_fence(&_fence);
 	}
 
 	return (NULL);
@@ -1103,7 +1103,7 @@ PRIVATE void test_stress_ikc_thread_multiplexing_pingpong(void)
 	kthread_t tid[TEST_THREAD_MAX - 1];
 
 	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
-	fence_init(&_fence, TEST_THREAD_MAX);
+	nanvix_fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
 	for (int i = 1; i < TEST_THREAD_MAX; ++i)
@@ -1155,7 +1155,7 @@ PRIVATE void * do_thread_multiplexing_pingpong_reverse(void * arg)
 				nports++;
 			}
 
-			fence(&_fence);
+			nanvix_fence(&_fence);
 		}
 
 		if (local == MASTER_NODENUM)
@@ -1180,7 +1180,7 @@ PRIVATE void * do_thread_multiplexing_pingpong_reverse(void * arg)
 						test_assert(msg[l] == remote);
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 		}
 		else
@@ -1205,7 +1205,7 @@ PRIVATE void * do_thread_multiplexing_pingpong_reverse(void * arg)
 					test_assert(kportal_write(outportals[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 		}
 
@@ -1217,7 +1217,7 @@ PRIVATE void * do_thread_multiplexing_pingpong_reverse(void * arg)
 			test_assert(kmailbox_unlink(inboxes[j]) == 0);
 		}
 
-		fence(&_fence);
+		nanvix_fence(&_fence);
 	}
 
 	return (NULL);
@@ -1231,7 +1231,7 @@ PRIVATE void test_stress_ikc_thread_multiplexing_pingpong_reverse(void)
 	kthread_t tid[TEST_THREAD_MAX - 1];
 
 	kmemset(message_out, (char) knode_get_num(), PORTAL_SIZE);
-	fence_init(&_fence, TEST_THREAD_MAX);
+	nanvix_fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
 	for (int i = 1; i < TEST_THREAD_MAX; ++i)
@@ -1273,7 +1273,7 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 				test_assert((portalids[nports] = kportal_open(local, local, j)) >= 0);
 				nports++;
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
@@ -1284,7 +1284,7 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 					test_assert(kportal_write(portalids[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 
 			for (int j = 0; j < nports; ++j)
@@ -1293,7 +1293,7 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 				test_assert(kmailbox_close(mbxids[j]) == 0);
 			}
 
-			fence(&_fence);
+			nanvix_fence(&_fence);
 		}
 	}
 	else
@@ -1310,7 +1310,7 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 					nports++;
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
@@ -1329,7 +1329,7 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 						test_assert(msg[l] == 1);
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 
 			for (int j = 0; j < nports; ++j)
@@ -1338,7 +1338,7 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 				test_assert(kmailbox_unlink(mbxids[j]) == 0);
 			}
 
-			fence(&_fence);
+			nanvix_fence(&_fence);
 		}
 	}
 
@@ -1353,7 +1353,7 @@ PRIVATE void test_stress_ikc_thread_multiplexing_broadcast_local(void)
 	kthread_t tid[TEST_THREAD_MAX - 1];
 
 	kmemset(message_out, 1, PORTAL_SIZE);
-	fence_init(&_fence, TEST_THREAD_MAX);
+	nanvix_fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
 	for (int i = 1; i < TEST_THREAD_MAX; ++i)
@@ -1401,7 +1401,7 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 					nports++;
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
@@ -1412,7 +1412,7 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 					test_assert(kportal_write(portalids[k], message_out, PORTAL_SIZE) == PORTAL_SIZE);
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 
 			for (int j = 0; j < nports; ++j)
@@ -1421,7 +1421,7 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 				test_assert(kmailbox_close(mbxids[j]) == 0);
 			}
 
-			fence(&_fence);
+			nanvix_fence(&_fence);
 		}
 	}
 	else
@@ -1435,7 +1435,7 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 				test_assert((portalids[nports] = kportal_create(local, j)) >= 0);
 				nports++;
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 
 			for (int j = 0; j < NCOMMUNICATIONS; ++j)
@@ -1454,7 +1454,7 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 						test_assert(msg[l] == 1);
 				}
 
-				fence(&_fence);
+				nanvix_fence(&_fence);
 			}
 
 			for (int j = 0; j < nports; ++j)
@@ -1463,7 +1463,7 @@ PRIVATE void * do_thread_multiplexing_gather_local(void * arg)
 				test_assert(kportal_unlink(portalids[j]) == 0);
 			}
 
-			fence(&_fence);
+			nanvix_fence(&_fence);
 		}
 	}
 
@@ -1478,7 +1478,7 @@ PRIVATE void test_stress_ikc_thread_multiplexing_gather_local(void)
 	kthread_t tid[TEST_THREAD_MAX - 1];
 
 	kmemset(message_out, 1, PORTAL_SIZE);
-	fence_init(&_fence, TEST_THREAD_MAX);
+	nanvix_fence_init(&_fence, TEST_THREAD_MAX);
 
 	/* Create threads. */
 	for (int i = 1; i < TEST_THREAD_MAX; ++i)

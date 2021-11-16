@@ -1784,7 +1784,7 @@ PRIVATE struct test ikc_tests_stress[] = {
 	{ test_stress_ikc_thread_multiplexing_gather,           "[test][ikc][stress] IKC thread multiplexing gather            [passed]" },
 	{ test_stress_ikc_thread_multiplexing_pingpong,         "[test][ikc][stress] IKC thread multiplexing ping-pong         [passed]" },
 	{ test_stress_ikc_thread_multiplexing_pingpong_reverse, "[test][ikc][stress] IKC thread multiplexing ping-pong reverse [passed]" },
-#if (CORE_SUPPORTS_MULTITHREADING && !__NANVIX_MICROKERNEL_STATIC_SCHED)
+#if (CORE_SUPPORTS_MULTITHREADING && __NANVIX_MICROKERNEL_DYNAMIC_SCHED)
 	{ test_stress_ikc_thread_multiplexing_affinity,         "[test][ikc][stress] IKC thread multiplexing affinity          [passed]" },
 	{ test_stress_ikc_thread_multiplexing_affinity_reverse, "[test][ikc][stress] IKC thread multiplexing affinity reverse  [passed]" },
 #endif

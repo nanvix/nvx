@@ -2492,13 +2492,13 @@ PRIVATE struct test mailbox_tests_stress[] = {
 	{ test_stress_mailbox_multiplexing_gather,                 "[test][mailbox][stress] mailbox multiplexing gather                 [passed]" },
 	{ test_stress_mailbox_multiplexing_pingpong,               "[test][mailbox][stress] mailbox multiplexing ping-pong              [passed]" },
 	{ test_stress_mailbox_thread_specified_source,             "[test][mailbox][stress] mailbox thread specified source             [passed]" },
-#if (CORE_SUPPORTS_MULTITHREADING && !__NANVIX_MICROKERNEL_STATIC_SCHED)
+#if (CORE_SUPPORTS_MULTITHREADING && __NANVIX_MICROKERNEL_DYNAMIC_SCHED)
 	{ test_stress_mailbox_thread_specified_affinity,           "[test][mailbox][stress] mailbox thread specified affinity           [passed]" },
 #endif
 	{ test_stress_mailbox_thread_multiplexing_broadcast,       "[test][mailbox][stress] mailbox thread multiplexing broadcast       [passed]" },
 	{ test_stress_mailbox_thread_multiplexing_gather,          "[test][mailbox][stress] mailbox thread multiplexing gather          [passed]" },
 	{ test_stress_mailbox_thread_multiplexing_pingpong,        "[test][mailbox][stress] mailbox thread multiplexing ping-pong       [passed]" },
-#if (CORE_SUPPORTS_MULTITHREADING && !__NANVIX_MICROKERNEL_STATIC_SCHED)
+#if (CORE_SUPPORTS_MULTITHREADING && __NANVIX_MICROKERNEL_DYNAMIC_SCHED)
 	{ test_stress_mailbox_thread_multiplexing_affinity,        "[test][mailbox][stress] mailbox thread multiplexing affinity        [passed]" },
 #endif
 	{ test_stress_mailbox_thread_multiplexing_broadcast_local, "[test][mailbox][stress] mailbox thread multiplexing broadcast local [passed]" },

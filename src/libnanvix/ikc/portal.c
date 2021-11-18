@@ -28,6 +28,7 @@
 
 #include <nanvix/sys/noc.h>
 #include <posix/errno.h>
+#include "task.h"
 
 /**
  * @brief Protection for allows variable.
@@ -89,6 +90,18 @@ int kportal_allow(int portalid, int remote, int remote_port)
 {
 	int ret;
 
+	/* Invalid portalid. */
+	if (UNLIKELY(!WITHIN(portalid, 0, KPORTAL_MAX)))
+		return (-EINVAL);
+
+	/* Invalid remote. */
+	if (UNLIKELY(!WITHIN(remote, 0, PROCESSOR_NOC_NODES_NUM)))
+		return (-EINVAL);
+
+	/* Invalid remote port. */
+	if (UNLIKELY(!WITHIN(remote_port, 0, KPORTAL_PORT_NR)))
+		return (-EINVAL);
+
 	ret = kcall3(
 		NR_portal_allow,
 		(word_t) portalid,
@@ -96,7 +109,7 @@ int kportal_allow(int portalid, int remote, int remote_port)
 		(word_t) remote_port
 	);
 
-	if (ret == 0)
+	if (LIKELY(ret == 0))
 	{
 		spinlock_lock(&kportal_lock);
 			kportal_allows[portalid].remote = remote;
@@ -177,37 +190,89 @@ int kportal_close(int portalid)
  * kportal_aread()                                                            *
  *============================================================================*/
 
+ssize_t __kportal_aread(int portalid, void * buffer, size_t size)
+{
+	return (
+		kcall3(
+			NR_portal_aread,
+			(word_t) portalid,
+			(word_t) buffer,
+			(word_t) size
+		)
+	);
+}
+
 /**
  * @details The kportal_aread() asynchronously read @p size bytes of
  * data pointed to by @p buffer from the input portal @p portalid.
  */
 ssize_t kportal_aread(int portalid, void * buffer, size_t size)
 {
-	ssize_t ret;
+	/* Invalid portalid. */
+	if (UNLIKELY(!WITHIN(portalid, 0, KPORTAL_MAX)))
+		return (-EINVAL);
 
 	/* Invalid buffer. */
 	if (buffer == NULL)
 		return (-EINVAL);
+
+#if !__NANVIX_USE_COMM_WITH_TASKS
+
+	ssize_t ret;
 
 	/* Invalid size. */
 	if (size == 0 || size > KPORTAL_MESSAGE_DATA_SIZE)
 		return (-EINVAL);
 
 	do
-	{
-		ret = kcall3(
-			NR_portal_aread,
-			(word_t) portalid,
-			(word_t) buffer,
-			(word_t) size);
-	} while ((ret == -EBUSY) || (ret == -ENOMSG));
+		ret = __kportal_aread(portalid, buffer, size);
+	while ((ret == -EBUSY) || (ret == -ENOMSG));
 
 	return (ret);
+
+#else
+
+	int remote;
+	int port;
+
+	/* Invalid size. */
+	if (size == 0 || size > KPORTAL_MAX_SIZE)
+		return (-EINVAL);
+
+	spinlock_lock(&kportal_lock);
+		remote = kportal_allows[portalid].remote;
+		port   = kportal_allows[portalid].port;
+	spinlock_unlock(&kportal_lock);
+
+	return (
+		ikc_flow_config(
+			IKC_FLOW_PORTAL_READ,
+			(word_t) portalid,
+			(word_t) buffer,
+			(word_t) size,
+			(word_t) remote,
+			(word_t) port
+		)
+	);
+
+#endif /* !__NANVIX_USE_COMM_WITH_TASKS */
 }
 
 /*============================================================================*
  * kportal_awrite()                                                           *
  *============================================================================*/
+
+ssize_t __kportal_awrite(int portalid, const void * buffer, size_t size)
+{
+	return (
+		kcall3(
+			NR_portal_awrite,
+			(word_t) portalid,
+			(word_t) buffer,
+			(word_t) size
+		)
+	);
+}
 
 /**
  * @details The kportal_awrite() asynchronously write @p size bytes
@@ -215,31 +280,56 @@ ssize_t kportal_aread(int portalid, void * buffer, size_t size)
  */
 ssize_t kportal_awrite(int portalid, const void * buffer, size_t size)
 {
-	ssize_t ret;
+	/* Invalid portalid. */
+	if (UNLIKELY(!WITHIN(portalid, 0, KPORTAL_MAX)))
+		return (-EINVAL);
 
 	/* Invalid buffer. */
 	if (buffer == NULL)
 		return (-EINVAL);
+
+#if !__NANVIX_USE_COMM_WITH_TASKS
+
+	ssize_t ret;
 
 	/* Invalid size. */
 	if (size == 0 || size > KPORTAL_MESSAGE_DATA_SIZE)
 		return (-EINVAL);
 
 	do
-	{
-		ret = kcall3(
-			NR_portal_awrite,
-			(word_t) portalid,
-			(word_t) buffer,
-			(word_t) size);
-	} while ((ret == -EACCES) || (ret == -EBUSY));
+		ret = __kportal_awrite(portalid, buffer, size);
+	while ((ret == -EACCES) || (ret == -EBUSY));
 
 	return (ret);
+
+#else
+
+	/* Invalid size. */
+	if (size == 0 || size > KPORTAL_MAX_SIZE)
+		return (-EINVAL);
+
+	return (
+		ikc_flow_config(
+			IKC_FLOW_PORTAL_WRITE,
+			(word_t) portalid,
+			(word_t) buffer,
+			(word_t) size,
+			(word_t) (-1),
+			(word_t) (-1)
+		)
+	);
+
+#endif /* !__NANVIX_USE_COMM_WITH_TASKS */
 }
 
 /*============================================================================*
  * kportal_wait()                                                             *
  *============================================================================*/
+
+int __kportal_wait(int portalid)
+{
+	return (kcall1(NR_portal_wait, (word_t) portalid));
+}
 
 /**
  * @details The kportal_wait() waits for asyncrhonous operations in
@@ -247,14 +337,19 @@ ssize_t kportal_awrite(int portalid, const void * buffer, size_t size)
  */
 int kportal_wait(int portalid)
 {
-	int ret;
+	/* Invalid portalid. */
+	if (UNLIKELY(!WITHIN(portalid, 0, KPORTAL_MAX)))
+		return (-EINVAL);
 
-	ret = kcall1(
-		NR_portal_wait,
-		(word_t) portalid
-	);
+#if !__NANVIX_USE_COMM_WITH_TASKS
 
-	return (ret);
+	return (__kportal_wait(portalid));
+
+#else
+
+	return (ikc_flow_wait(IKC_FLOW_PORTAL, (word_t) portalid));
+
+#endif /* !__NANVIX_USE_COMM_WITH_TASKS */
 }
 
 /*============================================================================*
@@ -267,10 +362,7 @@ int kportal_wait(int portalid)
  */
 ssize_t kportal_write(int portalid, const void * buffer, size_t size)
 {
-	ssize_t ret;      /* Return value.               */
-	size_t n;         /* Size of current data piece. */
-	size_t remainder; /* Remainder of total data.    */
-	size_t times;     /* Number of pieces.           */
+	ssize_t ret; /* Return value. */
 
 	/* Invalid buffer. */
 	if (buffer == NULL)
@@ -279,6 +371,12 @@ ssize_t kportal_write(int portalid, const void * buffer, size_t size)
 	/* Invalid size. */
 	if (size == 0 || size > KPORTAL_MAX_SIZE)
 		return (-EINVAL);
+
+#if !__NANVIX_USE_COMM_WITH_TASKS
+
+	size_t n;         /* Size of current data piece. */
+	size_t remainder; /* Remainder of total data.    */
+	size_t times;     /* Number of pieces.           */
 
 	times     = size / KPORTAL_MESSAGE_DATA_SIZE;
 	remainder = size - (times * KPORTAL_MESSAGE_DATA_SIZE);
@@ -299,6 +397,18 @@ ssize_t kportal_write(int portalid, const void * buffer, size_t size)
 		buffer += n;
 	}
 
+#else
+
+	/* Sends the entire message. */
+	if ((ret = kportal_awrite(portalid, buffer, size)) < 0)
+		return (ret);
+
+	/* Waits for the asynchronous operation to complete. */
+	if ((ret = kportal_wait(portalid)) != 0)
+		return (ret);
+
+#endif
+
 	return (size);
 }
 
@@ -312,12 +422,7 @@ ssize_t kportal_write(int portalid, const void * buffer, size_t size)
  */
 ssize_t kportal_read(int portalid, void * buffer, size_t size)
 {
-	ssize_t ret;      /* Return value.               */
-	size_t n;         /* Size of current data piece. */
-	size_t remainder; /* Remainder of total data.    */
-	size_t times;     /* Number of pieces.           */
-	int remote;       /* Number of target remote.    */
-	int port;         /* Number of target port.      */
+	ssize_t ret; /* Return value. */
 
 	/* Invalid buffer. */
 	if (buffer == NULL)
@@ -326,6 +431,14 @@ ssize_t kportal_read(int portalid, void * buffer, size_t size)
 	/* Invalid size. */
 	if (size == 0 || size > KPORTAL_MAX_SIZE)
 		return (-EINVAL);
+
+#if !__NANVIX_USE_COMM_WITH_TASKS
+
+	size_t n;         /* Size of current data piece. */
+	size_t remainder; /* Remainder of total data.    */
+	size_t times;     /* Number of pieces.           */
+	int remote;       /* Number of target remote.    */
+	int port;         /* Number of target port.      */
 
 	times     = size / KPORTAL_MESSAGE_DATA_SIZE;
 	remainder = size - (times * KPORTAL_MESSAGE_DATA_SIZE);
@@ -361,6 +474,18 @@ ssize_t kportal_read(int portalid, void * buffer, size_t size)
 		buffer += n;
 	}
 
+#else
+
+	/* Sends the entire message. */
+	if ((ret = kportal_aread(portalid, buffer, size)) < 0)
+		return (ret);
+
+	/* Waits for the asynchronous operation to complete. */
+	if ((ret = kportal_wait(portalid)) != 0)
+		return (ret);
+
+#endif
+
 	/* Complete a allowed read. */
 	spinlock_lock(&kportal_lock);
 		kportal_allows[portalid].remote = -1;
@@ -368,6 +493,207 @@ ssize_t kportal_read(int portalid, void * buffer, size_t size)
 	spinlock_unlock(&kportal_lock);
 
 	return (size);
+}
+
+/*============================================================================*
+ * ktask_portal_allow()                                                       *
+ *============================================================================*/
+
+/**
+ * @details Function to build a task to operate a kportal_allow.
+ */
+PUBLIC int ktask_portal_allow(
+	word_t arg0,
+	word_t arg1,
+	word_t arg2,
+	word_t arg3,
+	word_t arg4
+)
+{
+	int ret;
+
+	UNUSED(arg1);
+	UNUSED(arg2);
+
+	if ((ret = kportal_allow((int) arg0, (int) arg3, (int) arg4)) < 0)
+		ktask_exit0(ret, KTASK_MANAGEMENT_ERROR);
+
+	/* Success, pass arguments to the waiting task. */
+	ktask_exit5(ret,
+		KTASK_MANAGEMENT_USER0,
+		KTASK_MERGE_ARGS_FN_REPLACE,
+		arg0, arg1, arg2, arg3, arg4
+	);
+
+	return (ret);
+}
+
+/*============================================================================*
+ * ktask_portal_aread()                                                      *
+ *============================================================================*/
+
+/**
+ * @details Function to build a task to operate a kportal_aread.
+ */
+PUBLIC int ktask_portal_aread(
+	word_t arg0,
+	word_t arg1,
+	word_t arg2,
+	word_t arg3,
+	word_t arg4
+)
+{
+	int ret;
+
+	UNUSED(arg3);
+	UNUSED(arg4);
+
+	if ((ret = kportal_aread((int) arg0, (void *) arg1, (size_t) arg2)) < 0)
+		ktask_exit0(ret, KTASK_MANAGEMENT_ERROR);
+
+	/* Success, pass arguments to the waiting task. */
+	ktask_exit5(ret,
+		KTASK_MANAGEMENT_USER0,
+		KTASK_MERGE_ARGS_FN_REPLACE,
+		arg0, arg1, arg2, arg3, arg4
+	);
+
+	return (ret);
+}
+
+/*============================================================================*
+ * ktask_portal_awrite()                                                     *
+ *============================================================================*/
+
+/**
+ * @details Function to build a task to operate a kportal_awrite.
+ */
+PUBLIC int ktask_portal_awrite(
+	word_t arg0,
+	word_t arg1,
+	word_t arg2,
+	word_t arg3,
+	word_t arg4
+)
+{
+	int ret;
+
+	UNUSED(arg3);
+	UNUSED(arg4);
+
+	if ((ret = kportal_awrite((int) arg0, (const void *) arg1, (size_t) arg2)) < 0)
+		ktask_exit0(ret, KTASK_MANAGEMENT_ERROR);
+
+	/* Success, pass arguments to the waiting task. */
+	ktask_exit5(ret,
+		KTASK_MANAGEMENT_USER0,
+		KTASK_MERGE_ARGS_FN_REPLACE,
+		arg0, arg1, arg2, arg3, arg4
+	);
+
+	return (ret);
+}
+
+/*============================================================================*
+ * ktask_portal_wait()                                                       *
+ *============================================================================*/
+
+/**
+ * @details Function to build a task to operate a kportal_wait.
+ */
+PUBLIC int ktask_portal_wait(
+	word_t arg0,
+	word_t arg1,
+	word_t arg2,
+	word_t arg3,
+	word_t arg4
+)
+{
+	int ret;
+
+	UNUSED(arg1);
+	UNUSED(arg2);
+	UNUSED(arg3);
+	UNUSED(arg4);
+
+	if ((ret = kportal_wait((int) arg0)) < 0)
+		ktask_exit0(ret, KTASK_MANAGEMENT_ERROR);
+
+	return (ret);
+}
+
+/*============================================================================*
+ * ktask_portal_write()                                                      *
+ *============================================================================*/
+
+/**
+ * @details Build a write flow.
+ *
+ * -> awrite -> wait ->
+ */
+PUBLIC int ktask_portal_write(ktask_t * awrite, ktask_t * wait)
+{
+	int ret;
+
+	if (UNLIKELY((ret = ktask_create(awrite, ktask_portal_awrite, 0, 0)) < 0))
+		return (ret);
+
+	if (UNLIKELY((ret = ktask_create(wait, ktask_portal_wait, 0, KTASK_TRIGGER_DEFAULT)) < 0))
+		return (ret);
+
+	return (
+		ktask_connect(
+			awrite,
+			wait,
+			KTASK_CONN_IS_DEPENDENCY,
+			KTASK_CONN_IS_PERSISTENT,
+			KTASK_TRIGGER_DEFAULT
+		)
+	);
+}
+
+/*============================================================================*
+ * ktask_portal_read()                                                       *
+ *============================================================================*/
+
+/**
+ * @details Build a read flow.
+ *
+ * allow -> aread -> wait ->
+ */
+PUBLIC int ktask_portal_read(ktask_t * allow, ktask_t * aread, ktask_t * wait)
+{
+	int ret;
+
+	if (UNLIKELY((ret = ktask_create(allow, ktask_portal_allow, 0, 0)) < 0))
+		return (ret);
+
+	if (UNLIKELY((ret = ktask_create(aread, ktask_portal_aread, 0, 0)) < 0))
+		return (ret);
+
+	if (UNLIKELY((ret = ktask_create(wait, ktask_portal_wait, 0, KTASK_TRIGGER_DEFAULT)) < 0))
+		return (ret);
+
+	ret = ktask_connect(
+		allow,
+		aread,
+		KTASK_CONN_IS_DEPENDENCY,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_DEFAULT
+	);
+
+	if (UNLIKELY(ret < 0))
+		return (ret);
+
+	return (
+		ktask_connect(
+			aread,
+			wait,
+			KTASK_CONN_IS_DEPENDENCY,
+			KTASK_CONN_IS_PERSISTENT,
+			KTASK_TRIGGER_DEFAULT
+		)
+	);
 }
 
 /*============================================================================*

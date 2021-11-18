@@ -24,6 +24,7 @@
  */
 
 #include <nanvix/sys/mailbox.h>
+#include <nanvix/sys/task.h>
 #include <nanvix/sys/noc.h>
 #include <nanvix/runtime/fence.h>
 #include <posix/errno.h>
@@ -64,7 +65,7 @@
 #define TEST_PENDING_UNLINK_MBX_PAIRS 2
 
 /**
- * @name Threads 
+ * @name Threads
  */
 /**{*/
 #define TEST_THREAD_MAX       (CORES_NUM - 1)
@@ -729,6 +730,292 @@ static void test_api_mailbox_msg_forwarding(void)
 	test_assert(kmailbox_ioctl(mbx_out, KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
 	test_assert(volume == (NITERATIONS * KMAILBOX_MESSAGE_SIZE));
 	test_assert(kmailbox_ioctl(mbx_out, KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
+
+	test_assert(kmailbox_close(mbx_out) == 0);
+	test_assert(kmailbox_unlink(mbx_in) == 0);
+}
+
+/*============================================================================*
+ * API Test: Mailbox on the Dispatcher                                        *
+ *============================================================================*/
+
+#define WT(x)      ((word_t) x)
+#define TEST_DHARD KTASK_DEPENDENCY_HARD
+
+PRIVATE int dispatcher_init(
+	word_t arg0,
+	word_t arg1,
+	word_t arg2,
+	word_t arg3,
+	word_t arg4
+)
+{
+	int mbx_in;
+	int mbx_out;
+	size_t volume;
+	uint64_t latency;
+
+	UNUSED(arg2);
+	UNUSED(arg3);
+	UNUSED(arg4);
+
+	mbx_in  = (int) arg0;
+	mbx_out = (int) arg1;
+
+	test_assert(kmailbox_ioctl(mbx_in, KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == 0);
+	test_assert(kmailbox_ioctl(mbx_in, KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
+
+	test_assert(kmailbox_ioctl(mbx_out, KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == 0);
+	test_assert(kmailbox_ioctl(mbx_out, KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
+
+	return (0);
+}
+
+PRIVATE int dispatcher_set_message(
+	word_t arg0,
+	word_t arg1,
+	word_t arg2,
+	word_t arg3,
+	word_t arg4
+)
+{
+	char value;
+	char * message;
+
+	UNUSED(arg2);
+	UNUSED(arg3);
+	UNUSED(arg4);
+
+	message = (char *) arg0;
+	value   = (char) arg1;
+
+	kmemset(message, value, KMAILBOX_MESSAGE_SIZE);
+
+	return (0);
+}
+
+PRIVATE int dispatcher_reset_message(
+	word_t arg0,
+	word_t arg1,
+	word_t arg2,
+	word_t arg3,
+	word_t arg4
+)
+{
+	char * message;
+
+	UNUSED(arg1);
+	UNUSED(arg2);
+	UNUSED(arg3);
+	UNUSED(arg4);
+
+	message = (char *) arg0;
+
+	kmemset(message, 0, KMAILBOX_MESSAGE_SIZE);
+
+	return (0);
+}
+
+PRIVATE int dispatcher_check_message(
+	word_t arg0,
+	word_t arg1,
+	word_t arg2,
+	word_t arg3,
+	word_t arg4
+)
+{
+	char value;
+	char * message;
+
+	UNUSED(arg0);
+	UNUSED(arg1);
+	UNUSED(arg2);
+	UNUSED(arg3);
+	UNUSED(arg4);
+
+	message = (char *) arg0;
+	value   = (char) arg1;
+
+	for (unsigned i = 0; i < KMAILBOX_MESSAGE_SIZE; ++i)
+		test_assert(message[i] == value);
+
+	return (0);
+}
+
+PRIVATE int dispatcher_loop(
+	word_t arg0,
+	word_t arg1,
+	word_t arg2,
+	word_t arg3,
+	word_t arg4
+)
+{
+	int * iteration;
+
+	UNUSED(arg1);
+	UNUSED(arg2);
+	UNUSED(arg3);
+	UNUSED(arg4);
+
+	iteration = (int *) arg0;
+
+	(*iteration)++;
+
+	/* Continue the loop? */
+	if (*iteration < NITERATIONS)
+		ktask_exit0(0, KTASK_MANAGEMENT_USER1);
+
+	/* Finish the loop. */
+	else
+		ktask_exit0(0, KTASK_MANAGEMENT_USER0);
+
+	return (0);
+}
+
+PRIVATE int dispatcher_finish(
+	word_t arg0,
+	word_t arg1,
+	word_t arg2,
+	word_t arg3,
+	word_t arg4
+)
+{
+	int mbx_in;
+	int mbx_out;
+	size_t volume;
+	uint64_t latency;
+
+	UNUSED(arg2);
+	UNUSED(arg3);
+	UNUSED(arg4);
+
+	mbx_in  = (int) arg0;
+	mbx_out = (int) arg1;
+
+	test_assert(kmailbox_ioctl(mbx_in, KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == (NITERATIONS * KMAILBOX_MESSAGE_SIZE));
+	test_assert(kmailbox_ioctl(mbx_in, KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
+
+	test_assert(kmailbox_ioctl(mbx_out, KMAILBOX_IOCTL_GET_VOLUME, &volume) == 0);
+	test_assert(volume == (NITERATIONS * KMAILBOX_MESSAGE_SIZE));
+	test_assert(kmailbox_ioctl(mbx_out, KMAILBOX_IOCTL_GET_LATENCY, &latency) == 0);
+
+	return (0);
+}
+
+/**
+ * @brief API Test: Mailbox on the Dispatcher
+ */
+static void test_api_mailbox_on_dispatcher(void)
+{
+	int local;
+	int remote;
+	int mbx_in;
+	int mbx_out;
+	int setvalue;
+	int checkvalue;
+	int iteration;
+	char message[KMAILBOX_MESSAGE_SIZE];
+
+	ktask_t init, set, reset, check, loop, finish;
+	ktask_t awrite, aread, wwait, rwait;
+
+	local     = knode_get_num();
+	remote    = (local == MASTER_NODENUM) ? SLAVE_NODENUM : MASTER_NODENUM;
+	iteration = 0;
+
+	test_assert((mbx_in = kmailbox_create(local, 0)) >= 0);
+	test_assert((mbx_out = kmailbox_open(remote, 0)) >= 0);
+
+	test_assert(ktask_create(&init,   dispatcher_init,          0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&set,    dispatcher_set_message,   0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&reset,  dispatcher_reset_message, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&check,  dispatcher_reset_message, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&loop,   dispatcher_loop,          0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&finish, dispatcher_finish,        0, KTASK_MANAGEMENT_DEFAULT) == 0);
+
+	test_assert(ktask_mailbox_write(&awrite, &wwait) == 0);
+	test_assert(ktask_mailbox_read(&aread,   &rwait) == 0);
+
+	if (local == MASTER_NODENUM)
+	{
+		test_assert(ktask_connect(&init,  &set,    false, false, KTASK_TRIGGER_DEFAULT) == 0);
+		test_assert(ktask_connect(&set,   &awrite, false, false, KTASK_TRIGGER_DEFAULT) == 0);
+		test_assert(ktask_connect(&wwait, &reset,  false, false, KTASK_TRIGGER_DEFAULT) == 0);
+		test_assert(ktask_connect(&reset, &aread,  false, false, KTASK_TRIGGER_DEFAULT) == 0);
+		test_assert(ktask_connect(&rwait, &check,  false, false, KTASK_TRIGGER_DEFAULT) == 0);
+		test_assert(ktask_connect(&check, &loop,   false, false, KTASK_TRIGGER_DEFAULT) == 0);
+		test_assert(ktask_connect(&loop,  &set,    false, false, KTASK_TRIGGER_USER1)   == 0);
+		test_assert(ktask_connect(&loop,  &finish, false, false, KTASK_TRIGGER_DEFAULT) == 0);
+
+		setvalue   = 1;
+		checkvalue = 2;
+	}
+	else
+	{
+		test_assert(ktask_connect(&init,  &reset,  false, false, KTASK_TRIGGER_DEFAULT) == 0);
+		test_assert(ktask_connect(&reset, &aread,  false, false, KTASK_TRIGGER_DEFAULT) == 0);
+		test_assert(ktask_connect(&rwait, &check,  false, false, KTASK_TRIGGER_DEFAULT) == 0);
+		test_assert(ktask_connect(&check, &set,    false, false, KTASK_TRIGGER_DEFAULT) == 0);
+		test_assert(ktask_connect(&set,   &awrite, false, false, KTASK_TRIGGER_DEFAULT) == 0);
+		test_assert(ktask_connect(&wwait, &loop,   false, false, KTASK_TRIGGER_DEFAULT) == 0);
+		test_assert(ktask_connect(&loop,  &reset,  false, false, KTASK_TRIGGER_USER1)   == 0);
+		test_assert(ktask_connect(&loop,  &finish, false, false, KTASK_TRIGGER_DEFAULT) == 0);
+
+		setvalue   = 2;
+		checkvalue = 1;
+	}
+
+	ktask_set_arguments(&set,    WT(message),    WT(setvalue),   0, 0, 0);
+	ktask_set_arguments(&reset,  WT(message),    0,              0, 0, 0);
+	ktask_set_arguments(&check,  WT(message),    WT(checkvalue), 0, 0, 0);
+	ktask_set_arguments(&awrite, WT(mbx_out),    WT(message),    KMAILBOX_MESSAGE_SIZE, 0, 0);
+	ktask_set_arguments(&aread,  WT(mbx_in),     WT(message),    KMAILBOX_MESSAGE_SIZE, 0, 0);
+	ktask_set_arguments(&loop,   WT(&iteration), 0,              0, 0, 0);
+	ktask_set_arguments(&finish, WT(mbx_in),     WT(mbx_out),    0, 0, 0);
+
+	test_assert(ktask_dispatch2(&init, WT(mbx_in), WT(mbx_out)) == 0);
+	test_assert(ktask_wait(&finish) == 0);
+
+	if (local == MASTER_NODENUM)
+	{
+		test_assert(ktask_disconnect(&init,   &set)    == 0);
+		test_assert(ktask_disconnect(&set,    &awrite) == 0);
+		test_assert(ktask_disconnect(&awrite, &wwait)  == 0);
+		test_assert(ktask_disconnect(&wwait,  &reset)  == 0);
+		test_assert(ktask_disconnect(&reset,  &aread)  == 0);
+		test_assert(ktask_disconnect(&aread,  &rwait)  == 0);
+		test_assert(ktask_disconnect(&rwait,  &check)  == 0);
+		test_assert(ktask_disconnect(&check,  &loop)   == 0);
+		test_assert(ktask_disconnect(&loop,   &set)    == 0);
+		test_assert(ktask_disconnect(&loop,   &finish) == 0);
+	}
+	else
+	{
+		test_assert(ktask_disconnect(&init,   &reset)  == 0);
+		test_assert(ktask_disconnect(&reset,  &aread)  == 0);
+		test_assert(ktask_disconnect(&aread,  &rwait)  == 0);
+		test_assert(ktask_disconnect(&rwait,  &check)  == 0);
+		test_assert(ktask_disconnect(&check,  &set)    == 0);
+		test_assert(ktask_disconnect(&set,    &awrite) == 0);
+		test_assert(ktask_disconnect(&awrite, &wwait)  == 0);
+		test_assert(ktask_disconnect(&wwait,  &loop)   == 0);
+		test_assert(ktask_disconnect(&loop,   &reset)  == 0);
+		test_assert(ktask_disconnect(&loop,   &finish) == 0);
+	}
+
+	test_assert(ktask_unlink(&init) == 0);
+	test_assert(ktask_unlink(&set) == 0);
+	test_assert(ktask_unlink(&reset) == 0);
+	test_assert(ktask_unlink(&check) == 0);
+	test_assert(ktask_unlink(&awrite) == 0);
+	test_assert(ktask_unlink(&wwait) == 0);
+	test_assert(ktask_unlink(&aread) == 0);
+	test_assert(ktask_unlink(&rwait) == 0);
+	test_assert(ktask_unlink(&loop) == 0);
+	test_assert(ktask_unlink(&finish) == 0);
 
 	test_assert(kmailbox_close(mbx_out) == 0);
 	test_assert(kmailbox_unlink(mbx_in) == 0);
@@ -1831,7 +2118,7 @@ PRIVATE void * do_thread_multiplexing_broadcast(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 					test_assert(kmailbox_write(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
-				
+
 				nanvix_fence(&_fence);
 			}
 
@@ -2256,7 +2543,7 @@ PRIVATE void * do_thread_multiplexing_broadcast_local(void * arg)
 			{
 				for (int k = 0; k < nports; ++k)
 					test_assert(kmailbox_write(mbxids[k], message, KMAILBOX_MESSAGE_SIZE) == KMAILBOX_MESSAGE_SIZE);
-				
+
 				nanvix_fence(&_fence);
 			}
 
@@ -2444,6 +2731,7 @@ static struct test mailbox_tests_api[] = {
 	{ test_api_mailbox_multiplexation_3,      "[test][mailbox][api] mailbox multiplexation 3      [passed]" },
 	{ test_api_mailbox_pending_msg_unlink,    "[test][mailbox][api] mailbox pending msg unlink    [passed]" },
 	{ test_api_mailbox_msg_forwarding,        "[test][mailbox][api] mailbox message forwarding    [passed]" },
+	{ test_api_mailbox_on_dispatcher,         "[test][mailbox][api] mailbox on the dispatcher     [passed]" },
 	{ NULL,                                    NULL                                                         },
 };
 

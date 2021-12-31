@@ -31,7 +31,7 @@
  */
 /**@{*/
 const int _nodenums[NR_NODES] ALIGN(sizeof(uint64_t)) = {
-	MASTER_NODENUM, SLAVE_NODENUM
+	MASTER_NODENUM, SLAVE_NODENUM, SLAVE_NODENUM + 1
 };
 /**@}*/
 
@@ -61,7 +61,7 @@ int main(int argc, const char *argv[])
  *
  * @returns The length of the string.
  */
-size_t strlen(const char *str)
+PRIVATE size_t nanvix_strlen(const char *str)
 {
 	const char *p;
 
@@ -85,7 +85,7 @@ void nanvix_puts(const char *str)
 	if (knode_get_num() != MASTER_NODENUM)
 		return;
 
-	nanvix_write(0, str, strlen(str));
+	nanvix_write(0, str, nanvix_strlen(str));
 }
 
 /*============================================================================*
@@ -123,73 +123,8 @@ void ___start(int argc, const char *argv[])
 	}
 
 	/* Only involved nodes. */
-	if (index >= 0)
-	{
-#ifndef __mppa256__
-		if (nodenum == MASTER_NODENUM)
-		{
-#endif
-
-			test_kframe_mgmt();
-			test_page_mgmt();
-
-			test_thread_mgmt();
-			test_thread_sleep();
-			test_mutex();
-			test_semaphore();
-			test_condition_variables();
-			test_fence();
-			test_task_mgmt();
-
-#ifdef __mppa256__
-		if (nodenum == MASTER_NODENUM)
-		{
-#endif
-
-		#ifndef __unix64__
-			test_perf();
-			test_signal();
-		#endif /* __unix64__ */
-
-			test_noc();
-		}
-
-		#if __TARGET_HAS_SYNC
-			test_sync();
-
-			/**
-			* Creates a barrier with all involved clusters.
-			* Note (valid only if multiplexation is not avaiable):
-			* the stdsync must be cleanup before call the barruer_setup
-			* because it uses the same local resources.
-			*/
-			test_barrier_nodes_setup(_nodenums, NR_NODES, (index == 0));
-
-				test_barrier_nodes();
-
-				#if __TARGET_HAS_MAILBOX
-					test_mailbox();
-				#endif
-
-				test_barrier_nodes();
-
-				#if __TARGET_HAS_PORTAL
-					test_portal();
-				#endif
-
-				test_barrier_nodes();
-
-				#if __TARGET_HAS_MAILBOX && __TARGET_HAS_PORTAL
-					test_ikc();
-				#endif
-
-				/* Waits everyone finishes the routines. */
-				test_barrier_nodes();
-
-			/* Destroy barrier. */
-			test_barrier_nodes_cleanup();
-		#endif /* __TARGET_HAS_SYNC */
-	}
+	if (index >= 1)
+		test_migration();
 
 	/* Halt. */
 	kshutdown();

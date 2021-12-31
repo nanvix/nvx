@@ -33,7 +33,7 @@
 	 * @brief Test's parameters
 	 */
 	/**@{*/
-	#define NR_NODES           2
+	#define NR_NODES           3
 #if (PROCESSOR_IS_MULTICLUSTER)
 		#define MASTER_NODENUM     PROCESSOR_NODENUM_MASTER
 	#ifdef __mppa256__
@@ -137,6 +137,7 @@
 	extern void test_ikc(void);
 	extern void test_semaphore(void);
 	extern void test_fence(void);
+	extern void test_migration(void);
 
 	/**@}*/
 

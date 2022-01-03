@@ -123,7 +123,7 @@ void ___start(int argc, const char *argv[])
 	}
 
 	/* Only involved nodes. */
-	if (index >= 1)
+	if (index >= 0)
 		test_migration();
 
 	/* Halt. */

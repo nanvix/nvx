@@ -1,11 +1,15 @@
 #include <nanvix/sys/task.h>
 #include <nanvix/sys/semaphore.h>
 #include <nanvix/sys/portal.h>
+#include <nanvix/sys/mailbox.h>
 #include <nanvix/kernel/uarea.h>
+#include <nanvix/sys/sync.h>
+
 #include "test.h"
 
 
 #define PORT 0
+#define PORT2 10
 
 PRIVATE ktask_t trecv __attribute__ ((section(".libnanvix.data")));
 PRIVATE ktask_t tsend __attribute__ ((section(".libnanvix.data")));
@@ -14,7 +18,7 @@ PRIVATE struct semaphore sem1;
 PRIVATE struct semaphore sem2;
 PRIVATE struct semaphore sem3;
 
-int global = 0;
+unsigned int global = 0;
 
 PRIVATE int task_send(
 	word_t arg0,
@@ -67,8 +71,8 @@ PRIVATE int task_send(
 
 	semaphore_down(&sem1);
 #else
-	int busy = 1000;
-	while (--busy);
+	//int busy = 1000;
+	//while (--busy);
 #endif
 	
 	kprintf("[sender] sending user sections");
@@ -121,7 +125,10 @@ PRIVATE int task_sleep_core(
 
 PRIVATE void sender()
 {
-	int local, remote;
+	int local, remote, out;
+	int syncin, syncout;
+	int nodes[] = {MASTER_NODENUM, SLAVE_NODENUM};
+	char dummy = 'd';
 
 	local  = SLAVE_NODENUM;
 	remote = SLAVE_NODENUM + 1;
@@ -129,13 +136,17 @@ PRIVATE void sender()
 	kprintf("sender -> user length: %d", &__USER_END - &__USER_START);
 
 	global = 0xc0ffee;
+	
+	test_assert((syncin = ksync_create(nodes, 2, SYNC_ONE_TO_ALL)) >= 0);
+	test_assert((syncout = ksync_open(nodes, 2, SYNC_ALL_TO_ONE)) >= 0);
 
-	//* Send an mailbox message to IO0.
-	// perf start
-	//* Send an mailbox message to IO0.
-	// perf end 
+	test_assert((out = kmailbox_open(MASTER_NODENUM, PORT2)) >= 0);
 
-	//* Send an mailbox message to IO0.
+	test_assert(ksync_wait(syncin) == 0);
+	test_assert(ksync_signal(syncout) == 0);
+	
+	test_assert(kmailbox_write(out, &dummy, sizeof(char)) == sizeof(char));
+	test_assert(kmailbox_write(out, &dummy, sizeof(char)) == sizeof(char));
 
 	test_assert(ktask_create(&tsend, task_send, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
 	test_assert(ktask_dispatch2(&tsend, local, remote) == 0);
@@ -145,8 +156,8 @@ PRIVATE void sender()
 	// this line should be executed on both clusters: sender and receiver
 	kprintf("global = %x", global);
 
-	//if (global == 0xc0ffee)
-		//* Send an mailbox message to IO0.
+	if (global == 0xdeadbeef)
+		test_assert(kmailbox_write(out, &dummy, sizeof(char)) == sizeof(char));
 }
 
 PRIVATE int task_receiver(
@@ -211,6 +222,35 @@ PRIVATE void receiver()
 	semaphore_down(&sem3);
 }
 
+PRIVATE void master()
+{
+	int in, syncin, syncout;
+	char dummy;
+	uint64_t t1, error;
+	int nodes[] = {MASTER_NODENUM, SLAVE_NODENUM};
+
+	test_assert((syncin = ksync_create(nodes, 2, SYNC_ALL_TO_ONE)) >= 0);
+	test_assert((syncout = ksync_open(nodes, 2, SYNC_ONE_TO_ALL)) >= 0);
+
+	test_assert((in = kmailbox_create(MASTER_NODENUM, PORT2)) >= 0);
+
+	test_assert(ksync_signal(syncout) == 0);
+	test_assert(ksync_wait(syncin) == 0);
+
+	test_assert(kmailbox_read(in, &dummy, sizeof(char)) == sizeof(char));
+	perf_start(0, PERF_CYCLES);
+	
+	test_assert(kmailbox_read(in, &dummy, sizeof(char)) == sizeof(char));
+	t1 = perf_read(0);
+
+	error = t1;
+
+	test_assert(kmailbox_read(in, &dummy, sizeof(char)) == sizeof(char));
+	perf_stop(0);
+	t1 = perf_read(0);
+
+	kprintf("time: %l", t1 - error);
+}
 
 PRIVATE void test_api_migration()
 {
@@ -220,8 +260,13 @@ PRIVATE void test_api_migration()
 	semaphore_init(&sem2, 0);
 	semaphore_init(&sem3, 0);
 	
-	fn = (knode_get_num() == SLAVE_NODENUM) ? sender : receiver;
-	fn();
+	if (knode_get_num() == MASTER_NODENUM)
+		master();
+	else
+	{
+		fn = (knode_get_num() == SLAVE_NODENUM) ? sender : receiver;
+		fn();
+	}
 }
 
 PRIVATE struct test migration_tests_api[] = {

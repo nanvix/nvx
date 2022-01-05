@@ -38,6 +38,21 @@
 	 */
 	extern int excp_ctrl(int excpnum, int action);
 
+#if __NANVIX_USE_EXCEPTION_WITH_TASKS
+
+	/**
+	 * @brief Sets a user-space exception handler.
+	 *
+	 * @param excpnum Number of the target exception.
+	 * @param handler Function handler.
+	 *
+	 * @return Upon successful completion, zero is returned. Upon
+	 * failure a negative error code is returned instead.
+	 */
+	extern int excp_set_handler(int excpnum, exception_handler_fn handler);
+
+#endif /* __NANVIX_USE_EXCEPTION_WITH_TASKS */
+
 	/**
 	 * @brief Pauses the user-space exception handler.
 	 *

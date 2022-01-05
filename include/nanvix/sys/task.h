@@ -48,6 +48,22 @@
 	#define KTASK_PARENTS_MAX TASK_PARENTS_MAX
 
 	/**
+	 * @name Task priority.
+	 *
+	 * @details Dummy priority:
+	 * High: Insert the task in the front of the queue.
+	 * Low: Insert the task in the back of the queue.
+	 *
+	 * TODO: Define a smarter priority mechanism.
+	 */
+	/**@{*/
+	#define KTASK_PRIORITY_LOW     TASK_PRIORITY_LOW  /**< Low priority.     */
+	#define KTASK_PRIORITY_HIGH    TASK_PRIORITY_HIGH /**< High priority.    */
+
+	#define KTASK_PRIORITY_DEFAULT TASK_PRIORITY_LOW  /**< Default priority. */
+	/**@}*/
+
+	/**
 	 * @name Connection's type.
 	 *
 	 * @details Types' description:
@@ -135,6 +151,8 @@
 	/**@{*/
 	#define ktask_get_id(task)                            task_get_id(task)
 	#define ktask_get_return(task)                        task_get_return(task)
+	#define ktask_get_priority(task)                      task_get_priority(task)
+	#define ktask_set_priority(task, priority)            task_set_priority(task, priority)
 	#define ktask_get_number_parents(task)                task_get_number_parents(task)
 	#define ktask_get_number_children(task)               task_get_number_children(task)
 	#define ktask_get_child(task, id)                     task_get_child(task, id)
@@ -146,7 +164,7 @@
 
 	extern ktask_t * ktask_current(void);
 
-	extern int ktask_create(ktask_t *, ktask_fn, int, char);
+	extern int ktask_create(ktask_t *, ktask_fn, int, int, char);
 	extern int ktask_unlink(ktask_t *);
 	extern int ktask_connect(ktask_t *, ktask_t *, bool, bool, char);
 	extern int ktask_disconnect(ktask_t *, ktask_t *);

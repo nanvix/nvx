@@ -61,15 +61,22 @@ PUBLIC ktask_t * ktask_current(void)
 /*
  * @see ktask_create()
  */
-PUBLIC int ktask_create(ktask_t * task, ktask_fn fn, int period, char releases)
+PUBLIC int ktask_create(
+	ktask_t * task,
+	ktask_fn fn,
+	int priority,
+	int period,
+	char releases
+)
 {
 	/* Invalid task. */
 	if (UNLIKELY(task == NULL || fn == NULL))
 		return (-EINVAL);
 
-	return (kcall4(NR_task_create,
+	return (kcall5(NR_task_create,
 		(word_t) task,
 		(word_t) fn,
+		(word_t) priority,
 		(word_t) period,
 		(word_t) releases
 	));

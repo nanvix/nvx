@@ -735,6 +735,8 @@ static void test_api_mailbox_msg_forwarding(void)
 	test_assert(kmailbox_unlink(mbx_in) == 0);
 }
 
+#if __NANVIX_USE_COMM_WITH_TASKS
+
 /*============================================================================*
  * API Test: Mailbox on the Dispatcher                                        *
  *============================================================================*/
@@ -1020,6 +1022,8 @@ static void test_api_mailbox_on_dispatcher(void)
 	test_assert(kmailbox_close(mbx_out) == 0);
 	test_assert(kmailbox_unlink(mbx_in) == 0);
 }
+
+#endif
 
 /*============================================================================*
  * Fault Tests                                                                *
@@ -2731,7 +2735,9 @@ static struct test mailbox_tests_api[] = {
 	{ test_api_mailbox_multiplexation_3,      "[test][mailbox][api] mailbox multiplexation 3      [passed]" },
 	{ test_api_mailbox_pending_msg_unlink,    "[test][mailbox][api] mailbox pending msg unlink    [passed]" },
 	{ test_api_mailbox_msg_forwarding,        "[test][mailbox][api] mailbox message forwarding    [passed]" },
+#if __NANVIX_USE_COMM_WITH_TASKS
 	{ test_api_mailbox_on_dispatcher,         "[test][mailbox][api] mailbox on the dispatcher     [passed]" },
+#endif
 	{ NULL,                                    NULL                                                         },
 };
 

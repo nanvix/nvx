@@ -1168,6 +1168,8 @@ static void test_api_portal_msg_forwarding(void)
 	test_assert(kportal_unlink(portal_in) == 0);
 }
 
+#if __NANVIX_USE_COMM_WITH_TASKS
+
 /*============================================================================*
  * API Test: Mailbox on the Dispatcher                                        *
  *============================================================================*/
@@ -1456,6 +1458,8 @@ static void test_api_portal_on_dispatcher(void)
 	test_assert(kportal_close(portal_out) == 0);
 	test_assert(kportal_unlink(portal_in) == 0);
 }
+
+#endif
 
 /*============================================================================*
  * Fault Test: Invalid Create                                                 *
@@ -2858,7 +2862,9 @@ static struct test portal_tests_api[] = {
 	{ test_api_portal_multiplexation_4_large, "[test][portal][api] portal multiplexation 4 Large [passed]" },
 	{ test_api_portal_pending_msg_unlink,     "[test][portal][api] portal pending msg unlink     [passed]" },
 	{ test_api_portal_msg_forwarding,         "[test][portal][api] portal message forwarding     [passed]" },
+#if __NANVIX_USE_COMM_WITH_TASKS
 	{ test_api_portal_on_dispatcher,          "[test][portal][api] portal with tasks             [passed]" },
+#endif
 	{ NULL,                                    NULL                                                        },
 };
 

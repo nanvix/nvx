@@ -645,7 +645,7 @@ PUBLIC int ktask_portal_write(ktask_t * awrite, ktask_t * wait)
 		ktask_connect(
 			awrite,
 			wait,
-			KTASK_CONN_IS_DEPENDENCY,
+			KTASK_CONN_IS_FLOW,
 			KTASK_CONN_IS_PERSISTENT,
 			KTASK_TRIGGER_DEFAULT
 		)
@@ -677,7 +677,7 @@ PUBLIC int ktask_portal_read(ktask_t * allow, ktask_t * aread, ktask_t * wait)
 	ret = ktask_connect(
 		allow,
 		aread,
-		KTASK_CONN_IS_DEPENDENCY,
+		KTASK_CONN_IS_FLOW,
 		KTASK_CONN_IS_PERSISTENT,
 		KTASK_TRIGGER_DEFAULT
 	);

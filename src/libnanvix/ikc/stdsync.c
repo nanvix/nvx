@@ -34,8 +34,8 @@
 /**
  * @brief Kernel standard sync.
  */
-static barrier_t __stdbarrier[THREAD_MAX + 1] = {
-	[0 ... (THREAD_MAX)] = {
+static barrier_t __stdbarrier[STDSYNC_MAX] = {
+	[0 ... (STDSYNC_MAX - 1)] = {
 		.leader = -1,
 		.syncs[0] = -1,
 		.syncs[1] = -1

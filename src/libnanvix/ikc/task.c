@@ -664,7 +664,7 @@ PRIVATE void __ikc_flow_init(struct ikc_flow * flow)
 		ktask_connect(
 			&flow->config,
 			&flow->wait,
-			KTASK_CONN_IS_DEPENDENCY,
+			KTASK_CONN_IS_FLOW,
 			KTASK_CONN_IS_PERSISTENT,
 			KTASK_TRIGGER_DEFAULT
 		) == 0
@@ -673,7 +673,7 @@ PRIVATE void __ikc_flow_init(struct ikc_flow * flow)
 		ktask_connect(
 			&flow->wait,
 			&flow->config,
-			KTASK_CONN_IS_DEPENDENCY,
+			KTASK_CONN_IS_FLOW,
 			KTASK_CONN_IS_PERSISTENT,
 			KTASK_TRIGGER_USER1
 		) == 0

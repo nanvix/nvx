@@ -31,11 +31,6 @@
 #include <nanvix/runtime/stdikc.h>
 
 /**
- * @brief Number of standard inboxes.
- */
-#define STDINBOX_MAX (THREAD_MAX + 1)
-
-/**
  * @brief Kernel standard input mailbox.
  */
 static int __stdinbox[STDINBOX_MAX] = {

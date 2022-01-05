@@ -336,7 +336,7 @@ PRIVATE void test_api_ktask_create(void)
 {
 	ktask_t t;
 
-	test_assert(ktask_create(&t, dummy, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t, dummy, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
 
 		/* Internal values. */
 		test_assert(t.fn == dummy);
@@ -364,10 +364,10 @@ PRIVATE void test_api_ktask_connect(void)
 {
 	ktask_t t0, t1, t2, t3;
 
-	test_assert(ktask_create(&t0, dummy, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&t1, dummy, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&t2, dummy, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&t3, dummy, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t0, dummy, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t1, dummy, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t2, dummy, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t3, dummy, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
 
 	test_assert(ktask_connect(&t1, &t2, KTASK_CONN_IS_DEPENDENCY, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_DEFAULT) == 0);
 
@@ -437,7 +437,7 @@ PRIVATE void test_api_ktask_dispatch(void)
 	len0 = 0;
 	kmemset(str0, '\0', TEST_TASK_STRING_LENGTH_MAX + 1);
 
-	test_assert(ktask_create(&t, str_setter, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t, str_setter, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
 
 	test_assert(ktask_dispatch3(&t, TOW(str0), TOW(&len0), TOW('s')) == 0);
 	test_assert(ktask_wait(&t) == TEST_TASK_SPECIFIC_VALUE);
@@ -471,7 +471,7 @@ PRIVATE void test_api_ktask_identification(void)
 	int tid;
 	ktask_t t;
 
-	test_assert(ktask_create(&t, dummy, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t, dummy, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
 
 	test_assert((tid = ktask_get_id(&t)) != TASK_NULL_ID);
 
@@ -500,7 +500,7 @@ PRIVATE void test_api_ktask_current(void)
 	spinlock_lock(&master_lock);
 	spinlock_lock(&slave_lock);
 
-	test_assert(ktask_create(&t, current_fn, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t, current_fn, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
 
 	test_assert(ktask_dispatch0(&t) == 0);
 
@@ -529,8 +529,8 @@ PRIVATE void test_api_ktask_hard_dependendy(void)
 	len0 = 0;
 	kmemset(str0, '\0', TEST_TASK_STRING_LENGTH_MAX + 1);
 
-	test_assert(ktask_create(&t0, str_setter, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&t1, str_setter, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t0, str_setter, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t1, str_setter, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
 
 	test_assert(ktask_connect(&t0, &t1, KTASK_CONN_IS_DEPENDENCY, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_DEFAULT) == 0);
 
@@ -581,8 +581,8 @@ PRIVATE void test_api_ktask_soft_dependendy(void)
 	len0 = 0;
 	kmemset(str0, '\0', TEST_TASK_STRING_LENGTH_MAX + 1);
 
-	test_assert(ktask_create(&t0, str_setter, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&t1, str_setter, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t0, str_setter, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t1, str_setter, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
 
 	test_assert(ktask_connect(&t0, &t1, KTASK_CONN_IS_DEPENDENCY, KTASK_CONN_IS_TEMPORARY, KTASK_TRIGGER_DEFAULT) == 0);
 
@@ -632,9 +632,9 @@ PRIVATE void test_api_ktask_children(void)
 	len0 = 0;
 	kmemset(str0, '\0', TEST_TASK_STRING_LENGTH_MAX + 1);
 
-	test_assert(ktask_create(&t0, str_setter, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&t1, str_setter, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&t2, str_setter, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t0, str_setter, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t1, str_setter, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t2, str_setter, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
 
 	test_assert(ktask_connect(&t0, &t1, KTASK_CONN_IS_DEPENDENCY, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_DEFAULT) == 0);
 	test_assert(ktask_connect(&t0, &t2, KTASK_CONN_IS_DEPENDENCY, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_DEFAULT) == 0);
@@ -686,9 +686,9 @@ PRIVATE void test_api_ktask_parent(void)
 	len0 = 0;
 	kmemset(str0, '\0', TEST_TASK_STRING_LENGTH_MAX + 1);
 
-	test_assert(ktask_create(&t0, str_setter, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&t1, str_setter, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&t2, str_setter, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t0, str_setter, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t1, str_setter, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t2, str_setter, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
 
 	test_assert(ktask_connect(&t0, &t2, KTASK_CONN_IS_DEPENDENCY, KTASK_CONN_IS_TEMPORARY, KTASK_TRIGGER_DEFAULT) == 0);
 	test_assert(ktask_connect(&t1, &t2, KTASK_CONN_IS_DEPENDENCY, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_DEFAULT) == 0);
@@ -767,7 +767,7 @@ PRIVATE void test_api_ktask_exit_periodic(void)
 	len0 = 0;
 	kmemset(str0, '\0', TEST_TASK_STRING_LENGTH_MAX + 1);
 
-	test_assert(ktask_create(&t, periodic, 10, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t, periodic, KTASK_PRIORITY_LOW, 10, KTASK_MANAGEMENT_DEFAULT) == 0);
 
 	test_assert(ktask_dispatch3(&t, TOW(str0), TOW(&len0), TOW('t')) == 0);
 	test_assert(ktask_wait(&t) == 0);
@@ -792,7 +792,7 @@ PRIVATE void test_api_ktask_loop_periodic(void)
 
 	kmemset(str0, '\0', TEST_TASK_STRING_LENGTH_MAX + 1);
 
-	test_assert(ktask_create(&t, loop, 10, KTASK_MANAGEMENT_USER0) == 0);
+	test_assert(ktask_create(&t, loop, KTASK_PRIORITY_LOW, 10, KTASK_MANAGEMENT_USER0) == 0);
 	test_assert(ktask_connect(&t, &t, KTASK_CONN_IS_DEPENDENCY, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_USER1) == 0);
 
 	test_assert(ktask_dispatch3(&t, TOW(str0), 0, TOW('t')) == 0);
@@ -822,9 +822,9 @@ PRIVATE void test_api_ktask_loop_complex(void)
 
 	kmemset(str0, '\0', TEST_TASK_STRING_LENGTH_MAX + 1);
 
-	test_assert(ktask_create(&t0, loop, 10, KTASK_MANAGEMENT_USER0) == 0);
-	test_assert(ktask_create(&t1, loop, 0, KTASK_MANAGEMENT_USER0) == 0);
-	test_assert(ktask_create(&t2, loop, 0, KTASK_MANAGEMENT_USER0) == 0);
+	test_assert(ktask_create(&t0, loop, KTASK_PRIORITY_LOW, 10, KTASK_MANAGEMENT_USER0) == 0);
+	test_assert(ktask_create(&t1, loop, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_USER0) == 0);
+	test_assert(ktask_create(&t2, loop, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_USER0) == 0);
 
 	/**
 	 * Loop: { - HARD } != { .. SOFT }
@@ -880,9 +880,9 @@ PRIVATE void test_api_ktask_flow(void)
 
 	kmemset(str0, '\0', TEST_TASK_STRING_LENGTH_MAX + 1);
 
-	test_assert(ktask_create(&t0, dummy, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&t1, loop, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&t2, dummy, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t0, dummy, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t1, loop, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t2, dummy, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
 
 	test_assert(ktask_connect(&t0, &t1, KTASK_CONN_IS_FLOW, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_USER0) == 0);
 	test_assert(ktask_connect(&t1, &t1, KTASK_CONN_IS_FLOW, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_USER1) == 0);
@@ -938,7 +938,7 @@ PRIVATE void test_api_ktask_emit(void)
 	ktask_t t;
 
 	/* Create the task. */
-	test_assert(ktask_create(&t, emission, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&t, emission, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
 
 	/* Emit the task. */
 	for (int coreid = 0; coreid < CORES_NUM; ++coreid)

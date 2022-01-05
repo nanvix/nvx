@@ -692,10 +692,10 @@ PUBLIC int ktask_mailbox_write(ktask_t * awrite, ktask_t * wait)
 {
 	int ret;
 
-	if (UNLIKELY((ret = ktask_create(awrite, ktask_mailbox_awrite, 0, 0)) < 0))
+	if (UNLIKELY((ret = ktask_create(awrite, ktask_mailbox_awrite, KTASK_PRIORITY_LOW, 0, 0)) < 0))
 		return (ret);
 
-	if (UNLIKELY((ret = ktask_create(wait, ktask_mailbox_wait, 0, KTASK_TRIGGER_DEFAULT)) < 0))
+	if (UNLIKELY((ret = ktask_create(wait, ktask_mailbox_wait, KTASK_PRIORITY_HIGH, 0, KTASK_TRIGGER_DEFAULT)) < 0))
 		return (ret);
 
 	return (
@@ -722,10 +722,10 @@ PUBLIC int ktask_mailbox_read(ktask_t * aread, ktask_t * wait)
 {
 	int ret;
 
-	if (UNLIKELY((ret = ktask_create(aread, ktask_mailbox_aread, 0, 0)) < 0))
+	if (UNLIKELY((ret = ktask_create(aread, ktask_mailbox_aread, KTASK_PRIORITY_LOW, 0, 0)) < 0))
 		return (ret);
 
-	if (UNLIKELY((ret = ktask_create(wait, ktask_mailbox_wait, 0, KTASK_TRIGGER_DEFAULT)) < 0))
+	if (UNLIKELY((ret = ktask_create(wait, ktask_mailbox_wait, KTASK_PRIORITY_HIGH, 0, KTASK_TRIGGER_DEFAULT)) < 0))
 		return (ret);
 
 	return (

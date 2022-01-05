@@ -1361,12 +1361,12 @@ static void test_api_portal_on_dispatcher(void)
 	test_assert((portal_in = kportal_create(local, 0)) >= 0);
 	test_assert((portal_out = kportal_open(local, remote, 0)) >= 0);
 
-	test_assert(ktask_create(&init,   dispatcher_init,          0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&set,    dispatcher_set_message,   0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&reset,  dispatcher_reset_message, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&check,  dispatcher_check_message, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&loop,   dispatcher_loop,          0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&finish, dispatcher_finish,        0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&init,   dispatcher_init,          KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&set,    dispatcher_set_message,   KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&reset,  dispatcher_reset_message, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&check,  dispatcher_check_message, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&loop,   dispatcher_loop,          KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&finish, dispatcher_finish,        KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
 
 	test_assert(ktask_portal_write(&awrite, &wwait) == 0);
 	test_assert(ktask_portal_read(&allow, &aread, &rwait) == 0);

@@ -929,12 +929,12 @@ static void test_api_mailbox_on_dispatcher(void)
 	test_assert((mbx_in = kmailbox_create(local, 0)) >= 0);
 	test_assert((mbx_out = kmailbox_open(remote, 0)) >= 0);
 
-	test_assert(ktask_create(&init,   dispatcher_init,          0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&set,    dispatcher_set_message,   0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&reset,  dispatcher_reset_message, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&check,  dispatcher_reset_message, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&loop,   dispatcher_loop,          0, KTASK_MANAGEMENT_DEFAULT) == 0);
-	test_assert(ktask_create(&finish, dispatcher_finish,        0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&init,   dispatcher_init,          KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&set,    dispatcher_set_message,   KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&reset,  dispatcher_reset_message, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&check,  dispatcher_reset_message, KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&loop,   dispatcher_loop,          KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	test_assert(ktask_create(&finish, dispatcher_finish,        KTASK_PRIORITY_LOW, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
 
 	test_assert(ktask_mailbox_write(&awrite, &wwait) == 0);
 	test_assert(ktask_mailbox_read(&aread,   &rwait) == 0);

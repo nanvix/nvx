@@ -657,8 +657,8 @@ PUBLIC int ikc_flow_wait(int type, word_t cid)
  */
 PRIVATE void __ikc_flow_init(struct ikc_flow * flow)
 {
-	KASSERT(ktask_create(&flow->config, __ikc_flow_config, 0, KTASK_TRIGGER_DEFAULT) == 0);
-	KASSERT(ktask_create(&flow->wait, __ikc_flow_wait, 0, KTASK_TRIGGER_DEFAULT) == 0);
+	KASSERT(ktask_create(&flow->config, __ikc_flow_config, KTASK_PRIORITY_LOW, 0, KTASK_TRIGGER_DEFAULT) == 0);
+	KASSERT(ktask_create(&flow->wait, __ikc_flow_wait, KTASK_PRIORITY_HIGH, 0, KTASK_TRIGGER_DEFAULT) == 0);
 
 	KASSERT(
 		ktask_connect(

@@ -14,6 +14,8 @@
 PRIVATE ktask_t trecv __attribute__ ((section(".libnanvix.data")));
 PRIVATE ktask_t tsend __attribute__ ((section(".libnanvix.data")));
 
+PRIVATE int mbx_recv __attribute__ ((section(".libnanvix.data"))); 
+
 PRIVATE struct semaphore sem1;
 PRIVATE struct semaphore sem2;
 PRIVATE struct semaphore sem3;
@@ -156,8 +158,8 @@ PRIVATE void sender()
 	// this line should be executed on both clusters: sender and receiver
 	kprintf("global = %x", global);
 
-	if (global == 0xdeadbeef)
-		test_assert(kmailbox_write(out, &dummy, sizeof(char)) == sizeof(char));
+	if (global == 0xc0ffee)
+		test_assert(kmailbox_write(mbx_recv, &dummy, sizeof(char)) == sizeof(char));
 }
 
 PRIVATE int task_receiver(
@@ -177,6 +179,7 @@ PRIVATE int task_receiver(
 	int in;
 
 	test_assert((in = kportal_create(local, PORT)) >= 0);
+	test_assert((mbx_recv = kmailbox_open(MASTER_NODENUM, PORT2)) >= 0);
 
 	kprintf("[receiver] reading user sections");
 	test_assert(kportal_allow(in, remote, PORT) == 0);

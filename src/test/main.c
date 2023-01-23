@@ -24,6 +24,7 @@
 
 #include <nanvix/sys/dev.h>
 #include <nanvix/sys/noc.h>
+#include <nanvix/sys/migration.h>
 #include "test.h"
 
 /**
@@ -105,6 +106,7 @@ void ___start(int argc, const char *argv[])
 
 	/* Required. */
 	knoc_init();
+	kmigration_init();
 
 	((void) argc);
 	((void) argv);

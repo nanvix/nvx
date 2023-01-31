@@ -27,24 +27,45 @@
     
     #include <nanvix/kernel/syscall.h>
 
-    #define MSTATE_INIT           0
-    #define MSTATE_SECTIONS       1
-    #define MSTATE_UAREA          2
-    #define MSTATE_THREAD_USTACKS 3
-    #define MSTATE_THREAD_KSTACKS 4
-    #define MSTATE_PAGEDIR        5
-    #define MSTATE_PAGETAB        6
-    #define MSTATE_KSTACKSIDS     7
-    #define MSTATE_KSTACKSPHYS    8
-    #define MSTATE_FRAMES_BITMAP  9
-    #define MSTATE_FRAMES_PHYS    10
-    #define MSTATE_FINISH         11
+    #define MSTATE_SECTIONS       0
+    #define MSTATE_UAREA          1
+    #define MSTATE_THREAD_USTACKS 2
+    #define MSTATE_THREAD_KSTACKS 3
+    #define MSTATE_PAGEDIR        4
+    #define MSTATE_PAGETAB        5
+    #define MSTATE_KSTACKSIDS     6
+    #define MSTATE_KSTACKSPHYS    7
+    #define MSTATE_FRAMES_BITMAP  8
+    #define MSTATE_FRAMES_PHYS    9
+    #define MSTATE_FINISH         10
+    #define MSTATE_INIT           MSTATE_SECTIONS
 
+    #define MIGRATION_MAILBOX_NULL -1
+    #define MIGRATION_PORTAL_NULL  -1
+
+    #define MIGRATION_MAILBOX_PORTNUM 0
+    #define MIGRATION_PORTAL_PORTNUM  0
+
+    #define MOPCODE_MIGRATE_TO   0
+    #define MOPCODE_MIGRATE_FROM 1
+
+    #define NOTIFIED     0
+    #define NOT_NOTIFIED 1
+
+    struct migration_message {
+        int opcode;
+        int receiver;
+        int sender;
+    };
+    
+    static inline void migration_message_clear(struct migration_message *msg)
+    {
+        msg->opcode = -1;
+        msg->receiver = -1;
+        msg->sender = -1;
+    }
 
     EXTERN int kmigrate_to(int receiver_nodenum);
-    
-    EXTERN int kmigrate_from(int sender_nodenum);
-
     EXTERN void kmigration_init(void);
 
     static inline void kfreeze(void)

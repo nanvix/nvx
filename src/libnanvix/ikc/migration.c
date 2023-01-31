@@ -29,12 +29,10 @@
 #include <nanvix/sys/noc.h>
 #include <nanvix/sys/portal.h>
 #include <nanvix/sys/sync.h>
+#include <nanvix/sys/mailbox.h>
 
 
 #define FRAMES_BIT_LENGTH (FRAMES_LENGTH * sizeof(bitmap_t))
-#define MPORT 0
-#define SENDER PROCESSOR_NODENUM_LEADER
-#define RECEIVER (PROCESSOR_NODENUM_LEADER + 1)
 
 #define VERBOSE 0
 
@@ -54,13 +52,28 @@ struct mtask_args margs = {
 	.size = 0
 };
 
-int migration_inportal = -1;
-int migration_outportal = -1;
 
-PRIVATE int sender = SENDER;
+PRIVATE int migration_inportal = MIGRATION_PORTAL_NULL;
+PRIVATE int migration_outportal = MIGRATION_PORTAL_NULL;
+PRIVATE int migration_inmailbox = MIGRATION_MAILBOX_NULL;
+PRIVATE int migration_outmailbox_sender = MIGRATION_MAILBOX_NULL;
+PRIVATE int migration_outmailbox_receiver = MIGRATION_MAILBOX_NULL;
 
-PRIVATE int mstate = -1;
+PRIVATE struct migration_message request_message;
+PRIVATE struct migration_message mmsg;
+
+PRIVATE int mstate = MSTATE_INIT;
 PRIVATE int loop_index = -1;
+PRIVATE int sender_notification_status = NOT_NOTIFIED;
+PRIVATE int receiver_notification_status = NOT_NOTIFIED;
+
+PRIVATE ktask_t mtask_migrate_to;
+
+PRIVATE ktask_t mmbox_aread;
+PRIVATE ktask_t mmbox_rwait;
+PRIVATE ktask_t mmbox_awrite;
+PRIVATE ktask_t mmbox_wwait;
+PRIVATE ktask_t mhandler;
 
 PRIVATE ktask_t mtask_finish;
 PRIVATE ktask_t mtask_state_handler;
@@ -72,81 +85,30 @@ PRIVATE ktask_t wwait;
 PRIVATE ktask_t allow;
 PRIVATE ktask_t aread;
 PRIVATE ktask_t rwait;
-// PRIVATE ktask_t mtask_portal_write;
-// PRIVATE ktask_t mtask_portal_allow;
-// PRIVATE ktask_t mtask_portal_read;
 
-// PRIVATE int mportal_allow(
-// 	word_t arg0,
-// 	word_t arg1,
-// 	word_t arg2,
-// 	word_t arg3,
-// 	word_t arg4
-// )
-// {
-// 	int inportal = (int) arg0;
-// 	int remote = (int) arg1;
-// 	int port = (int) arg2;
-// 	char *buffer = (char *) arg3;
-// 	int size = (int) arg4;
-
-// 	KASSERT(kportal_allow(inportal, remote, port) == 0);
+PRIVATE void migration_control_reset()
+{
+	mstate = MSTATE_INIT;
+	migration_message_clear(&mmsg);
+	sender_notification_status = NOT_NOTIFIED;
+	receiver_notification_status = NOT_NOTIFIED;
+	if (migration_outportal != MIGRATION_PORTAL_NULL)
+	{
+		kportal_close(migration_outportal);
+		migration_outportal = MIGRATION_PORTAL_NULL;
+	}
+	if (migration_outmailbox_receiver != MIGRATION_MAILBOX_NULL)
+	{
+		kmailbox_close(migration_outmailbox_receiver);
+		migration_outmailbox_receiver = MIGRATION_MAILBOX_NULL;
+	}
+	if (migration_outmailbox_sender != MIGRATION_MAILBOX_NULL)
+	{
+		kmailbox_close(migration_outmailbox_sender);
+		migration_outmailbox_sender = MIGRATION_MAILBOX_NULL;
+	}
 	
-// 	ktask_exit3(
-// 		0, 
-// 		KTASK_MANAGEMENT_USER0,
-// 		KTASK_MERGE_ARGS_FN_REPLACE,
-// 		(word_t) inportal,
-// 		(word_t) buffer,
-// 		(word_t) size
-// 	);
-// 	return (0);
-// }
-
-// PRIVATE int mportal_read(
-// 	word_t arg0,
-// 	word_t arg1,
-// 	word_t arg2,
-// 	word_t arg3,
-// 	word_t arg4
-// )
-// {
-// 	int inportal = (int) arg0;
-// 	char *buffer = (char *) arg1;
-// 	int size = (int) arg2;
-
-// 	UNUSED(arg3);
-// 	UNUSED(arg4);
-
-// 	KASSERT(kportal_read(inportal, buffer, size) >= 0);
-
-// 	ktask_exit0(0, KTASK_MANAGEMENT_USER0);
-
-// 	return (0);
-// }
-
-// PRIVATE int mportal_write(
-// 	word_t arg0,
-// 	word_t arg1,
-// 	word_t arg2,
-// 	word_t arg3,
-// 	word_t arg4
-// )
-// {
-// 	int outportal = (int) arg0;
-// 	char *buffer = (char *) arg1;
-// 	int size = (int) arg2;
-
-// 	UNUSED(arg3);
-// 	UNUSED(arg4);
-
-// 	KASSERT(kportal_write(outportal, buffer, size) >= 0);
-// 	ktask_exit0(0, KTASK_MANAGEMENT_USER0);
-
-// 	return (0);
-// }
-
-// ASK: maybe trigger user0 on rw?
+}
 
 PRIVATE int mwrite(
 	word_t arg0,
@@ -169,26 +131,23 @@ PRIVATE int mwrite(
 	UNUSED(arg3);
 	UNUSED(arg4);
 
-	// for (int i = lower_bound; i < upper_bound; i++)
-	// {
-		/* checks if we need to send current index */
-		char *buffer_send = cond_fn ? (*cond_fn)(loop_index) : buffer;
-		if (buffer_send)
-		{
-			#if VERBOSE
-				kprintf("sending %x", buffer_send);
-			#endif
-			ktask_exit3(
-				0,
-				KTASK_MANAGEMENT_USER1,
-				KTASK_MERGE_ARGS_FN_REPLACE,
-				(word_t) migration_outportal,
-				(word_t) buffer_send,
-				(word_t) size
-			);
-			// KASSERT(kportal_write(migration_outportal, buffer_send, size) >= 0);
-		}
-	// }
+	
+	/* checks if we need to send current index */
+	char *buffer_send = cond_fn ? (*cond_fn)(loop_index) : buffer;
+	if (buffer_send)
+	{
+		#if VERBOSE
+			kprintf("sending %x", buffer_send);
+		#endif
+		ktask_exit3(
+			0,
+			KTASK_MANAGEMENT_USER1,
+			KTASK_MERGE_ARGS_FN_REPLACE,
+			(word_t) migration_outportal,
+			(word_t) buffer_send,
+			(word_t) size
+		);
+	}
 	else
 	{
 		#if VERBOSE
@@ -221,30 +180,24 @@ PRIVATE int mread(
 	UNUSED(arg3);
 	UNUSED(arg4);
 
-	// for (int i = lower_bound; i < upper_bound; i++)
-	// {
-		/* checks if we need to send current index */
-		char *buffer_recv = cond_fn ? (*cond_fn)(loop_index) : buffer;
-		if (buffer_recv)
-		{
-			#if VERBOSE
-				kprintf("receiving %x", buffer_recv);
-			#endif
+	char *buffer_recv = cond_fn ? (*cond_fn)(loop_index) : buffer;
+	if (buffer_recv)
+	{
+		#if VERBOSE
+			kprintf("receiving %x", buffer_recv);
+		#endif
 
-			ktask_exit5(
-				0, 
-				KTASK_MANAGEMENT_USER1,
-				KTASK_MERGE_ARGS_FN_REPLACE,
-				(word_t) migration_inportal,
-				(word_t) buffer_recv,
-				(word_t) size,
-				(word_t) sender,
-				(word_t) MPORT
-			);
-			// KASSERT(kportal_allow(migration_inportal, sender, MPORT) == 0);
-			// KASSERT(kportal_read(migration_inportal, buffer_recv, size) >= 0);
-		}
-	// }
+		ktask_exit5(
+			0, 
+			KTASK_MANAGEMENT_USER1,
+			KTASK_MERGE_ARGS_FN_REPLACE,
+			(word_t) migration_inportal,
+			(word_t) buffer_recv,
+			(word_t) size,
+			(word_t) mmsg.sender,
+			(word_t) MIGRATION_PORTAL_PORTNUM
+		);
+	}
 	else
 	{
 		#if VERBOSE
@@ -347,8 +300,6 @@ PRIVATE int mstate_handler(
 	kprintf("mstate: %d", mstate);
 
 	switch (mstate) {
-		case MSTATE_INIT:
-			break;
 		case MSTATE_SECTIONS:
 			margs.buffer = (char *) &__USER_START;
 			margs.size = &__USER_END - &__USER_START;
@@ -418,23 +369,15 @@ PRIVATE int mstate_handler(
 		comm_task,
 		(word_t) &margs, 0, 0, 0, 0
 	);
-
 	
-	// if (margs.cond_fn != NULL)
-		ktask_exit2(
-			0, 
-			KTASK_MANAGEMENT_USER0,
-			KTASK_MERGE_ARGS_FN_REPLACE,
-			(word_t) margs.upper_bound,
-			(word_t) is_sender
-		);
-	// else
-	// 	ktask_exit1(
-	// 		0, 
-	// 		KTASK_MANAGEMENT_USER0,
-	// 		KTASK_MERGE_ARGS_FN_REPLACE,
-	// 		(word_t) &margs
-	// 	);
+	ktask_exit2(
+		0, 
+		KTASK_MANAGEMENT_USER0,
+		KTASK_MERGE_ARGS_FN_REPLACE,
+		(word_t) margs.upper_bound,
+		(word_t) is_sender
+	);
+
 
 	return (0);
 }
@@ -452,16 +395,74 @@ PRIVATE int mfinish(
 	UNUSED(arg2);
 	UNUSED(arg3);
 	UNUSED(arg4);
+
+	migration_control_reset();
+	kprintf("unfrezing");
+	kunfreeze();
+
 	return 0;
 }
 
-PRIVATE int __kernel_migrate(int is_sender)
+PRIVATE int nanvix_mhandler(
+	word_t arg0,
+	word_t arg1,
+	word_t arg2,
+	word_t arg3,
+	word_t arg4
+)
 {
-	int ret;
-	// int (*mtask_fn)(word_t, word_t, word_t, word_t, word_t);
+	UNUSED(arg0);
+	UNUSED(arg1);
+	UNUSED(arg2);
+	UNUSED(arg3);
+	UNUSED(arg4);
 
-	// mtask_fn = is_sender ? mwrite : mread;
+	int local_node = knode_get_num();
 
+	if (mmsg.receiver == mmsg.sender)
+		goto error;
+
+	switch(mmsg.opcode)
+	{
+		case MOPCODE_MIGRATE_TO:
+			if (mmsg.receiver == local_node)
+				goto error;
+			KASSERT((migration_outportal = kportal_open(
+				mmsg.sender, mmsg.receiver, MIGRATION_PORTAL_PORTNUM
+			)) >= 0);
+			ktask_exit1(
+				0,
+				KTASK_MANAGEMENT_USER0,
+				KTASK_MERGE_ARGS_FN_REPLACE,
+				(word_t) 1 // is sender
+			);
+			break;
+		case MOPCODE_MIGRATE_FROM:
+			kfreeze();
+			if (mmsg.sender == local_node)
+				goto error;
+			ktask_exit1(
+				0,
+				KTASK_MANAGEMENT_USER0,
+				KTASK_MERGE_ARGS_FN_REPLACE,
+				(word_t) 0 // is not sender
+			);
+			break;
+		default:
+			goto error;
+	}
+
+	return (0);
+
+	error:
+		kunfreeze();
+		ktask_exit0(0, KTASK_MANAGEMENT_USER1);
+	
+	return (-1);
+}
+
+PRIVATE int migration_states_task_flow_init()
+{
 	// state handler tasks
 	ktask_create(&mtask_state_handler, &mstate_handler, 0, KTASK_MANAGEMENT_DEFAULT);
 	ktask_create(&mtask_write, &mwrite, 0, KTASK_MANAGEMENT_DEFAULT);
@@ -469,16 +470,8 @@ PRIVATE int __kernel_migrate(int is_sender)
 	ktask_create(&mtask_finish, &mfinish, 0, KTASK_MANAGEMENT_DEFAULT);
 	ktask_create(&mtask_loop, &mloop, 0, KTASK_MANAGEMENT_DEFAULT);
 
-	// portal read/write handling tasks
-	// if (is_sender)
-		// ktask_create(&mtask_portal_write, &mportal_write, 0, KTASK_MANAGEMENT_DEFAULT);
-		ktask_portal_write(&awrite, &wwait);
-	// else
-	// {
-		// ktask_create(&mtask_portal_allow, &mportal_allow, 0, KTASK_MANAGEMENT_DEFAULT);
-		// ktask_create(&mtask_portal_read, &mportal_read, 0, KTASK_MANAGEMENT_DEFAULT);
-		ktask_portal_read(&allow, &aread, &rwait);
-	// } 
+	ktask_portal_write(&awrite, &wwait);
+	ktask_portal_read(&allow, &aread, &rwait);
 
 	// state handler connections
 	ktask_connect(
@@ -532,63 +525,41 @@ PRIVATE int __kernel_migrate(int is_sender)
 	);
 
 	// portal read/write handling connections
-	// if (is_sender)
-	// {
-		KASSERT(ktask_connect(
-			&mtask_write,
-			&awrite,
-			KTASK_CONN_IS_FLOW,
-			KTASK_CONN_IS_PERSISTENT,
-			KTASK_TRIGGER_USER1
-		) == 0);
-		
-		KASSERT(ktask_connect(
-			&wwait,
-			&mtask_loop,
-			KTASK_CONN_IS_FLOW,
-			KTASK_CONN_IS_PERSISTENT,
-			KTASK_TRIGGER_USER0
-		) == 0);
-	// }
-	// else
-	// {
-		KASSERT(ktask_connect(
-			&mtask_read,
-			&allow,
-			KTASK_CONN_IS_FLOW,
-			KTASK_CONN_IS_PERSISTENT,
-			KTASK_TRIGGER_USER1
-		) == 0);
+	KASSERT(ktask_connect(
+		&mtask_write,
+		&awrite,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER1
+	) == 0);
+	
+	KASSERT(ktask_connect(
+		&wwait,
+		&mtask_loop,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER0
+	) == 0);
+	KASSERT(ktask_connect(
+		&mtask_read,
+		&allow,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER1
+	) == 0);
 
-		KASSERT(ktask_connect(
-			&rwait,
-			&mtask_loop,
-			KTASK_CONN_IS_FLOW,
-			KTASK_CONN_IS_PERSISTENT,
-			KTASK_TRIGGER_USER0
-		) == 0);
-	// }
-
-	mstate = MSTATE_SECTIONS;
-
-	kprintf("dispatching");
-	if ((ret = (ktask_dispatch1(&mtask_state_handler, is_sender))) != 0)
-		return (ret);
-
-	kprintf("waiting");
-	ktask_wait(&mtask_finish);
-
-	kprintf("unlinking");
-    ktask_unlink(&mtask_state_handler);
-	ktask_unlink(&mtask_read);
-	ktask_unlink(&mtask_write);
-	ktask_unlink(&mtask_finish);
+	KASSERT(ktask_connect(
+		&rwait,
+		&mtask_loop,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER0
+	) == 0);
 
 	return (0);
 }
 
-/*
-PRIVATE int msend(
+PRIVATE int __migrate_to(
 	word_t arg0,
 	word_t arg1,
 	word_t arg2,
@@ -596,234 +567,95 @@ PRIVATE int msend(
 	word_t arg4
 )
 {
+	int receiver_nodenum = (int) arg0;
+	UNUSED(arg1);
 	UNUSED(arg2);
 	UNUSED(arg3);
 	UNUSED(arg4);
 
-	int receiver = (int) (arg0);
-	int sender = (int) (arg1);
-	int out;
+	if(receiver_notification_status == NOT_NOTIFIED && sender_notification_status == NOT_NOTIFIED)	
+		kfreeze();
 
-	UNUSED(receiver);
-	UNUSED(sender);
-	// int syncin, syncout;
-
-	// int nodes[2];
-	// nodes[0] = receiver;
-	// nodes[1] = sender;
-
-	kfreeze();
-
-	out = migration_outportal;
+	request_message.receiver = receiver_nodenum;
+	request_message.sender = knode_get_num();
 	
-	
-	kprintf("port %d",kportal_get_port(out));
-
-	// KASSERT((syncin = ksync_create(nodes, 2, SYNC_ONE_TO_ALL)) >= 0);
-	// KASSERT((syncout = ksync_open(nodes, 2, SYNC_ALL_TO_ONE)) >= 0);
-	// KASSERT(ksync_wait(syncin) == 0);
-	// KASSERT(ksync_signal(syncout) == 0);
-
-	kprintf("[sender] sending user sections");
-	KASSERT(kportal_write(out, &__USER_START, &__USER_END - &__USER_START) >= 0);
-
-	kprintf("[sender] sending uarea");
-	KASSERT(kportal_write(out, &uarea, sizeof(struct uarea)) >= 0);
-
-
-	for (int i = 0; i < THREAD_MAX; ++i)
+	if (receiver_notification_status == NOT_NOTIFIED)
 	{
-		if (uarea.threads[i].tid != KTHREAD_NULL_TID)
-		{
-			kprintf("[sender] sending stacks");
-			KASSERT(kportal_write(out, uarea.ustacks[i], PAGE_SIZE) >= 0);
-			KASSERT(kportal_write(out, uarea.kstacks[i], PAGE_SIZE) >= 0);
-		}
+		receiver_notification_status = NOTIFIED;
+		request_message.opcode = MOPCODE_MIGRATE_FROM;
+		ktask_exit3(
+			0,
+			KTASK_MANAGEMENT_USER0,
+			KTASK_MERGE_ARGS_FN_REPLACE,
+			(word_t) migration_outmailbox_receiver,
+			(word_t) &request_message,
+			(word_t) sizeof(struct migration_message)
+		);
+	}
+	else if (sender_notification_status == NOT_NOTIFIED)
+	{
+		sender_notification_status = NOTIFIED;
+		request_message.opcode = MOPCODE_MIGRATE_TO;
+		ktask_exit3(
+			0,
+			KTASK_MANAGEMENT_USER0,
+			KTASK_MERGE_ARGS_FN_REPLACE,
+			(word_t) migration_outmailbox_sender,
+			(word_t) &request_message,
+			(word_t) sizeof(struct migration_message)
+		);
+	}
+	else
+	{
+		ktask_exit0(0, KTASK_MANAGEMENT_USER1);
 	}
 
-	kprintf("[sender] sending page directories");
-	KASSERT(kportal_write(out, root_pgdir, sizeof(struct pde) * PGDIR_LENGTH) >= 0);
-	
-	kprintf("[sender] sending page tables");
-	KASSERT(kportal_write(out, kernel_pgtab, ROOT_PGTAB_NUM * PGTAB_LENGTH * sizeof(struct pte)) >= 0);
-	
-	kprintf("[sender] sending kstacks ids");
-	KASSERT(kportal_write(out, kpages_alias, NUM_KPAGES * sizeof(int)) >= 0);
-
-	kprintf("[sender] sending kstacks");
-	for (int i = NUM_KPAGES - 1; i > 2; i--)
-	{
-		if (!kpages_alias[i])
-			continue;
-		KASSERT(kportal_write(out, (void *) kpool_id_to_addr(i), PAGE_SIZE) >= 0);
-	}
-
-	kprintf("[sender] sending frames");
-	KASSERT(kportal_write(out, (void *) frames_alias, FRAMES_LENGTH * sizeof(bitmap_t)) >= 0);
-	
-	for (unsigned int i = 0; i < FRAMES_LENGTH * sizeof(bitmap_t); i++)
-	{
-		if (!bitmap_check_bit(frames_alias, i))
-			continue;
-		
-		KASSERT(kportal_write(out, (void *) (UBASE_PHYS + (i << PAGE_SHIFT)), PAGE_SIZE) >= 0);
-	}
-
-	KASSERT(kportal_close(out) == 0);
-
-	kunfreeze();
-
-	return (0);
+    return (0);
 }
-*/
-
-/*
-PRIVATE int mrecv(
-	word_t arg0,
-	word_t arg1,
-	word_t arg2,
-	word_t arg3,
-	word_t arg4
-)
-{
-    int receiver = (int) arg0;
-	int sender = (int) arg1;
-	int in;
-
-	UNUSED(receiver);
-	UNUSED(sender);
-	// int syncin, syncout;
-
-	// int nodes[2];
-	// nodes[0] = receiver;
-	// nodes[1] = sender;
-
-    UNUSED(arg2);
-    UNUSED(arg3);
-    UNUSED(arg4);
-
-	kfreeze();
-
-	// kprintf("port %d",kportal_get_port(in));
-
-	in = migration_inportal;
-
-	// KASSERT((syncin = ksync_create(nodes, 2, SYNC_ALL_TO_ONE)) >= 0);
-	// KASSERT((syncout = ksync_open(nodes, 2, SYNC_ONE_TO_ALL)) >= 0);
-	// KASSERT(ksync_signal(syncout) == 0);
-	// KASSERT(ksync_wait(syncin) == 0);
-
-	// int dummy = 50;
-	// while(--dummy)
-	// {
-	// 	kprintf("dummy");
-	// }
-
-
-	kprintf("[receiver] reading user sections");
-	KASSERT(kportal_allow(in, sender, MPORT) == 0);
-	KASSERT(kportal_read(in, &__USER_START, &__USER_END - &__USER_START) >= 0);
-
-	kprintf("[receiver] reading uarea");
-	KASSERT(kportal_allow(in, sender, MPORT) == 0);
-	KASSERT(kportal_read(in, &uarea, sizeof(struct uarea)) >= 0);
-
-	for (int i = 0; i < THREAD_MAX; ++i)
-	{
-		if (uarea.threads[i].tid != KTHREAD_NULL_TID)
-		{
-			
-			kprintf("[receiver] reading stacks");
-			KASSERT(kportal_allow(in, sender, MPORT) == 0);
-			KASSERT(kportal_read(in, uarea.ustacks[i], PAGE_SIZE) >= 0);
-			KASSERT(kportal_allow(in, sender, MPORT) == 0);
-			KASSERT(kportal_read(in, uarea.kstacks[i], PAGE_SIZE) >= 0);
-		}
-	}
-
-	kprintf("[receiver] reading page directories");
-	KASSERT(kportal_allow(in, sender, MPORT) == 0);
-	KASSERT(kportal_read(in, root_pgdir, sizeof(struct pde) * PGDIR_LENGTH) >= 0);
-
-	kprintf("[receiver] reading page tables");
-	KASSERT(kportal_allow(in, sender, MPORT) == 0);
-	KASSERT(kportal_read(in, kernel_pgtab, ROOT_PGTAB_NUM * PGTAB_LENGTH * sizeof(struct pte)) >= 0);
-
-	kprintf("[receiver] reading kstacks ids");
-	KASSERT(kportal_allow(in, sender, MPORT) == 0);
-	KASSERT(kportal_read(in, kpages_alias, NUM_KPAGES * sizeof(int)) >= 0);
-
-	// dcache_invalidate();
-
-	kprintf("[receiver] reading kstacks");
-	for (int i = NUM_KPAGES - 1; i > 2; i--)
-	{
-		if (!kpages_alias[i])
-			continue;
-		// kprintf("kpage id %d", i);
-		// kprintf("kpage address %d", (void *) kpool_id_to_addr(i));
-		KASSERT(kportal_allow(in, sender, MPORT) == 0);
-		KASSERT(kportal_read(in, (void *) kpool_id_to_addr(i), PAGE_SIZE) >= 0);
-	}
-
-	kprintf("[receiver] reading frames");
-	KASSERT(kportal_allow(in, sender, MPORT) == 0);
-	KASSERT(kportal_read(in, (void *) frames_alias, FRAMES_LENGTH * sizeof(bitmap_t)) >= 0);
-
-	for (int i = 0; i < FRAMES_LENGTH * 32; i++)
-	{
-		if (!bitmap_check_bit(frames_alias, i))
-			continue;
-
-		KASSERT(kportal_allow(in, sender, MPORT) == 0);
-		KASSERT(kportal_read(in, (void *) (UBASE_PHYS + (i << PAGE_SHIFT)), PAGE_SIZE) >= 0);
-	}
-
-	kunfreeze();
-
-	return (0);
-}
-*/
-
 
 PUBLIC int kmigrate_to(int receiver_nodenum)
 {
-    int ret;
-
-    if (UNLIKELY((unsigned int) receiver_nodenum >= PROCESSOR_NOC_NODES_NUM))
+	int local_node = knode_get_num();
+	if (UNLIKELY((unsigned int) receiver_nodenum >= PROCESSOR_NOC_NODES_NUM))
         return (-EINVAL);
 
-	kprintf("to %d %d", receiver_nodenum, knode_get_num());
-	
-	ret = __kernel_migrate(1);
+	if (UNLIKELY(receiver_nodenum == local_node))
+		return (-EINVAL);
 
-	// ret = msend();
+	KASSERT((migration_outmailbox_receiver = kmailbox_open(receiver_nodenum, MIGRATION_MAILBOX_PORTNUM)) >= 0);
+	KASSERT((migration_outmailbox_sender = kmailbox_open(local_node, MIGRATION_MAILBOX_PORTNUM)) >= 0);
 
-    return (ret);
-}
+	KASSERT(ktask_dispatch1(&mtask_migrate_to, (word_t) receiver_nodenum) == 0);
 
-PUBLIC int kmigrate_from(int sender_nodenum)
-{
-    int ret;
-
-    if (UNLIKELY((unsigned int) sender_nodenum >= PROCESSOR_NOC_NODES_NUM))
-        return (-EINVAL);
-
-	kprintf("from %d %d", knode_get_num(), sender_nodenum);
-
-	ret = __kernel_migrate(0);
-
-	// ret = mrecv();
-
-    return (ret);
+	return (0);
 }
 
 PUBLIC void kmigration_init(void)
 {
-	int node = knode_get_num();
+	KASSERT((migration_inmailbox = kmailbox_create(knode_get_num(), MIGRATION_MAILBOX_PORTNUM)) >= 0);
+	KASSERT((migration_inportal = kportal_create(knode_get_num(), MIGRATION_PORTAL_PORTNUM)) >= 0);
 
-	if (node == RECEIVER)
-		KASSERT((migration_inportal = kportal_create(RECEIVER, MPORT)) >= 0);
-	else if (node == SENDER)
-		KASSERT((migration_outportal = kportal_open(SENDER, RECEIVER, MPORT)) >= 0);
+	KASSERT(ktask_create(&mhandler, &nanvix_mhandler, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	KASSERT(ktask_create(&mtask_migrate_to, &__migrate_to, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+
+	KASSERT(ktask_mailbox_read(&mmbox_aread, &mmbox_rwait) == 0);
+	KASSERT(ktask_mailbox_write(&mmbox_awrite, &mmbox_wwait) == 0);	
+
+	KASSERT(ktask_connect(&mtask_migrate_to, &mmbox_awrite, KTASK_CONN_IS_FLOW, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_USER0) == 0);
+	KASSERT(ktask_connect(&mmbox_wwait, &mtask_migrate_to, KTASK_CONN_IS_FLOW, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_USER0) == 0);
+
+	KASSERT(ktask_connect(&mmbox_rwait, &mhandler, KTASK_CONN_IS_FLOW, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_USER0) == 0);
+	KASSERT(ktask_connect(&mhandler, &mtask_state_handler, KTASK_CONN_IS_FLOW, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_USER0) == 0);
+	KASSERT(ktask_connect(&mhandler, &mtask_finish, KTASK_CONN_IS_FLOW, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_USER1) == 0);
+	KASSERT(ktask_connect(&mtask_finish, &mmbox_aread, KTASK_CONN_IS_FLOW, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_USER0) == 0);
+
+	migration_states_task_flow_init();
+	migration_control_reset();
+
+	KASSERT(ktask_dispatch3(
+		&mmbox_aread,
+		(word_t) migration_inmailbox,
+		(word_t) &mmsg,
+		(word_t) sizeof(struct migration_message)
+	) == 0);
 }

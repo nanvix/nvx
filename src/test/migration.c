@@ -64,11 +64,9 @@ PRIVATE void sender2()
 
 	test_assert(kmigrate_to(remote) == 0);
 
-	
-
-	upage_inval(VADDR(pg));
-	dcache_invalidate();
-	tlb_flush();
+	// upage_inval(VADDR(pg));
+	// dcache_invalidate();
+	// tlb_flush();
 
 	// KASSERT(tlb_inval(TLB_INSTRUCTION, VADDR(pg)) == 0);
 	// KASSERT(tlb_inval(TLB_DATA, VADDR(pg)) == 0);

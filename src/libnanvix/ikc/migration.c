@@ -398,6 +398,10 @@ PRIVATE int mfinish(
 
 	migration_control_reset();
 	kprintf("unfrezing");
+	
+	dcache_invalidate();
+	tlb_flush();
+	
 	kunfreeze();
 
 	return 0;

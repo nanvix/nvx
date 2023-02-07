@@ -33,7 +33,7 @@
 	 * @brief Test's parameters
 	 */
 	/**@{*/
-	#define NR_NODES           3
+	#define NR_NODES           17
 #if (PROCESSOR_IS_MULTICLUSTER)
 		#define MASTER_NODENUM     PROCESSOR_NODENUM_MASTER
 	#ifdef __mppa256__

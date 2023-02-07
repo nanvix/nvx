@@ -12,106 +12,108 @@
 #include "test.h"
 
 
+#define DEBUG 0
+
 #define PORT 0
 #define PORT2 10
 
+
+int nodes[NR_NODES];
+
+#define SLAVE_FIRST_SENDER (SLAVE_NODENUM)
+#define SLAVE_LAST_SENDER (SLAVE_NODENUM + 15)
+#define SLAVE_LAST_RECEIVER (SLAVE_NODENUM)
+#define SLAVE_MAILBOX_CONTROLLER SLAVE_LAST_RECEIVER
+
+int done = 0;
 unsigned int global = 0;
+int out __attribute__((section(".libnanvix.data")));
 
-PRIVATE void sender2()
+PRIVATE inline void slave_wait()
 {
-	int remote, out;
-	int syncin, syncout;
-	int nodes[] = {MASTER_NODENUM, SLAVE_NODENUM, SLAVE_NODENUM + 1};
-	char dummy = 'd';
+	while(1);
+}
 
-	// local  = SLAVE_NODENUM;
-	remote = SLAVE_NODENUM + 1;
+PRIVATE void slave_fn()
+{
+	int syncin, syncout;
+	char dummy = 'd';
+	int local = knode_get_num();
 
 	unsigned *pg;
 	const unsigned magic = 0xdeadbeef;
 
-	pg = (unsigned  *)(UBASE_VIRT);
+	if (local == SLAVE_FIRST_SENDER)
+	{
+		pg = (unsigned  *)(UBASE_VIRT);
 
-	/* Allocate.*/
-	KASSERT(page_alloc(VADDR(pg)) == 0);
+		/* Allocate.*/
+		KASSERT(page_alloc(VADDR(pg)) == 0);
 
-	/* Write. */
-	for (size_t i = 0; i < PAGE_SIZE/sizeof(unsigned); i++)
-		pg[i] = magic;
+		/* Write. */
+		for (size_t i = 0; i < PAGE_SIZE/sizeof(unsigned); i++)
+			pg[i] = magic;
 
+		global = 0xc0ffee;
+	}
 
-	kprintf("start end page: %d %d %d", 
-		__USER_START,
-		__USER_END,
-		pg
-	);
-	kprintf("sender -> user length: %d", &__USER_END - &__USER_START);
+	test_assert((syncin = ksync_create(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
+	test_assert((syncout = ksync_open(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
 
-	global = 0xc0ffee;
-	
-	test_assert((syncin = ksync_create(nodes, 3, SYNC_ONE_TO_ALL)) >= 0);
-	test_assert((syncout = ksync_open(nodes, 3, SYNC_ALL_TO_ONE)) >= 0);
-
-	test_assert((out = kmailbox_open(MASTER_NODENUM, PORT2)) >= 0);
+	if (local == SLAVE_MAILBOX_CONTROLLER)
+		test_assert((out = kmailbox_open(MASTER_NODENUM, PORT2)) >= 0);
 
 	test_assert(ksync_wait(syncin) == 0);
 	test_assert(ksync_signal(syncout) == 0);
 	
-	test_assert(kmailbox_write(out, &dummy, sizeof(char)) == sizeof(char));
-	test_assert(kmailbox_write(out, &dummy, sizeof(char)) == sizeof(char));
-
-	kprintf("migrate to");
-
-	test_assert(kmigrate_to(remote) == 0);
-
-	// upage_inval(VADDR(pg));
-	// dcache_invalidate();
-	// tlb_flush();
-
-	// KASSERT(tlb_inval(TLB_INSTRUCTION, VADDR(pg)) == 0);
-	// KASSERT(tlb_inval(TLB_DATA, VADDR(pg)) == 0);
-
-	for (size_t i = 0; i < PAGE_SIZE/sizeof(unsigned); i++)
+	if (local == SLAVE_MAILBOX_CONTROLLER)
 	{
-		KASSERT(pg[i] == magic);
+		test_assert(kmailbox_write(out, &dummy, sizeof(char)) == sizeof(char));
+		test_assert(kmailbox_write(out, &dummy, sizeof(char)) == sizeof(char));
 	}
 
-	// this line should be executed on both clusters: sender and receiver
-	kprintf("global = %x", global);
+	if (local != SLAVE_FIRST_SENDER)
+		slave_wait();
 
-	if (knode_get_num() == SLAVE_NODENUM)
+	for (int remote = SLAVE_NODENUM + 1; remote <= SLAVE_LAST_SENDER; remote++)
+	{
+		if (knode_get_num() == remote - 1)
+		{
+			kprintf("migrating to %d", remote);
+			#if DEBUG
+			#endif
+
+			kmigrate_to(remote);
+
+			#if DEBUG
+				for (size_t i = 0; i < PAGE_SIZE/sizeof(unsigned); i++)
+				{
+					KASSERT(pg[i] == magic);
+				}
+				kprintf("global = %x", global);
+			#endif
+		}
+	}
+
+	if (knode_get_num() == SLAVE_MAILBOX_CONTROLLER)
+		/* wait until last sender revive this cluster */
+		slave_wait();
+
+	if (knode_get_num() == SLAVE_LAST_SENDER)
+		kmigrate_to(SLAVE_LAST_RECEIVER);
+
+
+	if (knode_get_num() == SLAVE_MAILBOX_CONTROLLER)
 		test_assert(kmailbox_write(out, &dummy, sizeof(char)) == sizeof(char));
 }
 
-PRIVATE void receiver2()
-{
-	int syncin, syncout;
-	// int remote = SLAVE_NODENUM;
-
-	int nodes[] = {MASTER_NODENUM, SLAVE_NODENUM, SLAVE_NODENUM + 1};
-
-	test_assert((syncin = ksync_create(nodes, 3, SYNC_ONE_TO_ALL)) >= 0);
-	test_assert((syncout = ksync_open(nodes, 3, SYNC_ALL_TO_ONE)) >= 0);
-
-	test_assert(ksync_wait(syncin) == 0);
-	test_assert(ksync_signal(syncout) == 0);
-
-	kprintf("receiver -> user length: %d", &__USER_END - &__USER_START);
-
-	kprintf("migrate from");
-
-	while(1);
-}
-
-PRIVATE void master()
+PRIVATE void master_fn()
 {
 	int in, syncin, syncout;
 	char dummy;
 	uint64_t t1, error;
-	int nodes[] = {MASTER_NODENUM, SLAVE_NODENUM, SLAVE_NODENUM + 1};
-
-	test_assert((syncin = ksync_create(nodes, 3, SYNC_ALL_TO_ONE)) >= 0);
-	test_assert((syncout = ksync_open(nodes, 3, SYNC_ONE_TO_ALL)) >= 0);
+	test_assert((syncin = ksync_create(nodes, NR_NODES, SYNC_ALL_TO_ONE)) >= 0);
+	test_assert((syncout = ksync_open(nodes, NR_NODES, SYNC_ONE_TO_ALL)) >= 0);
 
 	test_assert((in = kmailbox_create(MASTER_NODENUM, PORT2)) >= 0);
 
@@ -139,13 +141,12 @@ PRIVATE void test_api_migration()
 {
 	void (*fn)(void);
 
-	if (knode_get_num() == MASTER_NODENUM)
-		master();
-	else
-	{
-		fn = (knode_get_num() == SLAVE_NODENUM) ? sender2 : receiver2;
-		fn();
-	}
+	nodes[0] = MASTER_NODENUM;
+	for (int i = 1; i < NR_NODES; i++)
+		nodes[i] = SLAVE_NODENUM + i - 1;
+
+	fn = knode_get_num() == MASTER_NODENUM ? master_fn : slave_fn;
+	fn();
 }
 
 PRIVATE struct test migration_tests_api[] = {

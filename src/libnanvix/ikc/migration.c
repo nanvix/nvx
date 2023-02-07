@@ -119,9 +119,6 @@ PRIVATE int mwrite(
 )
 {
 	struct mtask_args *args = (struct mtask_args *) arg0;
-
-	// int lower_bound = args->lower_bound;
-	// int upper_bound = args->upper_bound;
 	char *(*cond_fn)(int) = args->cond_fn;
 	char *buffer = args->buffer;
 	int size = args->size;
@@ -169,8 +166,6 @@ PRIVATE int mread(
 {
 	struct mtask_args *args = (struct mtask_args *) arg0;
 
-	// int lower_bound = args->lower_bound;
-	// int upper_bound = args->upper_bound;
 	char *(*cond_fn)(int) = args->cond_fn;
 	char *buffer = args->buffer;
 	int size = args->size;
@@ -297,8 +292,6 @@ PRIVATE int mstate_handler(
 	margs.buffer = NULL;
 	margs.size = 0;
 
-	kprintf("mstate: %d", mstate);
-
 	switch (mstate) {
 		case MSTATE_SECTIONS:
 			margs.buffer = (char *) &__USER_START;
@@ -307,6 +300,10 @@ PRIVATE int mstate_handler(
 		case MSTATE_UAREA:
 			margs.buffer = (char *) &uarea;
 			margs.size = sizeof(uarea);
+			break;
+		case MSTATE_SYSBOARD:
+			margs.buffer = (char *) uarea.sysboard;
+			margs.size = sizeof(struct sysboard) * (CORES_NUM - 1);
 			break;
 		case MSTATE_THREAD_USTACKS:
 			margs.upper_bound = THREAD_MAX;
@@ -396,12 +393,12 @@ PRIVATE int mfinish(
 	UNUSED(arg3);
 	UNUSED(arg4);
 
-	migration_control_reset();
-	kprintf("unfrezing");
 	
 	dcache_invalidate();
 	tlb_flush();
 	
+	migration_control_reset();
+
 	kunfreeze();
 
 	return 0;
@@ -459,108 +456,9 @@ PRIVATE int nanvix_mhandler(
 	return (0);
 
 	error:
-		kunfreeze();
 		ktask_exit0(0, KTASK_MANAGEMENT_USER1);
 	
 	return (-1);
-}
-
-PRIVATE int migration_states_task_flow_init()
-{
-	// state handler tasks
-	ktask_create(&mtask_state_handler, &mstate_handler, 0, KTASK_MANAGEMENT_DEFAULT);
-	ktask_create(&mtask_write, &mwrite, 0, KTASK_MANAGEMENT_DEFAULT);
-	ktask_create(&mtask_read, &mread, 0, KTASK_MANAGEMENT_DEFAULT);
-	ktask_create(&mtask_finish, &mfinish, 0, KTASK_MANAGEMENT_DEFAULT);
-	ktask_create(&mtask_loop, &mloop, 0, KTASK_MANAGEMENT_DEFAULT);
-
-	ktask_portal_write(&awrite, &wwait);
-	ktask_portal_read(&allow, &aread, &rwait);
-
-	// state handler connections
-	ktask_connect(
-		&mtask_state_handler,
-		&mtask_loop,
-		KTASK_CONN_IS_FLOW,
-		KTASK_CONN_IS_PERSISTENT,
-		KTASK_TRIGGER_USER0
-	);
-	ktask_connect(
-		&mtask_loop,
-		&mtask_write,
-		KTASK_CONN_IS_FLOW,
-		KTASK_CONN_IS_PERSISTENT,
-		KTASK_TRIGGER_USER0
-	);
-	ktask_connect(
-		&mtask_write,
-		&mtask_loop,
-		KTASK_CONN_IS_FLOW,
-		KTASK_CONN_IS_PERSISTENT,
-		KTASK_TRIGGER_USER0
-	);
-	ktask_connect(
-		&mtask_loop,
-		&mtask_read,
-		KTASK_CONN_IS_FLOW,
-		KTASK_CONN_IS_PERSISTENT,
-		KTASK_TRIGGER_USER1
-	);
-	ktask_connect(
-		&mtask_read,
-		&mtask_loop,
-		KTASK_CONN_IS_FLOW,
-		KTASK_CONN_IS_PERSISTENT,
-		KTASK_TRIGGER_USER0
-	);
-	ktask_connect(
-		&mtask_loop,
-		&mtask_state_handler,
-		KTASK_CONN_IS_FLOW,
-		KTASK_CONN_IS_PERSISTENT,
-		KTASK_TRIGGER_USER2
-	);
-	ktask_connect(
-		&mtask_state_handler,
-		&mtask_finish,
-		KTASK_CONN_IS_FLOW,
-		KTASK_CONN_IS_PERSISTENT,
-		KTASK_TRIGGER_USER1
-	);
-
-	// portal read/write handling connections
-	KASSERT(ktask_connect(
-		&mtask_write,
-		&awrite,
-		KTASK_CONN_IS_FLOW,
-		KTASK_CONN_IS_PERSISTENT,
-		KTASK_TRIGGER_USER1
-	) == 0);
-	
-	KASSERT(ktask_connect(
-		&wwait,
-		&mtask_loop,
-		KTASK_CONN_IS_FLOW,
-		KTASK_CONN_IS_PERSISTENT,
-		KTASK_TRIGGER_USER0
-	) == 0);
-	KASSERT(ktask_connect(
-		&mtask_read,
-		&allow,
-		KTASK_CONN_IS_FLOW,
-		KTASK_CONN_IS_PERSISTENT,
-		KTASK_TRIGGER_USER1
-	) == 0);
-
-	KASSERT(ktask_connect(
-		&rwait,
-		&mtask_loop,
-		KTASK_CONN_IS_FLOW,
-		KTASK_CONN_IS_PERSISTENT,
-		KTASK_TRIGGER_USER0
-	) == 0);
-
-	return (0);
 }
 
 PRIVATE int __migrate_to(
@@ -629,7 +527,12 @@ PUBLIC int kmigrate_to(int receiver_nodenum)
 	KASSERT((migration_outmailbox_receiver = kmailbox_open(receiver_nodenum, MIGRATION_MAILBOX_PORTNUM)) >= 0);
 	KASSERT((migration_outmailbox_sender = kmailbox_open(local_node, MIGRATION_MAILBOX_PORTNUM)) >= 0);
 
+	// section guard
+	// interrupt level none
+
 	KASSERT(ktask_dispatch1(&mtask_migrate_to, (word_t) receiver_nodenum) == 0);
+
+	kfreeze();
 
 	return (0);
 }
@@ -642,18 +545,153 @@ PUBLIC void kmigration_init(void)
 	KASSERT(ktask_create(&mhandler, &nanvix_mhandler, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
 	KASSERT(ktask_create(&mtask_migrate_to, &__migrate_to, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
 
+	KASSERT(ktask_create(&mtask_state_handler, &mstate_handler, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	KASSERT(ktask_create(&mtask_write, &mwrite, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	KASSERT(ktask_create(&mtask_read, &mread, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	KASSERT(ktask_create(&mtask_finish, &mfinish, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+	KASSERT(ktask_create(&mtask_loop, &mloop, 0, KTASK_MANAGEMENT_DEFAULT) == 0);
+
+	KASSERT(ktask_portal_write(&awrite, &wwait) == 0);
+	KASSERT(ktask_portal_read(&allow, &aread, &rwait) == 0);
 	KASSERT(ktask_mailbox_read(&mmbox_aread, &mmbox_rwait) == 0);
 	KASSERT(ktask_mailbox_write(&mmbox_awrite, &mmbox_wwait) == 0);	
 
-	KASSERT(ktask_connect(&mtask_migrate_to, &mmbox_awrite, KTASK_CONN_IS_FLOW, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_USER0) == 0);
-	KASSERT(ktask_connect(&mmbox_wwait, &mtask_migrate_to, KTASK_CONN_IS_FLOW, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_USER0) == 0);
+	KASSERT(ktask_connect(
+		&mtask_state_handler,
+		&mtask_loop,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER0
+	) == 0);
 
-	KASSERT(ktask_connect(&mmbox_rwait, &mhandler, KTASK_CONN_IS_FLOW, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_USER0) == 0);
-	KASSERT(ktask_connect(&mhandler, &mtask_state_handler, KTASK_CONN_IS_FLOW, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_USER0) == 0);
-	KASSERT(ktask_connect(&mhandler, &mtask_finish, KTASK_CONN_IS_FLOW, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_USER1) == 0);
-	KASSERT(ktask_connect(&mtask_finish, &mmbox_aread, KTASK_CONN_IS_FLOW, KTASK_CONN_IS_PERSISTENT, KTASK_TRIGGER_USER0) == 0);
+	KASSERT(ktask_connect(
+		&mtask_loop,
+		&mtask_write,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER0
+	) == 0);
 
-	migration_states_task_flow_init();
+	KASSERT(ktask_connect(
+		&mtask_write,
+		&mtask_loop,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER0
+	) == 0);
+
+	KASSERT(ktask_connect(
+		&mtask_loop,
+		&mtask_read,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER1
+	) == 0);
+
+	KASSERT(ktask_connect(
+		&mtask_read,
+		&mtask_loop,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER0
+	) == 0);
+
+	KASSERT(ktask_connect(
+		&mtask_loop,
+		&mtask_state_handler,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER2
+	) == 0);
+
+	KASSERT(ktask_connect(
+		&mtask_state_handler,
+		&mtask_finish,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER1
+	) == 0);
+
+	KASSERT(ktask_connect(
+		&mtask_write,
+		&awrite,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER1
+	) == 0);
+
+	KASSERT(ktask_connect(
+		&wwait,
+		&mtask_loop,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER0
+	) == 0);
+
+	KASSERT(ktask_connect(
+		&mtask_read,
+		&allow,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER1
+	) == 0);
+
+	KASSERT(ktask_connect(
+		&rwait,
+		&mtask_loop,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER0
+	) == 0);
+
+	KASSERT(ktask_connect(
+		&mtask_migrate_to,
+		&mmbox_awrite,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER0
+	) == 0);
+
+	KASSERT(ktask_connect(
+		&mmbox_wwait,
+		&mtask_migrate_to,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER0
+	) == 0);
+
+	KASSERT(ktask_connect(
+		&mmbox_rwait,
+		&mhandler,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER0
+	) == 0);
+
+	KASSERT(ktask_connect(
+		&mhandler,
+		&mtask_state_handler,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER0
+	) == 0);
+
+	KASSERT(ktask_connect(
+		&mhandler,
+		&mtask_finish,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER1
+	) == 0);
+
+	KASSERT(ktask_connect(
+		&mtask_finish,
+		&mmbox_aread,
+		KTASK_CONN_IS_FLOW,
+		KTASK_CONN_IS_PERSISTENT,
+		KTASK_TRIGGER_USER0
+	) == 0);
+
 	migration_control_reset();
 
 	KASSERT(ktask_dispatch3(

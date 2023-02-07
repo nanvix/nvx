@@ -29,15 +29,16 @@
 
     #define MSTATE_SECTIONS       0
     #define MSTATE_UAREA          1
-    #define MSTATE_THREAD_USTACKS 2
-    #define MSTATE_THREAD_KSTACKS 3
-    #define MSTATE_PAGEDIR        4
-    #define MSTATE_PAGETAB        5
-    #define MSTATE_KSTACKSIDS     6
-    #define MSTATE_KSTACKSPHYS    7
-    #define MSTATE_FRAMES_BITMAP  8
-    #define MSTATE_FRAMES_PHYS    9
-    #define MSTATE_FINISH         10
+    #define MSTATE_SYSBOARD       2
+    #define MSTATE_THREAD_USTACKS 3
+    #define MSTATE_THREAD_KSTACKS 4
+    #define MSTATE_PAGEDIR        5
+    #define MSTATE_PAGETAB        6
+    #define MSTATE_KSTACKSIDS     7
+    #define MSTATE_KSTACKSPHYS    8
+    #define MSTATE_FRAMES_BITMAP  9
+    #define MSTATE_FRAMES_PHYS    10
+    #define MSTATE_FINISH         11
     #define MSTATE_INIT           MSTATE_SECTIONS
 
     #define MIGRATION_MAILBOX_NULL -1

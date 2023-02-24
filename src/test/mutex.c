@@ -368,14 +368,14 @@ PRIVATE void test_stress_mutex_normal(void)
 {
 #if (THREAD_MAX > 2)
 	struct nanvix_mutex mutex;
-	kthread_t tids[NTHREADS];
+	kthread_t tids[TESTS_NTHREADS];
 
 	test_assert(nanvix_mutex_init(&mutex, NULL) == 0);
 
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_create(&tids[i], task_lock_unlock, (void *) &mutex) == 0);
 
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_join(tids[i], NULL) == 0);
 
 	test_assert(nanvix_mutex_destroy(&mutex) == 0);
@@ -394,16 +394,16 @@ PRIVATE void test_stress_mutex_errorcheck(void)
 #if (THREAD_MAX > 2)
 	struct nanvix_mutex mutex;
 	struct nanvix_mutexattr mattr;
-	kthread_t tids[NTHREADS];
+	kthread_t tids[TESTS_NTHREADS];
 
 	test_assert(nanvix_mutexattr_init(&mattr) == 0);
 	test_assert(nanvix_mutexattr_settype(&mattr, NANVIX_MUTEX_ERRORCHECK) == 0);
 	test_assert(nanvix_mutex_init(&mutex, &mattr) == 0);
 
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_create(&tids[i], task_lock_unlock, (void *) &mutex) == 0);
 
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_join(tids[i], NULL) == 0);
 
 	test_assert(nanvix_mutexattr_destroy(&mattr) == 0);
@@ -423,16 +423,16 @@ PRIVATE void test_stress_mutex_recursive(void)
 #if (THREAD_MAX > 2)
 	struct nanvix_mutex mutex;
 	struct nanvix_mutexattr mattr;
-	kthread_t tids[NTHREADS];
+	kthread_t tids[TESTS_NTHREADS];
 
 	test_assert(nanvix_mutexattr_init(&mattr) == 0);
 	test_assert(nanvix_mutexattr_settype(&mattr, NANVIX_MUTEX_RECURSIVE) == 0);
 	test_assert(nanvix_mutex_init(&mutex, &mattr) == 0);
 
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_create(&tids[i], task_recursive, (void *) &mutex) == 0);
 
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_join(tids[i], NULL) == 0);
 
 	test_assert(nanvix_mutexattr_destroy(&mattr) == 0);

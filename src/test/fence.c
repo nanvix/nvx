@@ -234,16 +234,16 @@ PRIVATE void test_fault_fence_operations(void)
 PRIVATE void test_stress_fence_sanity(void)
 {
 #if (THREAD_MAX > 2)
-	kthread_t tids[NTHREADS];
+	kthread_t tids[TESTS_NTHREADS];
 
 	nsyncs = 0;
 
-	test_assert(nanvix_fence_init(&fence, NTHREADS) == 0);
+	test_assert(nanvix_fence_init(&fence, TESTS_NTHREADS) == 0);
 
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_create(&tids[i], fence_sanity, NULL) == 0);
 
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_join(tids[i], NULL) == 0);
 
 	test_assert(nanvix_fence_destroy(&fence) == 0);
@@ -262,16 +262,16 @@ PRIVATE void test_stress_fence_sanity(void)
 PRIVATE void test_stress_fence_do(void)
 {
 #if (THREAD_MAX > 2)
-	kthread_t tids[NTHREADS];
+	kthread_t tids[TESTS_NTHREADS];
 
 	nsyncs = NSYNCS;
 
-	test_assert(nanvix_fence_init(&fence, NTHREADS) == 0);
+	test_assert(nanvix_fence_init(&fence, TESTS_NTHREADS) == 0);
 
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_create(&tids[i], fence_do, NULL) == 0);
 
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_join(tids[i], NULL) == 0);
 
 	test_assert(nanvix_fence_destroy(&fence) == 0);

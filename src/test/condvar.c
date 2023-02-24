@@ -238,11 +238,11 @@ PRIVATE void test_fault_condvar_operations(void)
 PRIVATE void test_stress_condvar_signal(void)
 {
 #if (THREAD_MAX > 2)
-	int nthreads = NTHREADS;
-	kthread_t tids[NTHREADS];
+	int nthreads = TESTS_NTHREADS;
+	kthread_t tids[TESTS_NTHREADS];
 
 	/* Pair of threads. */
-	nthreads = NTHREADS - (NTHREADS % 2);
+	nthreads = TESTS_NTHREADS - (TESTS_NTHREADS % 2);
 
 	/* First thread must wait. */
 	thread_condition = true;
@@ -273,7 +273,7 @@ PRIVATE void test_stress_condvar_signal(void)
 PRIVATE void test_stress_condvar_broadcast(void)
 {
 #if (THREAD_MAX > 2)
-	kthread_t tids[NTHREADS];
+	kthread_t tids[TESTS_NTHREADS];
 
 	/* Config. */
 	thread_amount    = (CORES_NUM - 2);

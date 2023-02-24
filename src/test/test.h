@@ -33,7 +33,29 @@
 	 * @brief Test's parameters
 	 */
 	/**@{*/
-	#define NR_NODES           17
+	// #define TEST_PARALLEL_MIGRATION
+	#define TEST_MULTIPLE_THREADS
+	// #define TEST_CIRCULAR_MIGRATION
+
+	// THREAD_MAX = 18
+
+	#if defined(TEST_CIRCULAR_MIGRATION)
+		#define NR_NODES 17
+	#elif defined(TEST_MULTIPLE_THREADS)
+		#define NR_NODES 3
+		#define NPAGES   32 // 0 16 32
+		#define TESTS_NTHREADS (THREAD_MAX - 2) /* 0 (THREAD_MAX-2)/2 THREAD_MAX */
+	#elif defined(TEST_PARALLEL_MIGRATION)
+		// #define NR_NODES 3
+		// #define NR_NODES 5
+		// #define NR_NODES 9
+		#define TESTS_NTHREADS ((THREAD_MAX - 2) / 2) // 0, 1/2 1
+		#define NPAGES   16 // 0 1/2 1
+		#define NR_NODES 17
+	#else
+		#error "test type not defined"
+	#endif
+
 #if (PROCESSOR_IS_MULTICLUSTER)
 		#define MASTER_NODENUM     PROCESSOR_NODENUM_MASTER
 	#ifdef __mppa256__
@@ -80,7 +102,7 @@
 	/**
 	 * @brief Number of threads to spawn in stress tests.
 	 */
-	#define NTHREADS (THREAD_MAX - 1)
+	// #define TESTS_NTHREADS (THREAD_MAX - 1)
 
 	#define ___STRINGIFY(x) #x
 	#define ___TOSTRING(x) ___STRINGIFY(x)

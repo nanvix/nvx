@@ -87,20 +87,20 @@ static void *task1(void *arg)
  */
 static void test_api_sleep_wakeup(void)
 {
-	kthread_t tids[NTHREADS];
+	kthread_t tids[TESTS_NTHREADS];
 
 	var = 0;
 	nanvix_mutex_init(&mutex, NULL);
 
 	/* Spawn threads. */
-	for (int i = 0; i < NTHREADS; i++)
+	for (int i = 0; i < TESTS_NTHREADS; i++)
 		test_assert(kthread_create(&tids[i], task1, NULL) == 0);
 
 	/* Wait for threads. */
-	for (int i = 0; i < NTHREADS; i++)
+	for (int i = 0; i < TESTS_NTHREADS; i++)
 		test_assert(kthread_join(tids[i], NULL) == 0);
 
-	test_assert(var == NTRIALS*NTHREADS);
+	test_assert(var == NTRIALS*TESTS_NTHREADS);
 }
 
 /*============================================================================*
@@ -174,7 +174,7 @@ static void *task3(void *arg)
  */
 static void test_stress_sleep_wakeup(void)
 {
-	kthread_t tids[NTHREADS];
+	kthread_t tids[TESTS_NTHREADS];
 	nanvix_mutex_init(&mutex, NULL);
 
 	for (int k = 0; k < NITERATIONS; k++)
@@ -182,14 +182,14 @@ static void test_stress_sleep_wakeup(void)
 		var = 0;
 
 		/* Spawn threads. */
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_create(&tids[i], task3, NULL) == 0);
 
 		/* Wait for threads. */
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_join(tids[i], NULL) == 0);
 
-		test_assert(var == NTRIALS*NTHREADS);
+		test_assert(var == NTRIALS*TESTS_NTHREADS);
 	}
 }
 

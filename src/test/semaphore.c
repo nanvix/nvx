@@ -83,12 +83,12 @@ struct tdata
 	bool verify;
 	struct buffer * buf;
 	word_t data[WORD_OBJSIZE];
-} tdata[NTHREADS] ALIGN(CACHE_LINE_SIZE);
+} tdata[TESTS_NTHREADS] ALIGN(CACHE_LINE_SIZE);
 
 /**
  * @brief Buffers.
  */
-PRIVATE struct buffer buffers[NTHREADS / 2];
+PRIVATE struct buffer buffers[TESTS_NTHREADS / 2];
 
 /*============================================================================*
  * Threads                                                                    *
@@ -357,18 +357,18 @@ PRIVATE void test_fault_semaphore_up_down(void)
 PRIVATE void test_stress_semaphore_up_down(void)
 {
 #if (THREAD_MAX > 2)
-	kthread_t tids[NTHREADS];
+	kthread_t tids[TESTS_NTHREADS];
 
 	counter = 0;
 	test_assert(nanvix_semaphore_init(&sem, 1) == 0);
 
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_create(&tids[i], counter_down_task, NULL) == 0);
 
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_join(tids[i], NULL) == 0);
 
-		test_assert(counter == NTHREADS * CITERATIONS);
+		test_assert(counter == TESTS_NTHREADS * CITERATIONS);
 
 	test_assert(nanvix_semaphore_destroy(&sem) == 0);
 #endif
@@ -384,18 +384,18 @@ PRIVATE void test_stress_semaphore_up_down(void)
 PRIVATE void test_stress_semaphore_trydown(void)
 {
 #if (THREAD_MAX > 2)
-	kthread_t tids[NTHREADS];
+	kthread_t tids[TESTS_NTHREADS];
 
 	counter = 0;
 	test_assert(nanvix_semaphore_init(&sem, 1) == 0);
 
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_create(&tids[i], counter_trydown_task, NULL) == 0);
 
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_join(tids[i], NULL) == 0);
 
-		test_assert(counter == NTHREADS * CITERATIONS);
+		test_assert(counter == TESTS_NTHREADS * CITERATIONS);
 
 	test_assert(nanvix_semaphore_destroy(&sem) == 0);
 #endif
@@ -411,9 +411,9 @@ PRIVATE void test_stress_semaphore_trydown(void)
 PRIVATE void test_stress_semaphore_producer_consumer(void)
 {
 #if (THREAD_MAX > 2)
-	kthread_t tids[NTHREADS];
+	kthread_t tids[TESTS_NTHREADS];
 
-	for (int i = 0; (i + 1) < NTHREADS; i += 2)
+	for (int i = 0; (i + 1) < TESTS_NTHREADS; i += 2)
 	{
 		struct buffer * buf;
 
@@ -429,7 +429,7 @@ PRIVATE void test_stress_semaphore_producer_consumer(void)
 		test_assert(kthread_create(&tids[i + 1], consumer, &tdata[i + 1]) == 0);
 	}
 
-	for (int i = 0; (i + 1) < NTHREADS; i += 2)
+	for (int i = 0; (i + 1) < TESTS_NTHREADS; i += 2)
 	{
 		test_assert(kthread_join(tids[i], NULL) == 0);
 		test_assert(kthread_join(tids[i + 1], NULL) == 0);

@@ -31,7 +31,7 @@
  * @name Configuration of the routines (Involved clusters)
  */
 /**@{*/
-const int _nodenums[NR_NODES] ALIGN(sizeof(uint64_t)) = {
+const int _nodenums[17] ALIGN(sizeof(uint64_t)) = {
 	MASTER_NODENUM,
 	SLAVE_NODENUM,
 	SLAVE_NODENUM + 1,

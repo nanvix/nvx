@@ -175,7 +175,7 @@ static void *sched_task(void *arg)
 			busy = 1000;
 			while (busy--);
 
-			exit = (sched_counter == NTHREADS);
+			exit = (sched_counter == TESTS_NTHREADS);
 
 			busy = 1000;
 			while (busy--);
@@ -532,18 +532,18 @@ static void test_stress_kthread_create_overflow(void)
 {
 #if (THREAD_MAX > 1)
 
-	kthread_t tid[NTHREADS + 1];
+	kthread_t tid[TESTS_NTHREADS + 1];
 
-	for (int i = 0; i < NTHREADS; i++)
+	for (int i = 0; i < TESTS_NTHREADS; i++)
 		test_assert(kthread_create(&tid[i], fence_task, NULL) == 0);
 
-	test_assert(kthread_create(&tid[NTHREADS], fence_task, NULL) < 0);
+	test_assert(kthread_create(&tid[TESTS_NTHREADS], fence_task, NULL) < 0);
 
 	spinlock_lock(&lock_tt);
 		release_tt = true;
 	spinlock_unlock(&lock_tt);
 
-	for (int i = 0; i < NTHREADS; i++)
+	for (int i = 0; i < TESTS_NTHREADS; i++)
 		test_assert(kthread_join(tid[i], NULL) == 0);
 
 	spinlock_lock(&lock_tt);
@@ -562,14 +562,14 @@ static void test_stress_kthread_create(void)
 
 	for (int j = 0; j < NITERATIONS; j++)
 	{
-		kthread_t tid[NTHREADS];
+		kthread_t tid[TESTS_NTHREADS];
 
 		/* Spawn threads. */
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_create(&tid[i], task, NULL) == 0);
 
 		/* Wait for threads. */
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_join(tid[i], NULL) == 0);
 	}
 
@@ -585,14 +585,14 @@ static void test_stress_kthread_yield(void)
 
 	for (int j = 0; j < NITERATIONS; j++)
 	{
-		kthread_t tid[NTHREADS];
+		kthread_t tid[TESTS_NTHREADS];
 
 		/* Spawn threads. */
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_create(&tid[i], yield_task, NULL) == 0);
 
 		/* Wait for threads. */
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_join(tid[i], NULL) == 0);
 	}
 
@@ -608,16 +608,16 @@ static void test_stress_kthread_scheduler(void)
 
 	for (int j = 0; j < NITERATIONS; j++)
 	{
-		kthread_t tid[NTHREADS];
+		kthread_t tid[TESTS_NTHREADS];
 
 		sched_counter = 0;
 
 		/* Spawn threads. */
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_create(&tid[i], sched_task, NULL) == 0);
 
 		/* Wait for threads. */
-		for (int i = 0; i < NTHREADS; i++)
+		for (int i = 0; i < TESTS_NTHREADS; i++)
 			test_assert(kthread_join(tid[i], NULL) == 0);
 	}
 

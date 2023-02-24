@@ -22,6 +22,9 @@
  * SOFTWARE.
  */
 
+#define __NEED_SECTION_GUARD
+
+#include <nanvix/hal/section_guard.h>
 #include <nanvix/kernel/kernel.h>
 #include <nanvix/kernel/uarea.h>
 #include <nanvix/sys/task.h>
@@ -33,8 +36,6 @@
 
 
 #define FRAMES_BIT_LENGTH (FRAMES_LENGTH * sizeof(bitmap_t))
-
-#define VERBOSE 0
 
 struct mtask_args {
 	int lower_bound;
@@ -133,9 +134,6 @@ PRIVATE int mwrite(
 	char *buffer_send = cond_fn ? (*cond_fn)(loop_index) : buffer;
 	if (buffer_send)
 	{
-		#if VERBOSE
-			kprintf("sending %x", buffer_send);
-		#endif
 		ktask_exit3(
 			0,
 			KTASK_MANAGEMENT_USER1,
@@ -147,9 +145,6 @@ PRIVATE int mwrite(
 	}
 	else
 	{
-		#if VERBOSE
-			kprintf("done");
-		#endif
 		ktask_exit0(0, KTASK_MANAGEMENT_USER0);
 	}
 
@@ -178,9 +173,6 @@ PRIVATE int mread(
 	char *buffer_recv = cond_fn ? (*cond_fn)(loop_index) : buffer;
 	if (buffer_recv)
 	{
-		#if VERBOSE
-			kprintf("receiving %x", buffer_recv);
-		#endif
 
 		ktask_exit5(
 			0, 
@@ -195,9 +187,6 @@ PRIVATE int mread(
 	}
 	else
 	{
-		#if VERBOSE
-			kprintf("done");
-		#endif
 		ktask_exit0(0, KTASK_MANAGEMENT_USER0);
 	}
 	return (0);
@@ -240,9 +229,6 @@ PRIVATE int mloop(
 
 PRIVATE char *mcond_thread_ustacks(int index)
 {
-	#if VERBOSE
-		kprintf("mcond_thread_ustacks index %d", index);
-	#endif
 	if (uarea.threads[index].tid == KTHREAD_NULL_TID)
 		return NULL;
 	return (char *) uarea.ustacks[index];
@@ -250,9 +236,6 @@ PRIVATE char *mcond_thread_ustacks(int index)
 
 PRIVATE char *mcond_thread_kstacks(int index)
 {
-	#if VERBOSE
-		kprintf("mcond_thread_kstacks index %d", index);
-	#endif
 	if (uarea.threads[index].tid == KTHREAD_NULL_TID)
 		return NULL;
 	return (char *) uarea.kstacks[index];
@@ -305,18 +288,6 @@ PRIVATE int mstate_handler(
 			margs.buffer = (char *) uarea.sysboard;
 			margs.size = sizeof(struct sysboard) * (CORES_NUM - 1);
 			break;
-		case MSTATE_THREAD_USTACKS:
-			margs.upper_bound = THREAD_MAX;
-			margs.cond_fn = &mcond_thread_ustacks;
-			margs.buffer = (char *) uarea.ustacks;
-			margs.size = PAGE_SIZE;
-			break;
-		case MSTATE_THREAD_KSTACKS:
-			margs.upper_bound = THREAD_MAX;
-			margs.cond_fn = &mcond_thread_kstacks;
-			margs.buffer = (char *) uarea.kstacks;
-			margs.size = PAGE_SIZE;
-			break;
 		case MSTATE_PAGEDIR:
 			margs.buffer = (char *) root_pgdir;
 			margs.size = sizeof(struct pde) * PGDIR_LENGTH;
@@ -341,7 +312,7 @@ PRIVATE int mstate_handler(
 			margs.size = FRAMES_LENGTH * sizeof(bitmap_t);
 			break;
 		case MSTATE_FRAMES_PHYS:
-			margs.upper_bound = FRAMES_LENGTH * sizeof(bitmap_t);
+			margs.upper_bound = FRAMES_LENGTH * sizeof(bitmap_t) * 8;
 			margs.cond_fn = &mcond_frames;
 			margs.buffer = (char *) UBASE_PHYS;
 			margs.size = PAGE_SIZE;
@@ -461,6 +432,8 @@ PRIVATE int nanvix_mhandler(
 	return (-1);
 }
 
+#define MIGRATION_USER_SYSCALLS_CHECK_TRIALS 5
+#define MIGRATION_CHECK_USER_SYSCALLS 0
 PRIVATE int __migrate_to(
 	word_t arg0,
 	word_t arg1,
@@ -475,8 +448,22 @@ PRIVATE int __migrate_to(
 	UNUSED(arg3);
 	UNUSED(arg4);
 
-	if(receiver_notification_status == NOT_NOTIFIED && sender_notification_status == NOT_NOTIFIED)	
+	if(receiver_notification_status == NOT_NOTIFIED && sender_notification_status == NOT_NOTIFIED)
+	{
+		#if MIGRATION_CHECK_USER_SYSCALLS
+
+		int trials = MIGRATION_USER_SYSCALLS_CHECK_TRIALS;
+		do
+		{
+			if (ksysboard_user_syscall_lookup() == 0)
+				trials--;
+			else
+				trials = MIGRATION_USER_SYSCALLS_CHECK_TRIALS;
+		} while(trials);
+
+		#endif
 		kfreeze();
+	}
 
 	request_message.receiver = receiver_nodenum;
 	request_message.sender = knode_get_num();
@@ -518,6 +505,9 @@ PRIVATE int __migrate_to(
 PUBLIC int kmigrate_to(int receiver_nodenum)
 {
 	int local_node = knode_get_num();
+	// struct section_guard guard;
+	// spinlock_t lock;
+
 	if (UNLIKELY((unsigned int) receiver_nodenum >= PROCESSOR_NOC_NODES_NUM))
         return (-EINVAL);
 
@@ -527,12 +517,14 @@ PUBLIC int kmigrate_to(int receiver_nodenum)
 	KASSERT((migration_outmailbox_receiver = kmailbox_open(receiver_nodenum, MIGRATION_MAILBOX_PORTNUM)) >= 0);
 	KASSERT((migration_outmailbox_sender = kmailbox_open(local_node, MIGRATION_MAILBOX_PORTNUM)) >= 0);
 
-	// section guard
-	// interrupt level none
+	// section_guard_init(&guard, &lock, INTERRUPT_LEVEL_NONE);
+
+	// section_guard_entry(&guard);
 
 	KASSERT(ktask_dispatch1(&mtask_migrate_to, (word_t) receiver_nodenum) == 0);
-
 	kfreeze();
+
+	// section_guard_exit(&guard);
 
 	return (0);
 }

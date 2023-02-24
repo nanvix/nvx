@@ -30,15 +30,13 @@
     #define MSTATE_SECTIONS       0
     #define MSTATE_UAREA          1
     #define MSTATE_SYSBOARD       2
-    #define MSTATE_THREAD_USTACKS 3
-    #define MSTATE_THREAD_KSTACKS 4
-    #define MSTATE_PAGEDIR        5
-    #define MSTATE_PAGETAB        6
-    #define MSTATE_KSTACKSIDS     7
-    #define MSTATE_KSTACKSPHYS    8
-    #define MSTATE_FRAMES_BITMAP  9
-    #define MSTATE_FRAMES_PHYS    10
-    #define MSTATE_FINISH         11
+    #define MSTATE_PAGEDIR        3
+    #define MSTATE_PAGETAB        4
+    #define MSTATE_KSTACKSIDS     5
+    #define MSTATE_KSTACKSPHYS    6
+    #define MSTATE_FRAMES_BITMAP  7
+    #define MSTATE_FRAMES_PHYS    8
+    #define MSTATE_FINISH         9
     #define MSTATE_INIT           MSTATE_SECTIONS
 
     #define MIGRATION_MAILBOX_NULL -1
@@ -77,6 +75,11 @@
     static inline void kunfreeze(void)
     {
         kcall0(NR_unfreeze);
+    }
+
+    static inline int ksysboard_user_syscall_lookup(void)
+    {
+        return kcall0(NR_user_syscall_lookup);
     }
 
 #endif

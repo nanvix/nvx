@@ -24,13 +24,13 @@
 #define THREADS_SLAVE_SENDER (SLAVE_NODENUM)
 #define THREADS_SLAVE_RECEIVER (SLAVE_NODENUM + 1)
 
-#if defined(TEST_CIRCULAR_MIGRATION)
+#if TEST_CIRCULAR_MIGRATION
 	#define SLAVE_MAILBOX_CONTROLLER CIRCULAR_SLAVE_LAST_RECEIVER
 	#define NEED_SETUP_TIME_SYNC    0
-#elif defined(TEST_MULTIPLE_THREADS)
+#elif TEST_MULTIPLE_THREADS
 	#define SLAVE_MAILBOX_CONTROLLER THREADS_SLAVE_RECEIVER
 	#define NEED_SETUP_TIME_SYNC    1
-#elif defined(TEST_PARALLEL_MIGRATION)
+#elif TEST_PARALLEL_MIGRATION
 	#define SLAVE_MAILBOX_CONTROLLER (SLAVE_NODENUM + 1)
 	#define NEED_SETUP_TIME_SYNC    1
 #endif
@@ -301,11 +301,11 @@ PRIVATE void test_api_migration()
 	for (int i = 1; i < NR_NODES; i++)
 		nodes[i] = SLAVE_NODENUM + i - 1;
 
-	#if defined(TEST_CIRCULAR_MIGRATION)
+	#if TEST_CIRCULAR_MIGRATION
 	fn = knode_get_num() == MASTER_NODENUM ? master_fn : slave_fn_circular;
-	#elif defined(TEST_MULTIPLE_THREADS)
+	#elif TEST_MULTIPLE_THREADS
 	fn = knode_get_num() == MASTER_NODENUM ? master_fn : slave_fn_threads;
-	#elif defined(TEST_PARALLEL_MIGRATION)
+	#elif TEST_PARALLEL_MIGRATION
 	fn = knode_get_num() == MASTER_NODENUM ? master_fn : slave_fn_parallel;
 	#endif
 

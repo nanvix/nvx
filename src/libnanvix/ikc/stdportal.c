@@ -31,11 +31,6 @@
 #include <nanvix/runtime/stdikc.h>
 
 /**
- * @brief Number of standard inboxes.
- */
-#define STDINPORTAL_MAX (THREAD_MAX + 1)
-
-/**
  * @brief Kernel standard input portal.
  */
 static int __stdinportal[STDINPORTAL_MAX] = {

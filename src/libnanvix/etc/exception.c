@@ -22,6 +22,8 @@
  * SOFTWARE.
  */
 
+#define __NANVIX_MICROKERNEL
+
 #include <nanvix/kernel/kernel.h>
 
 /**
@@ -42,6 +44,27 @@ int excp_ctrl(int excpnum, int action)
 	return (ret);
 }
 
+#if __NANVIX_USE_EXCEPTION_WITH_TASKS
+
+/**
+ * TODO: provide a detailed description for this function.
+ */
+int excp_set_handler(int excpnum, exception_handler_fn handler)
+{
+	int ret;
+
+	/* TODO: sanity check parameters. */
+
+	ret = kcall2(
+		NR_excp_set_handler,
+		(word_t) excpnum,
+		(word_t) handler
+	);
+
+	return (ret);
+}
+
+#endif
 
 /**
  * TODO: provide a detailed description for this function.

@@ -31,9 +31,19 @@
 	#include <nanvix/sys/sync.h>
 	#include <nanvix/sys/thread.h>
 
+	/**
+	 * @brief Number of standard syncs.
+	 */
+	#define STDIKC_MAX (THREAD_MAX + 1)
+
 /*============================================================================*
  * Kernel Standard Synchronization Point                                      *
  *============================================================================*/
+
+	/**
+	 * @brief Number of standard syncs.
+	 */
+	#define STDSYNC_MAX (STDIKC_MAX)
 
 	/**
 	 * @brief Waits/Releases the standard kernel fence.
@@ -64,6 +74,11 @@
 /*============================================================================*
  * Kernel Standard Mailbox                                                    *
  *============================================================================*/
+
+	/**
+	 * @brief Number of standard inboxes.
+	 */
+	#define STDINBOX_MAX (STDIKC_MAX)
 
 	/**
 	 * @brief Gets the port number of the standard input mailbox.
@@ -110,6 +125,11 @@
 /*============================================================================*
  * Kernel Standard Portal                                                     *
  *============================================================================*/
+
+	/**
+	 * @brief Number of standard inboxes.
+	 */
+	#define STDINPORTAL_MAX (STDIKC_MAX)
 
 	/**
 	 * @brief Gets the port number of the standard input portal.

@@ -28,6 +28,8 @@
 #include <nanvix/sys/sync.h>
 #include <posix/errno.h>
 
+#include "task.h"
+
 /*============================================================================*
  * knode_get_num()                                                            *
  *============================================================================*/
@@ -116,5 +118,9 @@ PUBLIC void knoc_init(void)
 
 	#if __TARGET_HAS_MAILBOX
 		kmailbox_init();
+	#endif
+
+	#if __NANVIX_USE_COMM_WITH_TASKS
+		ikc_flow_init();
 	#endif
 }

@@ -139,6 +139,7 @@ void ___start(int argc, const char *argv[])
 			test_semaphore();
 			test_condition_variables();
 			test_fence();
+			test_task_mgmt();
 
 #ifdef __mppa256__
 		if (nodenum == MASTER_NODENUM)

@@ -30,8 +30,10 @@
 #if __TARGET_HAS_MAILBOX
 
 #include <posix/errno.h>
+#include "task.h"
 
 #if __NANVIX_IKC_USES_ONLY_MAILBOX
+
 
 /**
  * @brief Protections.
@@ -204,34 +206,85 @@ int kmailbox_close(int mbxid)
  * kmailbox_awrite()                                                          *
  *============================================================================*/
 
+ssize_t __kmailbox_awrite(int mbxid, const void * buffer, size_t size)
+{
+	/* Invalid buffer size. */
+	if ((size == 0) || (size > KMAILBOX_MESSAGE_SIZE))
+		return (-EINVAL);
+
+	return (
+		kcall3(
+			NR_mailbox_awrite,
+			(word_t) mbxid,
+			(word_t) buffer,
+			(word_t) size
+		)
+	);
+}
+
 /**
  * @details The kmailbox_awrite() asynchronously write @p size bytes
  * of data pointed to by @p buffer to the output mailbox @p mbxid.
  */
 ssize_t kmailbox_awrite(int mbxid, const void * buffer, size_t size)
 {
-	int ret;
-
-	/* Invalid buffer size. */
-	if ((size == 0) || (size > KMAILBOX_MESSAGE_SIZE))
+	/* Invalid mbxid. */
+	if (UNLIKELY(!WITHIN(mbxid, 0, KMAILBOX_MAX)))
 		return (-EINVAL);
 
+	/* Invalid buffer. */
+	if (UNLIKELY(buffer == NULL))
+		return (-EINVAL);
+
+	/* Invalid buffer size. */
+	if (UNLIKELY((size == 0) || (size > KMAILBOX_MESSAGE_SIZE)))
+		return (-EINVAL);
+
+#if !__NANVIX_USE_COMM_WITH_TASKS
+
+	int ret;
+
 	do
-	{
-		ret = kcall3(
-			NR_mailbox_awrite,
-			(word_t) mbxid,
-			(word_t) buffer,
-			(word_t) size
-		);
-	} while ((ret == -ETIMEDOUT) || (ret == -EAGAIN) || (ret == -EBUSY));
+		ret = __kmailbox_awrite(mbxid, buffer, size);
+	while ((ret == -ETIMEDOUT) || (ret == -EAGAIN) || (ret == -EBUSY));
 
 	return (ret);
+
+#else
+
+	return (
+		ikc_flow_config(
+			IKC_FLOW_MAILBOX_WRITE,
+			(word_t) mbxid,
+			(word_t) buffer,
+			(word_t) size,
+			(word_t) (-1),
+			(word_t) (-1)
+		)
+	);
+
+#endif /* !__NANVIX_USE_COMM_WITH_TASKS */
 }
 
 /*============================================================================*
  * kmailbox_aread()                                                           *
  *============================================================================*/
+
+ssize_t __kmailbox_aread(int mbxid, void * buffer, size_t size)
+{
+	/* Invalid buffer size. */
+	if ((size == 0) || (size > KMAILBOX_MESSAGE_SIZE))
+		return (-EINVAL);
+
+	return (
+		kcall3(
+			NR_mailbox_aread,
+			(word_t) mbxid,
+			(word_t) buffer,
+			(word_t) size
+		)
+	);
+}
 
 /**
  * @details The kmailbox_aread() asynchronously read @p size bytes of
@@ -239,28 +292,52 @@ ssize_t kmailbox_awrite(int mbxid, const void * buffer, size_t size)
  */
 ssize_t kmailbox_aread(int mbxid, void * buffer, size_t size)
 {
-	int ret;
-
-	/* Invalid buffer size. */
-	if ((size == 0) || (size > KMAILBOX_MESSAGE_SIZE))
+	/* Invalid mbxid. */
+	if (UNLIKELY(!WITHIN(mbxid, 0, KMAILBOX_MAX)))
 		return (-EINVAL);
 
+	/* Invalid buffer. */
+	if (UNLIKELY(buffer == NULL))
+		return (-EINVAL);
+
+	/* Invalid buffer size. */
+	if (UNLIKELY((size == 0) || (size > KMAILBOX_MESSAGE_SIZE)))
+		return (-EINVAL);
+
+#if !__NANVIX_USE_COMM_WITH_TASKS
+
+	int ret;
+
 	do
-	{
-		ret = kcall3(
-			NR_mailbox_aread,
-			(word_t) mbxid,
-			(word_t) buffer,
-			(word_t) size
-		);
-	} while ((ret == -ETIMEDOUT) || (ret == -EBUSY) || (ret == -ENOMSG));
+		ret = __kmailbox_aread(mbxid, buffer, size);
+	while ((ret == -ETIMEDOUT) || (ret == -EBUSY) || (ret == -ENOMSG));
 
 	return (ret);
+
+#else
+
+	return (
+		ikc_flow_config(
+			IKC_FLOW_MAILBOX_READ,
+			(word_t) mbxid,
+			(word_t) buffer,
+			(word_t) size,
+			(word_t) (-1),
+			(word_t) (-1)
+		)
+	);
+
+#endif /* !__NANVIX_USE_COMM_WITH_TASKS */
 }
 
 /*============================================================================*
  * kmailbox_wait()                                                            *
  *============================================================================*/
+
+int __kmailbox_wait(int mbxid)
+{
+	return (kcall1(NR_mailbox_wait, (word_t) mbxid));
+}
 
 /**
  * @details The kmailbox_wait() waits for asyncrhonous operations in
@@ -268,14 +345,19 @@ ssize_t kmailbox_aread(int mbxid, void * buffer, size_t size)
  */
 int kmailbox_wait(int mbxid)
 {
-	int ret;
+	/* Invalid mbxid. */
+	if (UNLIKELY(!WITHIN(mbxid, 0, KMAILBOX_MAX)))
+		return (-EINVAL);
 
-	ret = kcall1(
-		NR_mailbox_wait,
-		(word_t) mbxid
-	);
+#if !__NANVIX_USE_COMM_WITH_TASKS
 
-	return (ret);
+	return (__kmailbox_wait(mbxid));
+
+#else
+
+	return (ikc_flow_wait(IKC_FLOW_MAILBOX, (word_t) mbxid));
+
+#endif /* !__NANVIX_USE_COMM_WITH_TASKS */
 }
 
 /*============================================================================*
@@ -292,18 +374,10 @@ ssize_t kmailbox_write(int mbxid, const void * buffer, size_t size)
 {
 	int ret;
 
-	/* Invalid buffer. */
-	if (buffer == NULL)
-		return (-EINVAL);
-
-	/* Invalid buffer size. */
-	if ((size == 0) || (size > KMAILBOX_MESSAGE_SIZE))
-		return (-EINVAL);
-
-	if ((ret = kmailbox_awrite(mbxid, buffer, size)) < 1)
+	if (UNLIKELY((ret = kmailbox_awrite(mbxid, buffer, size)) < 1))
 		return (ret);
 
-	if ((ret = kmailbox_wait(mbxid)) < 0)
+	if (UNLIKELY((ret = kmailbox_wait(mbxid)) < 0))
 		return (ret);
 
 #if __NANVIX_IKC_USES_ONLY_MAILBOX
@@ -328,18 +402,10 @@ ssize_t kmailbox_read(int mbxid, void * buffer, size_t size)
 {
 	int ret;
 
-	/* Invalid buffer. */
-	if (buffer == NULL)
-		return (-EINVAL);
-
-	/* Invalid buffer size. */
-	if ((size == 0) || (size > KMAILBOX_MESSAGE_SIZE))
-		return (-EINVAL);
-
 	/* Repeat while reading valid messages for another ports. */
 	do
 	{
-		if ((ret = kmailbox_aread(mbxid, buffer, size)) < 0)
+		if (UNLIKELY((ret = kmailbox_aread(mbxid, buffer, size)) < 0))
 			return (ret);
 	} while ((ret = kmailbox_wait(mbxid)) > 0);
 
@@ -517,6 +583,160 @@ PUBLIC int kmailbox_get_port(int mbxid)
 	ret = kcomm_get_port(mbxid, COMM_TYPE_MAILBOX);
 
 	return (ret);
+}
+
+/*============================================================================*
+ * ktask_mailbox_awrite()                                                     *
+ *============================================================================*/
+
+/**
+ * @details Function to build a task to operate a kmailbox_awrite.
+ */
+PUBLIC int ktask_mailbox_awrite(
+	word_t arg0,
+	word_t arg1,
+	word_t arg2,
+	word_t arg3,
+	word_t arg4
+)
+{
+	int ret;
+
+	UNUSED(arg3);
+	UNUSED(arg4);
+
+	if ((ret = kmailbox_awrite((int) arg0, (const void *) arg1, (size_t) arg2)) < 0)
+		ktask_exit0(ret, KTASK_MANAGEMENT_ERROR);
+
+	/* Success, pass arguments to the waiting task. */
+	ktask_exit5(ret,
+		KTASK_MANAGEMENT_USER0,
+		KTASK_MERGE_ARGS_FN_REPLACE,
+		arg0, arg1, arg2, arg3, arg4
+	);
+
+	return (ret);
+}
+
+/*============================================================================*
+ * ktask_mailbox_aread()                                                      *
+ *============================================================================*/
+
+/**
+ * @details Function to build a task to operate a kmailbox_aread.
+ */
+PUBLIC int ktask_mailbox_aread(
+	word_t arg0,
+	word_t arg1,
+	word_t arg2,
+	word_t arg3,
+	word_t arg4
+)
+{
+	int ret;
+
+	UNUSED(arg3);
+	UNUSED(arg4);
+
+	if ((ret = kmailbox_aread((int) arg0, (void *) arg1, (size_t) arg2)) < 0)
+		ktask_exit0(ret, KTASK_MANAGEMENT_ERROR);
+
+	/* Success, pass arguments to the waiting task. */
+	ktask_exit5(ret,
+		KTASK_MANAGEMENT_USER0,
+		KTASK_MERGE_ARGS_FN_REPLACE,
+		arg0, arg1, arg2, arg3, arg4
+	);
+
+	return (ret);
+}
+
+/*============================================================================*
+ * ktask_mailbox_wait()                                                       *
+ *============================================================================*/
+
+/**
+ * @details Function to build a task to operate a kmailbox_wait.
+ */
+PUBLIC int ktask_mailbox_wait(
+	word_t arg0,
+	word_t arg1,
+	word_t arg2,
+	word_t arg3,
+	word_t arg4
+)
+{
+	int ret;
+
+	UNUSED(arg1);
+	UNUSED(arg2);
+	UNUSED(arg3);
+	UNUSED(arg4);
+
+	if ((ret = kmailbox_wait((int) arg0)) < 0)
+		ktask_exit0(ret, KTASK_MANAGEMENT_ERROR);
+
+	return (ret);
+}
+
+/*============================================================================*
+ * ktask_mailbox_write()                                                      *
+ *============================================================================*/
+
+/**
+ * @details Build a write flow.
+ *
+ * -> awrite -> wait ->
+ */
+PUBLIC int ktask_mailbox_write(ktask_t * awrite, ktask_t * wait)
+{
+	int ret;
+
+	if (UNLIKELY((ret = ktask_create(awrite, ktask_mailbox_awrite, KTASK_PRIORITY_LOW, 0, 0)) < 0))
+		return (ret);
+
+	if (UNLIKELY((ret = ktask_create(wait, ktask_mailbox_wait, KTASK_PRIORITY_HIGH, 0, KTASK_TRIGGER_DEFAULT)) < 0))
+		return (ret);
+
+	return (
+		ktask_connect(
+			awrite,
+			wait,
+			KTASK_CONN_IS_FLOW,
+			KTASK_CONN_IS_PERSISTENT,
+			KTASK_TRIGGER_DEFAULT
+		)
+	);
+}
+
+/*============================================================================*
+ * ktask_mailbox_read()                                                       *
+ *============================================================================*/
+
+/**
+ * @details Build a read flow.
+ *
+ * -> aread -> wait ->
+ */
+PUBLIC int ktask_mailbox_read(ktask_t * aread, ktask_t * wait)
+{
+	int ret;
+
+	if (UNLIKELY((ret = ktask_create(aread, ktask_mailbox_aread, KTASK_PRIORITY_LOW, 0, 0)) < 0))
+		return (ret);
+
+	if (UNLIKELY((ret = ktask_create(wait, ktask_mailbox_wait, KTASK_PRIORITY_HIGH, 0, KTASK_TRIGGER_DEFAULT)) < 0))
+		return (ret);
+
+	return (
+		ktask_connect(
+			aread,
+			wait,
+			KTASK_CONN_IS_FLOW,
+			KTASK_CONN_IS_PERSISTENT,
+			KTASK_TRIGGER_DEFAULT
+		)
+	);
 }
 
 /*============================================================================*

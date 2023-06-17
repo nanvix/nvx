@@ -43,7 +43,6 @@
 	struct nanvix_cond_var
 	{
 		spinlock_t lock;
-		spinlock_t lock2;
 
 		int begin;                  /**< Fist valid element.    */
 		int end;                    /**< Last valid element.    */

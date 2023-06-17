@@ -51,8 +51,6 @@
 			int size;                   /**< Current queue size.    */
 			kthread_t tids[THREAD_MAX]; /**< Buffer.                */
 
-			spinlock_t lock2;           /**< Exclusive unlock call. */
-
 		#endif /* __NANVIX_SEMAPHORE_SLEEP */
 	};
 
@@ -94,7 +92,7 @@
 	 * @return Upon sucessful completion, zero is returned. Upon failure, a
 	 * negative error code is returned instead.
 	 */
-	extern int nanvix_semaphore_trywait(struct nanvix_semaphore *sem);
+	extern int nanvix_semaphore_trydown(struct nanvix_semaphore *sem);
 
 	/**
 	 * @brief Destroy a semaphore

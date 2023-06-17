@@ -84,7 +84,7 @@ int __stdsync_setup(void)
 	int tid;
 	int nodes[PROCESSOR_CLUSTERS_NUM];
 
-	if ((tid = kthread_self()) > THREAD_MAX)
+	if ((tid = kthread_self()) > KTHREAD_MAX)
 		return (-1);
 
 	build_node_list(nodes, PROCESSOR_IOCLUSTERS_NUM, PROCESSOR_CCLUSTERS_NUM);
@@ -104,7 +104,7 @@ int __stdsync_cleanup(void)
 	int tid;
 	int ret;
 
-	if ((tid = kthread_self()) > THREAD_MAX)
+	if ((tid = kthread_self()) > KTHREAD_MAX)
 		return (-1);
 
 	ret = barrier_destroy(__stdbarrier[tid]);
@@ -121,7 +121,7 @@ int stdsync_fence(void)
 	int tid;
 	int ret;
 
-	if ((tid = kthread_self()) > THREAD_MAX)
+	if ((tid = kthread_self()) > KTHREAD_MAX)
 		return (-1);
 
 	ret = barrier_wait(__stdbarrier[tid]);

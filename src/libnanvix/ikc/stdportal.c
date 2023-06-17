@@ -31,10 +31,15 @@
 #include <nanvix/runtime/stdikc.h>
 
 /**
+ * @brief Number of standard inboxes.
+ */
+#define STDINPORTAL_MAX (THREAD_MAX + 1)
+
+/**
  * @brief Kernel standard input portal.
  */
-static int __stdinportal[THREAD_MAX + 1] = {
-	[0 ... THREAD_MAX] = -1
+static int __stdinportal[STDINPORTAL_MAX] = {
+	[0 ... (STDINPORTAL_MAX - 1)] = -1,
 };
 
 /**
@@ -42,10 +47,19 @@ static int __stdinportal[THREAD_MAX + 1] = {
  */
 int stdinportal_get_port(void)
 {
-	int port = (kthread_self() - (SYS_THREAD_MAX - 1));
+	int port;
 
-	/* Kernel thread ? 0 else port. */
-	return ((port <= 0) ? 0 : port);
+	/**
+	 * Port is based on tid.
+	 */
+	port = kthread_self() - (SYS_THREAD_MAX - 1);
+
+	/* Invalid tid. */
+	if (port >= STDINPORTAL_MAX)
+		return (-1);
+
+	/* System thread : User thread. */
+	return (port <= 0 ? 0 : port);
 }
 
 /**
@@ -55,7 +69,7 @@ int __stdportal_setup(void)
 {
 	int tid;
 
-	if ((tid = stdinportal_get_port()) > (THREAD_MAX + 1))
+	if ((tid = stdinportal_get_port()) < 0)
 		return (-1);
 
 	if (__stdinportal[tid] >= 0)
@@ -73,7 +87,7 @@ int __stdportal_cleanup(void)
 {
 	int tid;
 
-	if ((tid = stdinportal_get_port()) > (THREAD_MAX + 1))
+	if ((tid = stdinportal_get_port()) < 0)
 		return (-1);
 
 	if (__stdinportal[tid] < 0)
@@ -89,7 +103,18 @@ int stdinportal_get(void)
 {
 	int tid;
 
-	if ((tid = stdinportal_get_port()) > (THREAD_MAX + 1))
+	if ((tid = stdinportal_get_port()) < 0)
+		return (-1);
+
+	return (__stdinportal[tid]);
+}
+
+/**
+ * @todo TODO: provide a detailed description for this function.
+ */
+int stdinportal_get_specific(kthread_t tid)
+{
+	if (!WITHIN(tid, 0, STDINPORTAL_MAX))
 		return (-1);
 
 	return (__stdinportal[tid]);

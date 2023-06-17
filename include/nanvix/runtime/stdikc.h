@@ -29,6 +29,7 @@
 	#include <nanvix/sys/noc.h>
 	#include <nanvix/sys/portal.h>
 	#include <nanvix/sys/sync.h>
+	#include <nanvix/sys/thread.h>
 
 /*============================================================================*
  * Kernel Standard Synchronization Point                                      *
@@ -80,6 +81,15 @@
 	extern int stdinbox_get(void);
 
 	/**
+	 * @brief Gets the kernel standard input mailbox.
+	 *
+	 * @arg tid Thread ID.
+	 *
+	 * @return The kernel standard input mailbox.
+	 */
+	extern int stdinbox_get_specific(kthread_t tid);
+
+	/**
 	 * @brief Initializes the kernel standard mailbox facility.
 	 *
 	 * @return Upon successful completion, a non-negative number is
@@ -115,6 +125,15 @@
 	 * @return The kernel standard input portal.
 	 */
 	extern int stdinportal_get(void);
+
+	/**
+	 * @brief Gets the kernel standard input portal.
+	 *
+	 * @arg tid Thread ID.
+	 *
+	 * @return The kernel standard input portal.
+	 */
+	extern int stdinportal_get_specific(kthread_t tid);
 
 	/**
 	 * @brief Initializes the kernel standard portal facility.

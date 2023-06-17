@@ -473,11 +473,15 @@ PRIVATE struct test mutex_tests_stress[] = {
 	{ NULL,                          NULL                                             },
 };
 
+#endif  /* CORES_NUM */
+
 /**
  * @brief Mutex test laucher.
  */
 PUBLIC void test_mutex(void)
 {
+#if (CORES_NUM > 1)
+
 	/* API Tests */
 	nanvix_puts("--------------------------------------------------------------------------------");
 	for (int i = 0; mutex_tests_api[i].test_fn != NULL; i++)
@@ -501,7 +505,7 @@ PUBLIC void test_mutex(void)
 		mutex_tests_stress[i].test_fn();
 		nanvix_puts(mutex_tests_stress[i].name);
 	}
-}
 
 #endif  /* CORES_NUM */
+}
 

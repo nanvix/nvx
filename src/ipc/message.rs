@@ -72,11 +72,11 @@ pub struct SystemMessage {
     pub payload: [u8; Self::PAYLOAD_SIZE],
 }
 
-::kcall::sys::static_assert_size!(SystemMessage, Message::SIZE);
+::kcall::sys::static_assert_size!(SystemMessage, Message::PAYLOAD_SIZE);
 
 impl SystemMessage {
     /// Size of payload.
-    pub const PAYLOAD_SIZE: usize = Message::SIZE - mem::size_of::<SystemMessageHeader>();
+    pub const PAYLOAD_SIZE: usize = Message::PAYLOAD_SIZE - mem::size_of::<SystemMessageHeader>();
 
     ///
     /// # Description
@@ -109,7 +109,7 @@ impl SystemMessage {
     ///
     /// A system message.
     ///
-    pub fn from_bytes(bytes: [u8; Message::SIZE]) -> Result<Self, Error> {
+    pub fn from_bytes(bytes: [u8; Message::PAYLOAD_SIZE]) -> Result<Self, Error> {
         // Check if message header is valid.
         let _header: SystemMessageHeader = SystemMessageHeader::try_from(bytes[0])?;
 
@@ -127,7 +127,7 @@ impl SystemMessage {
     ///
     /// The corresponding byte array.
     ///
-    pub fn into_bytes(self) -> [u8; Message::SIZE] {
+    pub fn into_bytes(self) -> [u8; Message::PAYLOAD_SIZE] {
         unsafe { mem::transmute(self) }
     }
 }

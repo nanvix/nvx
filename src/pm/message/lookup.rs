@@ -249,8 +249,8 @@ pub fn lookup(name: &str) -> Result<(), Error> {
     let ipc_message: Message = Message::new(
         mypid,
         ProcessIdentifier::PROCD,
-        system_message.into_bytes(),
         MessageType::Ipc,
+        system_message.into_bytes(),
     );
 
     // Send IPC message.
@@ -293,8 +293,8 @@ pub fn lookup_response(
     let ipc_message: Message = Message::new(
         ProcessIdentifier::PROCD,
         destination,
-        system_message.into_bytes(),
         MessageType::Ipc,
+        system_message.into_bytes(),
     );
 
     // Send IPC message.

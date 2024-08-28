@@ -61,8 +61,8 @@ pub fn shutdown(destination: ProcessIdentifier, code: u8) -> Result<(), Error> {
     let ipc_message: Message = Message::new(
         ProcessIdentifier::PROCD,
         destination,
-        sys_message.into_bytes(),
         MessageType::Ipc,
+        sys_message.into_bytes(),
     );
 
     // Send IPC message.

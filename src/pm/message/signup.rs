@@ -256,7 +256,7 @@ pub fn signup(pid: ProcessIdentifier, name: &str) -> Result<(), Error> {
 
     // Construct an IPC  message.
     let ipc_message: Message =
-        Message::new(pid, ProcessIdentifier::PROCD, system_message.into_bytes(), MessageType::Ipc);
+        Message::new(pid, ProcessIdentifier::PROCD, MessageType::Ipc, system_message.into_bytes());
 
     // Send IPC message.
     ::kcall::ipc::send(&ipc_message)
@@ -299,8 +299,8 @@ pub fn signup_response(
     let ipc_message: Message = Message::new(
         ProcessIdentifier::PROCD,
         destination,
-        system_message.into_bytes(),
         MessageType::Ipc,
+        system_message.into_bytes(),
     );
 
     // Send IPC message.

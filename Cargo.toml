@@ -15,7 +15,7 @@ crate-type = ["lib"]
 
 [dependencies]
 error = { git = "https://github.com/nanvix/error", branch = "releases/v0.0.5" }
-kcall = { git = "https://github.com/nanvix/kcall", branch = "releases/v2.1.2" }
+kcall = { git = "https://github.com/nanvix/kcall", branch = "releases/v2.2.0" }
 allocator = { git = "https://github.com/nanvix/allocator", branch = "releases/v0.0.5" }
 
 [features]

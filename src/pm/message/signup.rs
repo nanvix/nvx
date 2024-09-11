@@ -19,16 +19,16 @@ use ::core::{
     ffi::CStr,
     mem,
 };
-use ::error::{
-    Error,
-    ErrorCode,
-};
 use ::kcall::{
     ipc::{
         Message,
         MessageType,
     },
     pm::ProcessIdentifier,
+    sys::error::{
+        Error,
+        ErrorCode,
+    },
 };
 
 //==================================================================================================

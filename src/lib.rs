@@ -66,7 +66,7 @@ macro_rules! log{
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     extern "Rust" {
-        fn main() -> Result<(), ::error::Error>;
+        fn main() -> Result<(), ::kcall::sys::error::Error>;
     }
 
     // Initializes the system runtime.

@@ -14,9 +14,7 @@ homepage = "https://github.com/nanvix"
 crate-type = ["lib"]
 
 [dependencies]
-error = { git = "https://github.com/nanvix/error", branch = "releases/v0.0.5" }
-kcall = { git = "https://github.com/nanvix/kcall", branch = "releases/v2.2.0" }
-slab = { git = "https://github.com/nanvix/slab", branch = "releases/v0.0.5" }
+kcall = { git = "https://github.com/nanvix/kcall", branch = "releases/v2.2.2" }
 
 [features]
 default = ["slab-allocator"]

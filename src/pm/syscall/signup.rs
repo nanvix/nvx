@@ -16,7 +16,7 @@ use crate::{
         SignupResponseMessage,
     },
 };
-use error::{
+use ::kcall::sys::error::{
     Error,
     ErrorCode,
 };

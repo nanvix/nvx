@@ -7,7 +7,7 @@
 
 use crate::ipc::SystemMessage;
 use ::core::mem;
-use ::error::{
+use ::kcall::sys::error::{
     Error,
     ErrorCode,
 };

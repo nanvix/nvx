@@ -3,7 +3,7 @@
 
 [package]
 name = "nvx"
-version = "0.2.0"
+version = "0.3.0"
 license-file = "LICENSE.txt"
 edition = "2021"
 authors = ["The Maintainers of Nanvix"]
@@ -16,7 +16,7 @@ crate-type = ["lib"]
 [dependencies]
 error = { git = "https://github.com/nanvix/error", branch = "releases/v0.0.5" }
 kcall = { git = "https://github.com/nanvix/kcall", branch = "releases/v2.2.0" }
-allocator = { git = "https://github.com/nanvix/allocator", branch = "releases/v0.0.5" }
+slab = { git = "https://github.com/nanvix/slab", branch = "releases/v0.0.5" }
 
 [features]
 default = ["slab-allocator"]

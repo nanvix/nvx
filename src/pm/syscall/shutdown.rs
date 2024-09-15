@@ -16,7 +16,7 @@ use crate::{
         ShutdownMessage,
     },
 };
-use error::Error;
+use ::kcall::sys::error::Error;
 use kcall::{
     ipc::{
         Message,

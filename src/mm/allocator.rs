@@ -13,11 +13,13 @@ use ::alloc::alloc::{
     Layout,
 };
 use ::core::ptr;
-use ::error::{
-    Error,
-    ErrorCode,
+use ::kcall::sys::{
+    collections::Slab,
+    error::{
+        Error,
+        ErrorCode,
+    },
 };
-use ::slab::Slab;
 
 //==================================================================================================
 //  Structures

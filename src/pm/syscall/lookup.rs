@@ -16,7 +16,7 @@ use crate::{
         ProcessManagementMessageHeader,
     },
 };
-use error::{
+use ::kcall::sys::error::{
     Error,
     ErrorCode,
 };

@@ -36,7 +36,7 @@ const HEAP_SIZE: usize = ::kcall::sys::constants::MEGABYTE;
 pub fn init() -> Result<(), Error> {
     #[cfg(feature = "slab-allocator")]
     {
-        use crate::mm::allocator::Heap;
+        use crate::mm::allocator;
         use ::kcall::{
             arch::mem,
             mm,
@@ -66,7 +66,7 @@ pub fn init() -> Result<(), Error> {
         }
 
         // Initialize the heap.
-        unsafe { Heap::init(start, HEAP_SIZE)? };
+        unsafe { allocator::init(start, HEAP_SIZE)? };
     }
 
     Ok(())

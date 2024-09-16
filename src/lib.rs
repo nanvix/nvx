@@ -8,7 +8,7 @@
 #![deny(clippy::all)]
 #![forbid(clippy::large_stack_frames)]
 #![forbid(clippy::large_stack_arrays)]
-#![cfg_attr(feature = "slab-allocator", feature(allocator_api))]
+#![cfg_attr(feature = "allocator", feature(allocator_api))]
 #![no_std]
 
 //==================================================================================================
@@ -22,7 +22,7 @@ mod panic;
 // Imports
 //==================================================================================================
 
-#[cfg(feature = "slab-allocator")]
+#[cfg(feature = "allocator")]
 extern crate alloc;
 
 //==================================================================================================

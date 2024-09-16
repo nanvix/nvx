@@ -5,7 +5,7 @@
 // Modules
 //==================================================================================================
 
-#[cfg(feature = "slab-allocator")]
+#[cfg(feature = "allocator")]
 mod allocator;
 
 //==================================================================================================
@@ -25,7 +25,7 @@ pub use ::kcall::mm::*;
 //==================================================================================================
 
 /// Heap size (in bytes).
-#[cfg(feature = "slab-allocator")]
+#[cfg(feature = "allocator")]
 const HEAP_SIZE: usize = ::kcall::sys::constants::MEGABYTE;
 
 //==================================================================================================
@@ -34,7 +34,7 @@ const HEAP_SIZE: usize = ::kcall::sys::constants::MEGABYTE;
 
 /// Initializes memory management runtime.
 pub fn init() -> Result<(), Error> {
-    #[cfg(feature = "slab-allocator")]
+    #[cfg(feature = "allocator")]
     {
         use crate::mm::allocator;
         use ::kcall::{
@@ -74,7 +74,7 @@ pub fn init() -> Result<(), Error> {
 
 /// Cleanups the memory management runtime.
 pub fn cleanup() -> Result<(), Error> {
-    #[cfg(feature = "slab-allocator")]
+    #[cfg(feature = "allocator")]
     {
         use ::kcall::{
             arch::mem,

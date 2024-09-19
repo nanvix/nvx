@@ -24,9 +24,9 @@ pub use ::kcall::mm::*;
 // Constants
 //==================================================================================================
 
-/// Heap size (in bytes).
+/// Heap size (in bytes). This value was chosen arbitrarily.
 #[cfg(feature = "allocator")]
-const HEAP_SIZE: usize = ::kcall::sys::constants::MEGABYTE;
+const HEAP_SIZE: usize = 4 * ::kcall::sys::constants::MEGABYTE;
 
 //==================================================================================================
 // Standalone Functions

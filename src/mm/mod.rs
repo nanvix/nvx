@@ -12,13 +12,19 @@ mod allocator;
 // Imports
 //==================================================================================================
 
-use ::kcall::sys::error::Error;
+use ::sys::error::Error;
 
 //==================================================================================================
 // Exports
 //==================================================================================================
 
-pub use ::kcall::mm::*;
+pub use ::sys::{
+    kcall::mm::{
+        mmap,
+        munmap,
+    },
+    mm::*,
+};
 
 //==================================================================================================
 // Constants
@@ -26,7 +32,7 @@ pub use ::kcall::mm::*;
 
 /// Heap size (in bytes). This value was chosen arbitrarily.
 #[cfg(feature = "allocator")]
-const HEAP_SIZE: usize = 4 * ::kcall::sys::constants::MEGABYTE;
+const HEAP_SIZE: usize = 4 * ::sys::constants::MEGABYTE;
 
 //==================================================================================================
 // Standalone Functions
@@ -37,27 +43,28 @@ pub fn init() -> Result<(), Error> {
     #[cfg(feature = "allocator")]
     {
         use crate::mm::allocator;
-        use ::kcall::{
+        use ::sys::{
             arch::mem,
-            mm,
-            pm::ProcessIdentifier,
-            sys::config::memory_layout,
+            config::memory_layout,
+            kcall::{
+                self,
+            },
+            pm::{
+                Capability,
+                ProcessIdentifier,
+            },
         };
 
         let pid: ProcessIdentifier = kcall::pm::getpid()?;
 
         // Acquire memory management capability.
-        ::kcall::pm::capctl(kcall::pm::Capability::MemoryManagement, true)?;
+        kcall::pm::capctl(Capability::MemoryManagement, true)?;
 
         // Map underlying pages for the heap.
         let start: usize = memory_layout::USER_HEAP_BASE.into_raw_value();
         let end: usize = start + HEAP_SIZE;
         for vaddr in (start..end).step_by(mem::PAGE_SIZE) {
-            ::kcall::mm::mmap(
-                pid,
-                VirtualAddress::from_raw_value(vaddr)?,
-                mm::AccessPermission::RDWR,
-            )?;
+            kcall::mm::mmap(pid, VirtualAddress::from_raw_value(vaddr)?, AccessPermission::RDWR)?;
 
             // Zero page.
             unsafe {
@@ -76,10 +83,16 @@ pub fn init() -> Result<(), Error> {
 pub fn cleanup() -> Result<(), Error> {
     #[cfg(feature = "allocator")]
     {
-        use ::kcall::{
+        use ::sys::{
             arch::mem,
-            pm::ProcessIdentifier,
-            sys::config::memory_layout,
+            config::memory_layout,
+            kcall::{
+                self,
+            },
+            pm::{
+                Capability,
+                ProcessIdentifier,
+            },
         };
 
         let pid: ProcessIdentifier = kcall::pm::getpid()?;
@@ -88,11 +101,11 @@ pub fn cleanup() -> Result<(), Error> {
         let start: usize = memory_layout::USER_HEAP_BASE.into_raw_value();
         let end: usize = start + HEAP_SIZE;
         for vaddr in (start..end).step_by(mem::PAGE_SIZE) {
-            ::kcall::mm::munmap(pid, VirtualAddress::from_raw_value(vaddr)?)?;
+            kcall::mm::munmap(pid, VirtualAddress::from_raw_value(vaddr)?)?;
         }
 
         // Release memory management capability.
-        ::kcall::pm::capctl(kcall::pm::Capability::MemoryManagement, false)?;
+        kcall::pm::capctl(Capability::MemoryManagement, false)?;
     }
     Ok(())
 }

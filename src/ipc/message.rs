@@ -6,12 +6,12 @@
 //==================================================================================================
 
 use ::core::mem;
-use ::kcall::{
-    ipc::Message,
-    sys::error::{
+use ::sys::{
+    error::{
         Error,
         ErrorCode,
     },
+    ipc::Message,
 };
 
 //==================================================================================================
@@ -74,7 +74,7 @@ pub struct SystemMessage {
     pub payload: [u8; Self::PAYLOAD_SIZE],
 }
 
-::kcall::sys::static_assert_size!(SystemMessage, Message::PAYLOAD_SIZE);
+::sys::static_assert_size!(SystemMessage, Message::PAYLOAD_SIZE);
 
 impl SystemMessage {
     /// Size of payload.

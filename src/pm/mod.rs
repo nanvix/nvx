@@ -12,19 +12,34 @@ mod syscall;
 // Exports
 //==================================================================================================
 
-pub use ::kcall::pm::*;
-pub use message::{
-    lookup_response,
-    signup_response,
-    LookupMessage,
-    ProcessManagementMessage,
-    ProcessManagementMessageHeader,
-    ShutdownMessage,
-    SignupMessage,
-    SignupResponseMessage,
+pub use self::{
+    message::{
+        lookup_response,
+        signup_response,
+        LookupMessage,
+        ProcessManagementMessage,
+        ProcessManagementMessageHeader,
+        ShutdownMessage,
+        SignupMessage,
+        SignupResponseMessage,
+    },
+    syscall::{
+        lookup,
+        shutdown,
+        signup,
+    },
 };
-pub use syscall::{
-    lookup,
-    shutdown,
-    signup,
+pub use ::sys::{
+    kcall::pm::{
+        capctl,
+        exit,
+        getegid,
+        geteuid,
+        getgid,
+        getpid,
+        gettid,
+        getuid,
+        terminate,
+    },
+    pm::*,
 };

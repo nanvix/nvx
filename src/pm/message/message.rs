@@ -7,7 +7,7 @@
 
 use crate::ipc::SystemMessage;
 use ::core::mem;
-use ::kcall::sys::error::{
+use ::sys::error::{
     Error,
     ErrorCode,
 };
@@ -81,7 +81,7 @@ pub struct ProcessManagementMessage {
 }
 
 // NOTE: the size of a process management message must match the size of a system message payload.
-::kcall::sys::static_assert_size!(ProcessManagementMessage, SystemMessage::PAYLOAD_SIZE);
+::sys::static_assert_size!(ProcessManagementMessage, SystemMessage::PAYLOAD_SIZE);
 
 impl ProcessManagementMessage {
     /// Size of payload.

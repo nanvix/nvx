@@ -11,8 +11,14 @@ mod message;
 // Exports
 //==================================================================================================
 
-pub use ::kcall::ipc::*;
-pub use message::{
+pub use self::message::{
     SystemMessage,
     SystemMessageHeader,
+};
+pub use ::sys::{
+    ipc::*,
+    kcall::ipc::{
+        recv,
+        send,
+    },
 };

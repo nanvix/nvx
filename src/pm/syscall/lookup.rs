@@ -16,11 +16,11 @@ use crate::{
         ProcessManagementMessageHeader,
     },
 };
-use ::kcall::sys::error::{
-    Error,
-    ErrorCode,
-};
-use kcall::{
+use ::sys::{
+    error::{
+        Error,
+        ErrorCode,
+    },
     ipc::{
         Message,
         MessageType,
@@ -51,7 +51,7 @@ pub fn lookup(name: &str) -> Result<ProcessIdentifier, Error> {
     crate::pm::message::lookup(name)?;
 
     // Wait response from the process manager daemon.
-    let message: Message = crate::ipc::recv()?;
+    let message: Message = ::sys::kcall::ipc::recv()?;
 
     // Parse response.
     match message.message_type {

@@ -30,7 +30,7 @@ extern crate alloc;
 //==================================================================================================
 
 /// Architecture-specific symbols.
-pub use ::kcall::arch;
+pub use ::sys::kcall::arch;
 
 /// Debug facilities.
 pub mod debug;
@@ -42,7 +42,7 @@ pub mod event;
 pub mod ipc;
 
 /// System configuration.
-pub use ::kcall::sys;
+pub use ::sys;
 
 /// Memory management kernel calls.
 pub mod mm;
@@ -66,7 +66,7 @@ macro_rules! log{
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     extern "Rust" {
-        fn main() -> Result<(), ::kcall::sys::error::Error>;
+        fn main() -> Result<(), ::sys::error::Error>;
     }
 
     // Initializes the system runtime.
@@ -82,15 +82,8 @@ pub extern "C" fn _start() -> ! {
     cleanup();
 
     // Exits the runtime.
-    if let Err(e) = ::kcall::pm::exit(status) {
-        panic!("failed to exit process manager daemon: {:?}", e);
-    }
-
-    loop {
-        unsafe {
-            ::core::hint::unreachable_unchecked();
-        }
-    }
+    let Err(e) = ::sys::kcall::pm::exit(status);
+    panic!("failed to exit process manager daemon: {:?}", e);
 }
 
 /// Initializes system runtime.

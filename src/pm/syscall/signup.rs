@@ -16,11 +16,11 @@ use crate::{
         SignupResponseMessage,
     },
 };
-use ::kcall::sys::error::{
-    Error,
-    ErrorCode,
-};
-use kcall::{
+use ::sys::{
+    error::{
+        Error,
+        ErrorCode,
+    },
     ipc::{
         Message,
         MessageType,
@@ -51,7 +51,7 @@ pub fn signup(pid: &ProcessIdentifier, name: &str) -> Result<(), Error> {
     crate::pm::message::signup(pid.clone(), &name)?;
 
     // Wait unblock message from the process manager daemon.
-    let message: Message = crate::ipc::recv()?;
+    let message: Message = ::sys::kcall::ipc::recv()?;
 
     // Parse message.
     match message.message_type {

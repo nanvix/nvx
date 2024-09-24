@@ -10,7 +10,7 @@ use ::alloc::alloc::{
     Layout,
 };
 use ::core::ptr;
-use ::kcall::sys::error::{
+use ::sys::error::{
     Error,
     ErrorCode,
 };

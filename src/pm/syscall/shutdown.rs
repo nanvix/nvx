@@ -16,8 +16,8 @@ use crate::{
         ShutdownMessage,
     },
 };
-use ::kcall::sys::error::Error;
-use kcall::{
+use ::sys::{
+    error::Error,
     ipc::{
         Message,
         MessageType,
@@ -66,5 +66,5 @@ pub fn shutdown(destination: ProcessIdentifier, code: u8) -> Result<(), Error> {
     );
 
     // Send IPC message.
-    ::kcall::ipc::send(&ipc_message)
+    ::sys::kcall::ipc::send(&ipc_message)
 }

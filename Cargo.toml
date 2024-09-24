@@ -14,7 +14,9 @@ homepage = "https://github.com/nanvix"
 crate-type = ["lib"]
 
 [dependencies]
-kcall = { git = "https://github.com/nanvix/kcall", branch = "releases/v2.3.1" }
+kernel = { git = "https://github.com/nanvix/kernel", branch = "releases/v0.7.0", features = [
+    "kcall",
+] }
 talc = "4.4.1"
 spin = "0.9.8"
 

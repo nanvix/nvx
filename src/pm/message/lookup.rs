@@ -19,16 +19,16 @@ use ::core::{
     ffi::CStr,
     mem,
 };
-use ::kcall::{
+use ::sys::{
+    error::{
+        Error,
+        ErrorCode,
+    },
     ipc::{
         Message,
         MessageType,
     },
     pm::ProcessIdentifier,
-    sys::error::{
-        Error,
-        ErrorCode,
-    },
 };
 
 //==================================================================================================
@@ -48,7 +48,7 @@ pub struct LookupMessage {
 }
 
 // NOTE: The size of a lookup message must match the size of a process management message payload.
-::kcall::sys::static_assert_size!(LookupMessage, ProcessManagementMessage::PAYLOAD_SIZE);
+::sys::static_assert_size!(LookupMessage, ProcessManagementMessage::PAYLOAD_SIZE);
 
 ///
 /// # Description
@@ -64,7 +64,7 @@ pub struct LookupResponseMessage {
 }
 
 // NOTE: The size of a lookup response message must match the size of a process management message payload.
-::kcall::sys::static_assert_size!(LookupResponseMessage, ProcessManagementMessage::PAYLOAD_SIZE);
+::sys::static_assert_size!(LookupResponseMessage, ProcessManagementMessage::PAYLOAD_SIZE);
 
 //==================================================================================================
 // Implementations
@@ -239,7 +239,7 @@ pub fn lookup(name: &str) -> Result<(), Error> {
     );
 
     // FIXME: this should not be required.
-    let mypid = ::kcall::pm::getpid()?;
+    let mypid = ::sys::kcall::pm::getpid()?;
 
     // Construct a system message.
     let system_message: SystemMessage =
@@ -254,7 +254,7 @@ pub fn lookup(name: &str) -> Result<(), Error> {
     );
 
     // Send IPC message.
-    ::kcall::ipc::send(&ipc_message)
+    ::sys::kcall::ipc::send(&ipc_message)
 }
 
 ///
@@ -298,5 +298,5 @@ pub fn lookup_response(
     );
 
     // Send IPC message.
-    ::kcall::ipc::send(&ipc_message)
+    ::sys::kcall::ipc::send(&ipc_message)
 }

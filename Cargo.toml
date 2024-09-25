@@ -3,7 +3,7 @@
 
 [package]
 name = "nvx"
-version = "0.4.3"
+version = "0.4.4"
 license-file = "LICENSE.txt"
 edition = "2021"
 authors = ["The Maintainers of Nanvix"]
@@ -14,7 +14,7 @@ homepage = "https://github.com/nanvix"
 crate-type = ["lib"]
 
 [dependencies]
-kernel = { git = "https://github.com/nanvix/kernel", branch = "releases/v0.7.0", features = [
+kernel = { git = "https://github.com/nanvix/kernel", branch = "releases/v0.7.1", features = [
     "kcall",
 ] }
 talc = "4.4.1"
